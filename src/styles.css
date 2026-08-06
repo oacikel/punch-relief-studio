@@ -1,0 +1,253 @@
+/* Punch Relief Studio -- calm, tactile, workshop-inspired visual language.
+   Kept as one plain stylesheet (no CSS-in-JS dependency) per "keep
+   dependencies modest". */
+
+:root {
+  --color-bg: #f6f1e7;
+  --color-surface: #ffffff;
+  --color-ink: #2b2620;
+  --color-ink-muted: #6b6255;
+  --color-accent: #b5563c;
+  --color-accent-ink: #ffffff;
+  --color-border: #ddd3c0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  --radius: 6px;
+  --focus-ring: 3px solid #2f6fb3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family:
+    'Iowan Old Style', 'Palatino Linotype', Georgia, 'Segoe UI', system-ui, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+}
+
+button:hover {
+  border-color: var(--color-accent);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+.app-header {
+  grid-column: 1 / -1;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.app-header h1 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.app-header p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: 0.9rem;
+}
+
+.stage-nav {
+  padding: var(--space-4) var(--space-3);
+  border-right: 1px solid var(--color-border);
+}
+
+.stage-nav ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.stage-nav button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: var(--space-2) var(--space-3);
+}
+
+.stage-nav button[aria-current='step'] {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  border-radius: var(--radius);
+}
+
+.stage-nav button:disabled {
+  color: var(--color-ink-muted);
+  cursor: not-allowed;
+}
+
+.stage-panel {
+  padding: var(--space-4);
+  max-width: 960px;
+}
+
+.stage-panel h2 {
+  margin-top: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  max-width: 420px;
+}
+
+.field label {
+  font-size: 0.85rem;
+  color: var(--color-ink-muted);
+}
+
+.helper-text {
+  font-size: 0.85rem;
+  color: var(--color-ink-muted);
+}
+
+.warning-banner {
+  background: #fbe9dd;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.legend-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.legend-table th,
+.legend-table td {
+  border: 1px solid var(--color-border);
+  padding: var(--space-2);
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.swatch {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border-radius: 2px;
+  border: 1px solid var(--color-border);
+  vertical-align: middle;
+  margin-right: var(--space-1);
+}
+
+.error-boundary {
+  padding: var(--space-5);
+  max-width: 640px;
+  margin: var(--space-5) auto;
+}
+
+.error-boundary__detail {
+  font-family: ui-monospace, monospace;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+}
+
+.viewport-container {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #1c1b19;
+  border-radius: var(--radius);
+  position: relative;
+}
+
+.simulation-label {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media print {
+  .app-header,
+  .stage-nav,
+  button {
+    display: none !important;
+  }
+  .stage-panel {
+    max-width: none;
+  }
+}
+
+@page {
+  margin: 1cm;
+}
