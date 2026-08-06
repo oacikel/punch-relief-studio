@@ -253,11 +253,7 @@ export default function App(): JSX.Element {
             </>
           )}
 
-          {workflow.currentStage === 'orient' && (
-            <OrientStage>
-              <Viewport3D geometry={geometry} onReady={(h) => (viewportHandle.current = h)} />
-            </OrientStage>
-          )}
+          {workflow.currentStage === 'orient' && <OrientStage />}
 
           {workflow.currentStage === 'relief' && (
             <ReliefStage
@@ -266,9 +262,16 @@ export default function App(): JSX.Element {
               onGenerate={() => void handleGenerateRelief()}
               processing={state.processing}
               error={state.processingError}
-            >
+            />
+          )}
+
+          {/* Rendered once, unconditionally, for both stages that need it, so the
+              orientation chosen on "Orient" survives navigating on to "Create
+              relief" instead of resetting to the default camera on remount. */}
+          {(workflow.currentStage === 'orient' || workflow.currentStage === 'relief') && (
+            <div className="stage-panel">
               <Viewport3D geometry={geometry} onReady={(h) => (viewportHandle.current = h)} />
-            </ReliefStage>
+            </div>
           )}
 
           {workflow.currentStage === 'height' && state.processed && (

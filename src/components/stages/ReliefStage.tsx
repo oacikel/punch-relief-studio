@@ -6,24 +6,23 @@ interface Props {
   onGenerate: () => void;
   processing: boolean;
   error: string | null;
-  children: React.ReactNode;
 }
 
-/** Relief stage: all the depth-processing controls from product spec §8,
- * plus the shared viewport (passed as children) so the user can re-orient
- * without losing these settings. */
+/** Relief stage: all the depth-processing controls from product spec §8.
+ * The 3D viewport is rendered by the parent (App) as the same persistent
+ * instance shared with the Orient stage, so re-orienting here doesn't lose
+ * these settings and the orientation chosen on the Orient stage isn't lost
+ * either. */
 export function ReliefStage({
   settings,
   onChange,
   onGenerate,
   processing,
   error,
-  children,
 }: Props): JSX.Element {
   return (
     <section className="stage-panel" aria-labelledby="relief-heading">
       <h2 id="relief-heading">Create the relief</h2>
-      {children}
 
       <div className="field">
         <label htmlFor="levels">Height levels ({settings.levels})</label>
