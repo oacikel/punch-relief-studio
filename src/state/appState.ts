@@ -104,7 +104,11 @@ export function resizeSwatches(swatches: ColorSwatch[], count: number): ColorSwa
   const next: ColorSwatch[] = [];
   for (let i = 0; i < count; i++) {
     const existing = swatches[i];
-    next.push(existing ? { ...existing, index: i } : { index: i, color: defaultColorForIndex(i), yarnName: `Yarn ${i + 1}` });
+    next.push(
+      existing
+        ? { ...existing, index: i }
+        : { index: i, color: defaultColorForIndex(i), yarnName: `Yarn ${i + 1}` },
+    );
   }
   return next;
 }
@@ -170,8 +174,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // by-height swatches in sync with it immediately, not just on the
       // next explicit mode change.
       const swatches =
-        state.colorMode === 'by-height' ? resizeSwatches(state.swatches, action.result.levels.length) : state.swatches;
-      return { ...state, processing: false, processed: action.result, processingError: null, swatches };
+        state.colorMode === 'by-height'
+          ? resizeSwatches(state.swatches, action.result.levels.length)
+          : state.swatches;
+      return {
+        ...state,
+        processing: false,
+        processed: action.result,
+        processingError: null,
+        swatches,
+      };
     }
     case 'PROCESSING_FAILED':
       return { ...state, processing: false, processingError: action.message };

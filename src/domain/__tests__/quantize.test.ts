@@ -26,7 +26,9 @@ describe('computeLevelBounds', () => {
     expect((bounds[0] as HeightLevel).lowerBound).toBeCloseTo(0);
     expect((bounds[3] as HeightLevel).upperBound).toBeCloseTo(1);
     for (let i = 1; i < bounds.length; i++) {
-      expect((bounds[i] as HeightLevel).lowerBound).toBeGreaterThan((bounds[i - 1] as HeightLevel).lowerBound);
+      expect((bounds[i] as HeightLevel).lowerBound).toBeGreaterThan(
+        (bounds[i - 1] as HeightLevel).lowerBound,
+      );
     }
   });
 
@@ -45,7 +47,9 @@ describe('computeLevelBounds', () => {
     const bounds = computeLevelBounds(3, 'quantile', f, m);
     expect(bounds).toHaveLength(3);
     for (let i = 1; i < bounds.length; i++) {
-      expect((bounds[i] as HeightLevel).lowerBound).toBeGreaterThan((bounds[i - 1] as HeightLevel).lowerBound);
+      expect((bounds[i] as HeightLevel).lowerBound).toBeGreaterThan(
+        (bounds[i - 1] as HeightLevel).lowerBound,
+      );
     }
   });
 
@@ -59,7 +63,10 @@ describe('computeLevelBounds', () => {
       // The previous band's upper bound must exactly meet the next band's
       // lower bound -- any gap would cause levelIndexForValue to silently
       // fall through to the top level for values inside it.
-      expect((bounds[i - 1] as HeightLevel).upperBound).toBeCloseTo((bounds[i] as HeightLevel).lowerBound, 9);
+      expect((bounds[i - 1] as HeightLevel).upperBound).toBeCloseTo(
+        (bounds[i] as HeightLevel).lowerBound,
+        9,
+      );
     }
   });
 });

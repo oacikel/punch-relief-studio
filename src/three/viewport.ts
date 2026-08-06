@@ -23,7 +23,10 @@ export function directionForStandardView(view: StandardView): THREE.Vector3 {
 
 /** Center a geometry on its own bounding-box centroid and return the
  * (pre-centering) size, so callers can normalize scale deterministically. */
-export function centerAndMeasure(geometry: THREE.BufferGeometry): { size: THREE.Vector3; radius: number } {
+export function centerAndMeasure(geometry: THREE.BufferGeometry): {
+  size: THREE.Vector3;
+  radius: number;
+} {
   geometry.computeBoundingBox();
   const box = geometry.boundingBox as THREE.Box3;
   const center = box.getCenter(new THREE.Vector3());
@@ -64,7 +67,11 @@ export function fitOrthographicCamera(
   camera.updateProjectionMatrix();
 }
 
-export function applyStandardView(camera: THREE.Camera, view: StandardView, distance: number): void {
+export function applyStandardView(
+  camera: THREE.Camera,
+  view: StandardView,
+  distance: number,
+): void {
   const dir = directionForStandardView(view).multiplyScalar(distance);
   camera.position.copy(dir);
   camera.lookAt(0, 0, 0);

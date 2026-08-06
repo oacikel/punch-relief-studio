@@ -58,7 +58,9 @@ export function SimulationView({
     const az = THREE.MathUtils.degToRad(renderSettings.lightingAzimuthDeg);
     const el = THREE.MathUtils.degToRad(renderSettings.lightingElevationDeg);
     const light = new THREE.DirectionalLight(0xfff2e0, 1.3);
-    light.position.set(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el)).multiplyScalar(maxSpan);
+    light.position
+      .set(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el))
+      .multiplyScalar(maxSpan);
     scene.add(light);
     scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
@@ -100,7 +102,12 @@ export function SimulationView({
 
   return (
     <div style={{ position: 'relative' }}>
-      <div className="viewport-container" ref={containerRef} role="img" aria-label="Finished-piece simulation" />
+      <div
+        className="viewport-container"
+        ref={containerRef}
+        role="img"
+        aria-label="Finished-piece simulation"
+      />
       <span className="simulation-label">Simulation -- not a photo</span>
     </div>
   );

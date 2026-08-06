@@ -65,7 +65,8 @@ export default function App(): JSX.Element {
         result.object.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             const pos = child.geometry.getAttribute('position');
-            for (let i = 0; i < pos.count; i++) positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
+            for (let i = 0; i < pos.count; i++)
+              positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
           }
         });
         merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -88,7 +89,10 @@ export default function App(): JSX.Element {
     if (!handle) return;
     dispatch({ type: 'PROCESSING_STARTED' });
     try {
-      const captured = handle.capture(state.reliefSettings.outputResolutionPx, state.colorMode === 'source-material');
+      const captured = handle.capture(
+        state.reliefSettings.outputResolutionPx,
+        state.colorMode === 'source-material',
+      );
       if (!captured) throw new Error('Nothing to capture yet -- load a model first.');
       // exactOptionalPropertyTypes forbids `color: undefined` -- omit the
       // key entirely rather than assigning an undefined value to it.
@@ -99,7 +103,14 @@ export default function App(): JSX.Element {
         emptyValue: captured.emptyValue,
         settings: state.reliefSettings,
         ...(captured.color && state.colorMode === 'source-material'
-          ? { color: { data: captured.color, channels: 4 as const, paletteSize: state.paletteSize, seed: state.reliefSettings.seed } }
+          ? {
+              color: {
+                data: captured.color,
+                channels: 4 as const,
+                paletteSize: state.paletteSize,
+                seed: state.reliefSettings.seed,
+              },
+            }
           : {}),
       });
       dispatch({
@@ -114,7 +125,10 @@ export default function App(): JSX.Element {
       });
       dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'height' });
     } catch (err) {
-      dispatch({ type: 'PROCESSING_FAILED', message: err instanceof Error ? err.message : String(err) });
+      dispatch({
+        type: 'PROCESSING_FAILED',
+        message: err instanceof Error ? err.message : String(err),
+      });
     }
   };
 
@@ -135,7 +149,9 @@ export default function App(): JSX.Element {
           : state.colorMode === 'single'
             ? assignSingleColor(
                 state.processed.heightIndex.length,
-                Uint8Array.from(Array.from(state.processed.heightIndex).map((v) => (v >= 0 ? 1 : 0))),
+                Uint8Array.from(
+                  Array.from(state.processed.heightIndex).map((v) => (v >= 0 ? 1 : 0)),
+                ),
                 state.swatches[0]?.color ?? DEFAULT_SINGLE_COLOR,
                 state.swatches[0]?.yarnName,
               ).colorIndex
@@ -158,8 +174,14 @@ export default function App(): JSX.Element {
       // there's no value, rather than setting them to undefined.
       sourceModel:
         state.sourceKind === 'built-in-sample'
-          ? { kind: 'built-in-sample' as const, ...(state.sampleId ? { sampleId: state.sampleId } : {}) }
-          : { kind: 'user-file' as const, ...(state.sourceFilename ? { originalFilename: state.sourceFilename } : {}) },
+          ? {
+              kind: 'built-in-sample' as const,
+              ...(state.sampleId ? { sampleId: state.sampleId } : {}),
+            }
+          : {
+              kind: 'user-file' as const,
+              ...(state.sourceFilename ? { originalFilename: state.sourceFilename } : {}),
+            },
       patternDimensions: state.patternDimensions,
       projection: { viewpoint: 'front', cameraQuaternion: [0, 0, 0, 1], orthographic: true },
       reliefSettings: state.reliefSettings,
@@ -169,7 +191,10 @@ export default function App(): JSX.Element {
       },
       colorMode: state.colorMode,
       colorMapping: {
-        swatchColorsHex: state.swatches.map((s) => `#${s.color.r.toString(16).padStart(2, '0')}${s.color.g.toString(16).padStart(2, '0')}${s.color.b.toString(16).padStart(2, '0')}`),
+        swatchColorsHex: state.swatches.map(
+          (s) =>
+            `#${s.color.r.toString(16).padStart(2, '0')}${s.color.g.toString(16).padStart(2, '0')}${s.color.b.toString(16).padStart(2, '0')}`,
+        ),
         yarnNames: state.swatches.map((s) => s.yarnName),
       },
       calibrationProfile: state.calibrationProfile,
@@ -216,7 +241,10 @@ export default function App(): JSX.Element {
         <main>
           {workflow.currentStage === 'import' && (
             <>
-              <ImportStage onSelectSample={handleSelectSample} onFilesSelected={(files) => void handleFilesSelected(files)} />
+              <ImportStage
+                onSelectSample={handleSelectSample}
+                onFilesSelected={(files) => void handleFilesSelected(files)}
+              />
               {importWarning && (
                 <p role="alert" className="warning-banner" style={{ margin: '0 24px' }}>
                   {importWarning}
@@ -275,7 +303,9 @@ export default function App(): JSX.Element {
               profile={state.calibrationProfile}
               dimensions={state.patternDimensions}
               renderSettings={state.renderSettings}
-              onRenderSettingsChange={(patch) => dispatch({ type: 'SET_RENDER_SETTINGS', settings: patch })}
+              onRenderSettingsChange={(patch) =>
+                dispatch({ type: 'SET_RENDER_SETTINGS', settings: patch })
+              }
             />
           )}
 
@@ -284,17 +314,25 @@ export default function App(): JSX.Element {
               regionMap={regionMap}
               legend={legend}
               dimensions={state.patternDimensions}
-              onDimensionsChange={(patch) => dispatch({ type: 'SET_PATTERN_DIMENSIONS', dimensions: patch })}
+              onDimensionsChange={(patch) =>
+                dispatch({ type: 'SET_PATTERN_DIMENSIONS', dimensions: patch })
+              }
               exportSettings={state.exportSettings}
-              onExportSettingsChange={(patch) => dispatch({ type: 'SET_EXPORT_SETTINGS', settings: patch })}
+              onExportSettingsChange={(patch) =>
+                dispatch({ type: 'SET_EXPORT_SETTINGS', settings: patch })
+              }
               calibrationProfile={state.calibrationProfile}
               savedProfiles={state.savedProfiles}
-              onCalibrationChange={(profile) => dispatch({ type: 'SET_CALIBRATION_PROFILE', profile })}
+              onCalibrationChange={(profile) =>
+                dispatch({ type: 'SET_CALIBRATION_PROFILE', profile })
+              }
               onCalibrationSave={(profile) => {
                 const profiles = upsertProfile(profile);
                 dispatch({ type: 'SET_SAVED_PROFILES', profiles });
               }}
-              onCalibrationSelect={(profile) => dispatch({ type: 'SET_CALIBRATION_PROFILE', profile })}
+              onCalibrationSelect={(profile) =>
+                dispatch({ type: 'SET_CALIBRATION_PROFILE', profile })
+              }
               onSaveProjectJson={handleSaveProjectJson}
               onLoadProjectJson={handleLoadProjectJson}
             />

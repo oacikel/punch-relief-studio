@@ -75,9 +75,22 @@ export function computeTiling(
   }
 
   // Single-page fast path: fits with no tiling needed.
-  if (pageSize === 'actual-size' || (patternWidthCm <= printableWidthCm && patternHeightCm <= printableHeightCm)) {
+  if (
+    pageSize === 'actual-size' ||
+    (patternWidthCm <= printableWidthCm && patternHeightCm <= printableHeightCm)
+  ) {
     return {
-      pages: [{ row: 0, col: 0, x0Cm: 0, y0Cm: 0, x1Cm: patternWidthCm, y1Cm: patternHeightCm, pageNumber: 1 }],
+      pages: [
+        {
+          row: 0,
+          col: 0,
+          x0Cm: 0,
+          y0Cm: 0,
+          x1Cm: patternWidthCm,
+          y1Cm: patternHeightCm,
+          pageNumber: 1,
+        },
+      ],
       rows: 1,
       cols: 1,
       printableWidthCm,
@@ -98,7 +111,15 @@ export function computeTiling(
       const y0 = r * strideY;
       const x1 = Math.min(patternWidthCm, x0 + printableWidthCm);
       const y1 = Math.min(patternHeightCm, y0 + printableHeightCm);
-      pages.push({ row: r, col: c, x0Cm: x0, y0Cm: y0, x1Cm: x1, y1Cm: y1, pageNumber: pageNumber++ });
+      pages.push({
+        row: r,
+        col: c,
+        x0Cm: x0,
+        y0Cm: y0,
+        x1Cm: x1,
+        y1Cm: y1,
+        pageNumber: pageNumber++,
+      });
     }
   }
   return { pages, rows, cols, printableWidthCm, printableHeightCm };

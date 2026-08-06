@@ -4,7 +4,11 @@
  * call `process(...)` and await a typed result.
  */
 import { useCallback, useEffect, useRef } from 'react';
-import type { ProcessErrorResponse, ProcessRequest, ProcessResponse } from '@/workers/processing.worker';
+import type {
+  ProcessErrorResponse,
+  ProcessRequest,
+  ProcessResponse,
+} from '@/workers/processing.worker';
 import type { ReliefSettings } from '@/domain/types';
 
 export interface ProcessArgs {
@@ -20,10 +24,14 @@ export function useProcessingWorker(): {
   process: (args: ProcessArgs) => Promise<ProcessResponse>;
 } {
   const workerRef = useRef<Worker | null>(null);
-  const pending = useRef(new Map<string, { resolve: (r: ProcessResponse) => void; reject: (e: Error) => void }>());
+  const pending = useRef(
+    new Map<string, { resolve: (r: ProcessResponse) => void; reject: (e: Error) => void }>(),
+  );
 
   useEffect(() => {
-    const worker = new Worker(new URL('../workers/processing.worker.ts', import.meta.url), { type: 'module' });
+    const worker = new Worker(new URL('../workers/processing.worker.ts', import.meta.url), {
+      type: 'module',
+    });
     worker.onmessage = (event: MessageEvent<ProcessResponse | ProcessErrorResponse>) => {
       const msg = event.data;
       const entry = pending.current.get(msg.requestId);

@@ -24,7 +24,9 @@ describe('localOnlyManager URL resolution (security)', () => {
   it('throws for a remote http(s) URL instead of resolving it', () => {
     const { map } = buildLocalAssetMap([]);
     const manager = localOnlyManager(map);
-    expect(() => manager.resolveURL('https://example.com/texture.jpg')).toThrow(RemoteAssetBlockedError);
+    expect(() => manager.resolveURL('https://example.com/texture.jpg')).toThrow(
+      RemoteAssetBlockedError,
+    );
   });
 
   it('throws for a filename that was not supplied by the user', () => {

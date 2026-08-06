@@ -77,7 +77,11 @@ export function buildSvgPattern(
   return { svg, widthCm: options.widthCm, heightCm: options.heightCm, pxPerCm };
 }
 
-function fillForView(view: PatternView, entry: LegendEntry | undefined, heightIndex: number): string {
+function fillForView(
+  view: PatternView,
+  entry: LegendEntry | undefined,
+  heightIndex: number,
+): string {
   if (view === 'height-only') {
     // Grayscale ramp by height so it reads without color.
     const shade = Math.round((heightIndex / 7) * 200 + 30);
@@ -90,10 +94,14 @@ function fillForView(view: PatternView, entry: LegendEntry | undefined, heightIn
 function buildGrid(widthPx: number, heightPx: number, pxPerCm: number): string {
   const lines: string[] = [];
   for (let x = 0; x <= widthPx; x += pxPerCm) {
-    lines.push(`<line x1="${x}" y1="0" x2="${x}" y2="${heightPx}" stroke="#00000022" stroke-width="0.5" />`);
+    lines.push(
+      `<line x1="${x}" y1="0" x2="${x}" y2="${heightPx}" stroke="#00000022" stroke-width="0.5" />`,
+    );
   }
   for (let y = 0; y <= heightPx; y += pxPerCm) {
-    lines.push(`<line x1="0" y1="${y}" x2="${widthPx}" y2="${y}" stroke="#00000022" stroke-width="0.5" />`);
+    lines.push(
+      `<line x1="0" y1="${y}" x2="${widthPx}" y2="${y}" stroke="#00000022" stroke-width="0.5" />`,
+    );
   }
   return `<g data-layer="grid">${lines.join('')}</g>`;
 }

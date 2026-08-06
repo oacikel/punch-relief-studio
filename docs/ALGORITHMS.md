@@ -7,7 +7,7 @@ The selected orthographic camera renders the mesh with an override
 between `camera.near`/`camera.far`) into the color channel of a float
 render target. A pixel with alpha 0 after the pass never received a
 fragment -- that's the background/foreground mask, for free, from the
-GPU's own depth test (which already guarantees the *nearest* fragment wins
+GPU's own depth test (which already guarantees the _nearest_ fragment wins
 per pixel, so occluded back-surfaces can never leak through). See
 `src/three/depthCapture.ts`.
 
@@ -15,7 +15,7 @@ per pixel, so occluded back-surfaces can never leak through). See
 
 1. **Foreground mask** -- `buildForegroundMask`: any pixel where the raw
    depth capture isn't the empty sentinel and is finite.
-2. **Normalize** -- `normalizeDepth`: min/max computed *only* over
+2. **Normalize** -- `normalizeDepth`: min/max computed _only_ over
    foreground pixels (so background never skews the range), mapped so
    nearer-to-camera (smaller raw depth) becomes closer to 1.0.
 3. **Invert** -- `invertRelief`: optional `1 - v` flip for near-to-low
@@ -43,7 +43,7 @@ bound is inclusive of 1.0):
   `dedupeMonotonic`.
 
 Boundary rule (`levelIndexForValue`): a value on an interior boundary
-belongs to the *upper* band; the very top value (1.0) belongs to the
+belongs to the _upper_ band; the very top value (1.0) belongs to the
 highest band even with floating-point rounding.
 
 ## Region cleanup (`src/domain/regionCleanup.ts`)
@@ -73,7 +73,7 @@ A profile's needle settings are user-entered; `mapHeightLevelToSetting`
 distributes N generated height levels across M needle settings by linear
 interpolation of index ratios (`round(ratio * (M-1))`), so level count and
 setting count don't have to match. A profile is "calibrated" the moment
-*any* setting has a non-null measured height; until then, every needle
+_any_ setting has a non-null measured height; until then, every needle
 setting shown anywhere in the UI is labeled "uncalibrated" rather than
 implying a real millimetre value (product constraint, see CLAUDE.md).
 

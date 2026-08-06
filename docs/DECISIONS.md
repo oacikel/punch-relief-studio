@@ -8,7 +8,7 @@ Format: decision, alternatives considered, why.
 **Alternative:** R3F for declarative scene graphs.
 **Why:** the app has exactly two Three.js scenes (viewport, simulation),
 each with a small, mostly-static set of objects. R3F's value is managing
-*many* dynamic objects declaratively; here it would add a dependency
+_many_ dynamic objects declaratively; here it would add a dependency
 without simplifying anything (decision rule: prefer the simplest
 architecture that satisfies the acceptance criteria).
 
@@ -46,7 +46,7 @@ unmatched filenames). See `src/domain/import/objLoader.ts`.
 **Alternative:** trust Three.js's default manager and rely on browser CORS
 to prevent remote fetches.
 **Why:** CORS failures are not the same as "never attempted" -- a default
-manager still *tries* to fetch, which is both a privacy leak (reveals the
+manager still _tries_ to fetch, which is both a privacy leak (reveals the
 user's IP/activity to a third party referenced in someone else's file) and
 against the product's local-only privacy requirement. Raised as a blocking
 issue in the plan review (docs/PLAN_REVIEW.md) and resolved this way before
@@ -54,7 +54,7 @@ implementation.
 
 ## Worker-based processing
 
-**Decision:** the height pipeline *and* color quantization both run inside
+**Decision:** the height pipeline _and_ color quantization both run inside
 `processing.worker.ts`, off the main thread.
 **Alternative:** run color quantization on the main thread since it's
 triggered less often.

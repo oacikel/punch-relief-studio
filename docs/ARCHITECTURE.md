@@ -24,7 +24,7 @@ of it is still testable), `buildReliefMesh.ts` (simulation geometry from a
 processed `RegionMap`), `sampleAdapter.ts` (converts domain `MeshData` to
 `THREE.BufferGeometry`). `src/domain/import/{stlLoader,objLoader}.ts` also
 live partly here conceptually (they wrap Three.js loaders) but are kept
-under `domain/import` because their *contract* -- validated file in,
+under `domain/import` because their _contract_ -- validated file in,
 geometry or a typed error out -- is what the rest of the app depends on.
 
 `src/workers/processing.worker.ts` -- the only place the height/color
@@ -58,7 +58,7 @@ buffers --`postMessage`--> `processing.worker.ts` --domain functions in
 sequence (mask -> normalize -> invert -> intensity -> smooth -> quantize ->
 cleanup [-> color quantize -> cleanup])--> `RegionMap` --`postMessage`
 back--> `App.tsx` state --> `PatternCanvas` / `SimulationView` /
-`Legend`, all rendering from the *same* `RegionMap` + `LegendEntry[]`, so
+`Legend`, all rendering from the _same_ `RegionMap` + `LegendEntry[]`, so
 the pattern, the simulation, and the legend can never disagree with each
 other about what a region is.
 

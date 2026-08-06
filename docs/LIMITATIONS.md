@@ -28,7 +28,7 @@
   edges -- not a true bilateral filter.
 - **OBJ merge for the 3D preview flattens sub-meshes** into one buffer
   geometry without preserving per-face material assignment for the
-  *viewport preview specifically* (source-material color capture, which is
+  _viewport preview specifically_ (source-material color capture, which is
   what the color pipeline actually uses, samples the rendered scene's real
   materials, not this merged preview mesh).
 - **No axe-core automated accessibility run has been executed** in this

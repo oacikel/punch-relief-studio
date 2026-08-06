@@ -140,12 +140,7 @@ export function quantizeColors(
   return { palette, assignment };
 }
 
-function farthestPointSeed(
-  labs: LabColor[],
-  indices: number[],
-  k: number,
-  rng: Rng,
-): LabColor[] {
+function farthestPointSeed(labs: LabColor[], indices: number[], k: number, rng: Rng): LabColor[] {
   const first = indices[rng.nextInt(indices.length)] as number;
   const chosen: LabColor[] = [labs[first] as LabColor];
   const chosenSet = new Set<number>([first]);

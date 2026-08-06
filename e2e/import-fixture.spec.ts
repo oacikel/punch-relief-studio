@@ -14,5 +14,7 @@ test('imports a local STL fixture via the file picker', async ({ page }) => {
   await page.goto('/');
   const fileInput = page.getByLabel('Choose model files to import');
   await fileInput.setInputFiles(path.join(here, 'fixtures', 'cube.stl'));
-  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible({
+    timeout: 10_000,
+  });
 });

@@ -43,10 +43,7 @@ export class NoForegroundPixelsError extends Error {
  * is assumed (standard camera-space convention); output 1.0 = nearest by
  * default (inversion handled separately by `invertRelief`).
  */
-export function normalizeDepth(
-  depth: Float32Array,
-  mask: Mask,
-): ScalarField {
+export function normalizeDepth(depth: Float32Array, mask: Mask): ScalarField {
   let min = Infinity;
   let max = -Infinity;
   let any = false;
@@ -138,7 +135,9 @@ export function smoothRelief(
       const gradient = localGradient(field, mask, x, y);
       // Near a strong edge, keep more of the original value.
       const blend = gradient > edgeThreshold ? s * 0.35 : s;
-      data[i] = clamp01((field.data[i] as number) * (1 - blend) + (blurred.data[i] as number) * blend);
+      data[i] = clamp01(
+        (field.data[i] as number) * (1 - blend) + (blurred.data[i] as number) * blend,
+      );
     }
   }
   return { width: field.width, height: field.height, data };

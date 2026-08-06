@@ -26,7 +26,10 @@ describe('validateProfile', () => {
 
   it('flags duplicate setting numbers', () => {
     const profile = createDefaultProfile();
-    profile.settings[1] = { ...(profile.settings[1] as NeedleSetting), settingNumber: (profile.settings[0] as NeedleSetting).settingNumber };
+    profile.settings[1] = {
+      ...(profile.settings[1] as NeedleSetting),
+      settingNumber: (profile.settings[0] as NeedleSetting).settingNumber,
+    };
     expect(validateProfile(profile).some((e) => e.message.includes('Duplicate'))).toBe(true);
   });
 

@@ -29,7 +29,7 @@ export function createRng(seed: number): Rng {
     },
     nextInt(maxExclusive: number): number {
       if (maxExclusive <= 0) throw new Error('maxExclusive must be positive');
-      return Math.floor(nextUint32() / 0xffffffff * maxExclusive) % maxExclusive;
+      return Math.floor((nextUint32() / 0xffffffff) * maxExclusive) % maxExclusive;
     },
   };
 }

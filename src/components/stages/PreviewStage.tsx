@@ -51,11 +51,20 @@ export function PreviewStage({
             ))}
           </div>
           <label>
-            <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} /> Grid
+            <input
+              type="checkbox"
+              checked={showGrid}
+              onChange={(e) => setShowGrid(e.target.checked)}
+            />{' '}
+            Grid
           </label>{' '}
           <label>
-            <input type="checkbox" checked={mirrored} onChange={(e) => setMirrored(e.target.checked)} /> Mirrored
-            (back side)
+            <input
+              type="checkbox"
+              checked={mirrored}
+              onChange={(e) => setMirrored(e.target.checked)}
+            />{' '}
+            Mirrored (back side)
           </label>
           <PatternCanvas
             regionMap={regionMap}
@@ -74,7 +83,9 @@ export function PreviewStage({
             <select
               id="pile-style"
               value={renderSettings.pileStyle}
-              onChange={(e) => onRenderSettingsChange({ pileStyle: e.target.value as RenderSettings['pileStyle'] })}
+              onChange={(e) =>
+                onRenderSettingsChange({ pileStyle: e.target.value as RenderSettings['pileStyle'] })
+              }
             >
               <option value="loop">Loop pile</option>
               <option value="cut">Cut pile</option>
@@ -88,7 +99,9 @@ export function PreviewStage({
               min={0}
               max={360}
               value={renderSettings.lightingAzimuthDeg}
-              onChange={(e) => onRenderSettingsChange({ lightingAzimuthDeg: Number(e.target.value) })}
+              onChange={(e) =>
+                onRenderSettingsChange({ lightingAzimuthDeg: Number(e.target.value) })
+              }
             />
           </div>
           <SimulationView

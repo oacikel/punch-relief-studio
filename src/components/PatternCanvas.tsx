@@ -20,9 +20,25 @@ interface Props {
  * this SVG is entirely app-generated from numeric data and never contains
  * user-supplied text).
  */
-export function PatternCanvas({ regionMap, legend, view, widthCm, heightCm, showGrid, mirrored }: Props): JSX.Element {
+export function PatternCanvas({
+  regionMap,
+  legend,
+  view,
+  widthCm,
+  heightCm,
+  showGrid,
+  mirrored,
+}: Props): JSX.Element {
   const result = useMemo(
-    () => buildSvgPattern(regionMap, legend, { widthCm, heightCm, view, showGrid, showLabels: true, mirrored }),
+    () =>
+      buildSvgPattern(regionMap, legend, {
+        widthCm,
+        heightCm,
+        view,
+        showGrid,
+        showLabels: true,
+        mirrored,
+      }),
     [regionMap, legend, view, widthCm, heightCm, showGrid, mirrored],
   );
   const [url, setUrl] = useState<string | null>(null);
@@ -38,7 +54,12 @@ export function PatternCanvas({ regionMap, legend, view, widthCm, heightCm, show
     <img
       src={url ?? undefined}
       alt={`Punch-needle pattern, ${view} view, ${widthCm} by ${heightCm} centimetres`}
-      style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: 6, background: '#f7f3ec' }}
+      style={{
+        width: '100%',
+        border: '1px solid var(--color-border)',
+        borderRadius: 6,
+        background: '#f7f3ec',
+      }}
     />
   );
 }

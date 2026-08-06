@@ -1,6 +1,6 @@
 # Punch Relief Studio
 
-*Turn 3D models into sculptural punch-needle patterns.*
+_Turn 3D models into sculptural punch-needle patterns._
 
 Punch Relief Studio converts an OBJ or STL 3D model into a punch-needle
 pattern with discrete yarn-color regions **and** discrete needle

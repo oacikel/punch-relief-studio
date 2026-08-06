@@ -12,7 +12,14 @@ interface Props {
 /** Relief stage: all the depth-processing controls from product spec §8,
  * plus the shared viewport (passed as children) so the user can re-orient
  * without losing these settings. */
-export function ReliefStage({ settings, onChange, onGenerate, processing, error, children }: Props): JSX.Element {
+export function ReliefStage({
+  settings,
+  onChange,
+  onGenerate,
+  processing,
+  error,
+  children,
+}: Props): JSX.Element {
   return (
     <section className="stage-panel" aria-labelledby="relief-heading">
       <h2 id="relief-heading">Create the relief</h2>
@@ -85,7 +92,13 @@ export function ReliefStage({ settings, onChange, onGenerate, processing, error,
         <select
           id="resolution"
           value={settings.outputResolutionPx}
-          onChange={(e) => onChange({ outputResolutionPx: Number(e.target.value) as unknown as ReliefSettings['outputResolutionPx'] })}
+          onChange={(e) =>
+            onChange({
+              outputResolutionPx: Number(
+                e.target.value,
+              ) as unknown as ReliefSettings['outputResolutionPx'],
+            })
+          }
         >
           {[128, 192, 256, 384, 512].map((r) => (
             <option key={r} value={r}>
@@ -100,7 +113,9 @@ export function ReliefStage({ settings, onChange, onGenerate, processing, error,
         <select
           id="quant-mode"
           value={settings.quantizationMode}
-          onChange={(e) => onChange({ quantizationMode: e.target.value as ReliefSettings['quantizationMode'] })}
+          onChange={(e) =>
+            onChange({ quantizationMode: e.target.value as ReliefSettings['quantizationMode'] })
+          }
         >
           <option value="equal-interval">Equal interval</option>
           <option value="quantile">Quantile (data-driven)</option>
@@ -108,8 +123,12 @@ export function ReliefStage({ settings, onChange, onGenerate, processing, error,
       </div>
 
       <label>
-        <input type="checkbox" checked={settings.invert} onChange={(e) => onChange({ invert: e.target.checked })} />
-        {' '}Invert (near surfaces become low pile instead of high)
+        <input
+          type="checkbox"
+          checked={settings.invert}
+          onChange={(e) => onChange({ invert: e.target.checked })}
+        />{' '}
+        Invert (near surfaces become low pile instead of high)
       </label>
 
       <div style={{ marginTop: 16 }}>
@@ -117,7 +136,9 @@ export function ReliefStage({ settings, onChange, onGenerate, processing, error,
           {processing ? 'Processing…' : 'Generate relief'}
         </button>
         <p className="helper-text" aria-live="polite">
-          {processing ? 'Processing the relief -- this runs in the background and keeps the app responsive.' : ''}
+          {processing
+            ? 'Processing the relief -- this runs in the background and keeps the app responsive.'
+            : ''}
         </p>
       </div>
 
