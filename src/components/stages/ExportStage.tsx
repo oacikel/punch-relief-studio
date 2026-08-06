@@ -4,7 +4,7 @@ import type { LegendEntry } from '@/domain/pattern/legend';
 import type { CalibrationProfile } from '@/domain/calibration';
 import type { PatternDimensions, ExportSettings } from '@/state/appState';
 import { buildSvgPattern } from '@/export/svgPattern';
-import { downloadSvg, svgToPngBlob, downloadBlob, downloadJson } from '@/export/download';
+import { downloadSvg, svgToPngBlob, downloadBlob } from '@/export/download';
 import { computeTiling } from '@/export/printTiling';
 import { withExtension } from '@/domain/filenameSanitize';
 import { CalibrationEditor } from '@/components/CalibrationEditor';
@@ -49,7 +49,10 @@ export function ExportStage({
   // would otherwise propagate into the tiling math and SVG dimensions
   // below (a real crash path found in implementation review).
   const safeDimensions =
-    Number.isFinite(dimensions.widthCm) && dimensions.widthCm > 0 && Number.isFinite(dimensions.heightCm) && dimensions.heightCm > 0
+    Number.isFinite(dimensions.widthCm) &&
+    dimensions.widthCm > 0 &&
+    Number.isFinite(dimensions.heightCm) &&
+    dimensions.heightCm > 0
       ? dimensions
       : { ...dimensions, widthCm: 1, heightCm: 1 };
   const tiling = computeTiling(
@@ -151,7 +154,9 @@ export function ExportStage({
         <select
           id="page-size"
           value={exportSettings.pageSize}
-          onChange={(e) => onExportSettingsChange({ pageSize: e.target.value as ExportSettings['pageSize'] })}
+          onChange={(e) =>
+            onExportSettingsChange({ pageSize: e.target.value as ExportSettings['pageSize'] })
+          }
         >
           <option value="a4">A4</option>
           <option value="letter">US Letter</option>
@@ -159,10 +164,10 @@ export function ExportStage({
         </select>
       </div>
       <p className="helper-text">
-        This pattern will print across {tiling.pages.length} page{tiling.pages.length === 1 ? '' : 's'} (
-        {tiling.cols} × {tiling.rows}) with {exportSettings.overlapCm}cm overlap. Always check the printed
-        scale-check square with a ruler before cutting fabric -- some printers silently rescale to
-        "fit page".
+        This pattern will print across {tiling.pages.length} page
+        {tiling.pages.length === 1 ? '' : 's'} ({tiling.cols} × {tiling.rows}) with{' '}
+        {exportSettings.overlapCm}cm overlap. Always check the printed scale-check square with a
+        ruler before cutting fabric -- some printers silently rescale to "fit page".
       </p>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
@@ -212,5 +217,3 @@ export function ExportStage({
     </section>
   );
 }
-
-export { downloadJson };

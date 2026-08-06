@@ -8,6 +8,7 @@ export function sanitizeFilename(input: string, fallback = 'punch-relief-pattern
   let name = input
     .normalize('NFKD')
     .replace(/\p{Diacritic}/gu, '')
+    // eslint-disable-next-line no-control-regex -- stripping control chars is the point here
     .replace(/[/\\:*?"<>|\x00-\x1f]/g, '-')
     .trim()
     .replace(/\s+/g, '-')

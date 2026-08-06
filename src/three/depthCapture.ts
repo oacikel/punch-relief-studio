@@ -109,7 +109,11 @@ export function captureDepth(
   target.dispose();
   depthMaterial.dispose();
 
-  return { width, height, depth, emptyValue: EMPTY_DEPTH, color };
+  const result: DepthCaptureResult = { width, height, depth, emptyValue: EMPTY_DEPTH };
+  if (color !== undefined) {
+    result.color = color;
+  }
+  return result;
 }
 
 export { EMPTY_DEPTH };

@@ -7,7 +7,7 @@ import {
 } from '@/domain/calibration';
 import { cm } from '@/domain/units';
 import { generateCalibrationStrip } from '@/domain/calibrationStrip';
-import { downloadJson, downloadSvg } from '@/export/download';
+import { downloadSvg } from '@/export/download';
 import { exportCalibrationProfile } from '@/export/calibrationExport';
 
 interface Props {
@@ -21,7 +21,13 @@ interface Props {
 /** CRUD editor for a calibration profile: name/needle/yarn metadata,
  * per-setting measured heights, the calibration-strip generator, and JSON
  * import/export. Validation errors are shown inline, tied to their field. */
-export function CalibrationEditor({ profile, savedProfiles, onChange, onSave, onSelectSaved }: Props): JSX.Element {
+export function CalibrationEditor({
+  profile,
+  savedProfiles,
+  onChange,
+  onSave,
+  onSelectSaved,
+}: Props): JSX.Element {
   const errors = validateProfile(profile);
   const errorsByField = new Map(errors.map((e) => [e.field, e.message]));
   const [importError, setImportError] = useState<string | null>(null);
@@ -29,7 +35,9 @@ export function CalibrationEditor({ profile, savedProfiles, onChange, onSave, on
   const updateSetting = (settingNumber: number, patch: Partial<NeedleSetting>): void => {
     onChange({
       ...profile,
-      settings: profile.settings.map((s) => (s.settingNumber === settingNumber ? { ...s, ...patch } : s)),
+      settings: profile.settings.map((s) =>
+        s.settingNumber === settingNumber ? { ...s, ...patch } : s,
+      ),
     });
   };
 
@@ -75,7 +83,9 @@ export function CalibrationEditor({ profile, savedProfiles, onChange, onSave, on
         <input
           id="cal-name"
           value={profile.profileName}
-          onChange={(e) => onChange({ ...profile, profileName: e.target.value, calibrated: profile.calibrated })}
+          onChange={(e) =>
+            onChange({ ...profile, profileName: e.target.value, calibrated: profile.calibrated })
+          }
           aria-invalid={errorsByField.has('profileName')}
           aria-describedby={errorsByField.has('profileName') ? 'cal-name-error' : undefined}
         />
@@ -88,12 +98,20 @@ export function CalibrationEditor({ profile, savedProfiles, onChange, onSave, on
 
       <div className="field">
         <label htmlFor="cal-needle">Needle name</label>
-        <input id="cal-needle" value={profile.needleName} onChange={(e) => onChange({ ...profile, needleName: e.target.value })} />
+        <input
+          id="cal-needle"
+          value={profile.needleName}
+          onChange={(e) => onChange({ ...profile, needleName: e.target.value })}
+        />
       </div>
 
       <div className="field">
         <label htmlFor="cal-yarn">Yarn name</label>
-        <input id="cal-yarn" value={profile.yarnName} onChange={(e) => onChange({ ...profile, yarnName: e.target.value })} />
+        <input
+          id="cal-yarn"
+          value={profile.yarnName}
+          onChange={(e) => onChange({ ...profile, yarnName: e.target.value })}
+        />
       </div>
 
       <table className="legend-table">
@@ -180,8 +198,4 @@ export function CalibrationEditor({ profile, savedProfiles, onChange, onSave, on
       )}
     </div>
   );
-}
-
-export function downloadProfileJson(profile: CalibrationProfile): void {
-  downloadJson(profile, `${profile.profileName}.json`);
 }
