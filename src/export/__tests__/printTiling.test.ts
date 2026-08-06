@@ -38,7 +38,7 @@ describe('computeTiling', () => {
     const result = computeTiling(60, 20, 'a4', 2, 1);
     const row0 = result.pages.filter((p) => p.row === 0).sort((a, b) => a.col - b.col);
     if (row0.length > 1) {
-      const overlap = row0[0].x1Cm - row0[1].x0Cm;
+      const overlap = (row0[0] as (typeof row0)[number]).x1Cm - (row0[1] as (typeof row0)[number]).x0Cm;
       expect(overlap).toBeCloseTo(2, 5);
     }
   });

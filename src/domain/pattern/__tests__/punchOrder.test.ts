@@ -18,7 +18,7 @@ describe('suggestPunchOrder', () => {
       { regionId: 'C2-H1', areaPx: 100, heightIndex: 0 },
     ];
     const result = suggestPunchOrder(regions);
-    expect(result.steps[0].regionId).toBe('C2-H1');
+    expect(result.steps[0]?.regionId).toBe('C2-H1');
   });
 
   it('always includes the caveat that this is a default, not a rule', () => {

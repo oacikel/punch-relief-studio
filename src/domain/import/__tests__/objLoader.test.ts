@@ -39,4 +39,16 @@ describe('localOnlyManager URL resolution (security)', () => {
     const resolved = manager.resolveURL('blob:http://localhost/abc-123');
     expect(resolved).toBe('blob:http://localhost/abc-123');
   });
+
+  it('throws for a protocol-relative URL', () => {
+    const { map } = buildLocalAssetMap([]);
+    const manager = localOnlyManager(map);
+    expect(() => manager.resolveURL('//evil.example/texture.jpg')).toThrow(RemoteAssetBlockedError);
+  });
+
+  it('throws for a data: URI', () => {
+    const { map } = buildLocalAssetMap([]);
+    const manager = localOnlyManager(map);
+    expect(() => manager.resolveURL('data:image/png;base64,AAAA')).toThrow(RemoteAssetBlockedError);
+  });
 });

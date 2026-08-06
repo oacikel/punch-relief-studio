@@ -52,7 +52,17 @@ export function localOnlyManager(assetMap: LocalAssetMap): THREE.LoadingManager 
   const manager = new THREE.LoadingManager();
   manager.setURLModifier((url: string) => {
     if (url.startsWith('blob:')) return url; // already resolved
-    if (/^[a-z]+:\/\//i.test(url)) throw new RemoteAssetBlockedError(url);
+    // Explicitly recognize every remote-fetch vector, not just
+    // `scheme://` -- protocol-relative (`//host/x`) and `data:` URIs would
+    // otherwise fall through to the basename lookup below and get
+    // rejected only as "unmatched filename" rather than being called out
+    // as remote (implementation review finding: functionally still
+    // blocked either way, since neither path ever returns a fetchable
+    // URL, but the explicit check keeps the error message and intent
+    // honest, and is what docs/ACCEPTANCE_MATRIX.md's security row claims).
+    if (/^[a-z]+:\/\//i.test(url) || url.startsWith('//') || url.startsWith('data:')) {
+      throw new RemoteAssetBlockedError(url);
+    }
     const basename = url.split('/').pop() ?? url;
     const resolved = assetMap.get(basename);
     if (!resolved) throw new RemoteAssetBlockedError(basename);

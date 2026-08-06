@@ -4,6 +4,7 @@ import {
   isCalibrated,
   mapHeightLevelToSetting,
   validateProfile,
+  type NeedleSetting,
 } from '../calibration';
 import { cm } from '../units';
 
@@ -25,25 +26,25 @@ describe('validateProfile', () => {
 
   it('flags duplicate setting numbers', () => {
     const profile = createDefaultProfile();
-    profile.settings[1] = { ...profile.settings[1], settingNumber: profile.settings[0].settingNumber };
+    profile.settings[1] = { ...(profile.settings[1] as NeedleSetting), settingNumber: (profile.settings[0] as NeedleSetting).settingNumber };
     expect(validateProfile(profile).some((e) => e.message.includes('Duplicate'))).toBe(true);
   });
 
   it('flags a non-positive measured height', () => {
     const profile = createDefaultProfile();
-    profile.settings[0] = { ...profile.settings[0], measuredHeightCm: cm(-1) };
+    profile.settings[0] = { ...(profile.settings[0] as NeedleSetting), measuredHeightCm: cm(-1) };
     expect(validateProfile(profile).length).toBeGreaterThan(0);
   });
 
   it('flags an implausibly large measured height as a likely units mistake', () => {
     const profile = createDefaultProfile();
-    profile.settings[0] = { ...profile.settings[0], measuredHeightCm: cm(80) };
+    profile.settings[0] = { ...(profile.settings[0] as NeedleSetting), measuredHeightCm: cm(80) };
     expect(validateProfile(profile).some((e) => e.message.includes('units mistake'))).toBe(true);
   });
 
   it('accepts a valid profile with no errors', () => {
     const profile = createDefaultProfile();
-    profile.settings[0] = { ...profile.settings[0], measuredHeightCm: cm(0.6) };
+    profile.settings[0] = { ...(profile.settings[0] as NeedleSetting), measuredHeightCm: cm(0.6) };
     expect(validateProfile(profile)).toHaveLength(0);
   });
 });
@@ -55,7 +56,7 @@ describe('isCalibrated', () => {
 
   it('is true once any setting has a measured height', () => {
     const profile = createDefaultProfile();
-    profile.settings[0] = { ...profile.settings[0], measuredHeightCm: cm(0.5) };
+    profile.settings[0] = { ...(profile.settings[0] as NeedleSetting), measuredHeightCm: cm(0.5) };
     expect(isCalibrated(profile)).toBe(true);
   });
 });

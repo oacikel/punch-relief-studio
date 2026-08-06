@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computeLevelBounds, levelIndexForValue, quantize } from '../quantize';
 import { normalizedDepth } from '../units';
-import type { Mask, ScalarField } from '../types';
+import type { HeightLevel, Mask, ScalarField } from '../types';
 
 function field(values: number[], width: number, height: number): ScalarField {
   return { width, height, data: Float32Array.from(values) };
@@ -23,10 +23,10 @@ describe('computeLevelBounds', () => {
     const m = mask([1, 1], 2, 1);
     const bounds = computeLevelBounds(4, 'equal-interval', f, m);
     expect(bounds).toHaveLength(4);
-    expect(bounds[0].lowerBound).toBeCloseTo(0);
-    expect(bounds[3].upperBound).toBeCloseTo(1);
+    expect((bounds[0] as HeightLevel).lowerBound).toBeCloseTo(0);
+    expect((bounds[3] as HeightLevel).upperBound).toBeCloseTo(1);
     for (let i = 1; i < bounds.length; i++) {
-      expect(bounds[i].lowerBound).toBeGreaterThan(bounds[i - 1].lowerBound);
+      expect((bounds[i] as HeightLevel).lowerBound).toBeGreaterThan((bounds[i - 1] as HeightLevel).lowerBound);
     }
   });
 
@@ -45,7 +45,21 @@ describe('computeLevelBounds', () => {
     const bounds = computeLevelBounds(3, 'quantile', f, m);
     expect(bounds).toHaveLength(3);
     for (let i = 1; i < bounds.length; i++) {
-      expect(bounds[i].lowerBound).toBeGreaterThan(bounds[i - 1].lowerBound);
+      expect((bounds[i] as HeightLevel).lowerBound).toBeGreaterThan((bounds[i - 1] as HeightLevel).lowerBound);
+    }
+  });
+
+  it('quantile bounds are contiguous with no gap between bands (regression test)', () => {
+    // A value distribution likely to produce colliding percentile lookups.
+    const values = [0.1, 0.1, 0.1, 0.9, 0.9, 0.9];
+    const f = field(values, values.length, 1);
+    const m = mask(Array(values.length).fill(1), values.length, 1);
+    const bounds = computeLevelBounds(4, 'quantile', f, m);
+    for (let i = 1; i < bounds.length; i++) {
+      // The previous band's upper bound must exactly meet the next band's
+      // lower bound -- any gap would cause levelIndexForValue to silently
+      // fall through to the top level for values inside it.
+      expect((bounds[i - 1] as HeightLevel).upperBound).toBeCloseTo((bounds[i] as HeightLevel).lowerBound, 9);
     }
   });
 });

@@ -21,10 +21,10 @@ import { useProcessingWorker } from '@/hooks/useProcessingWorker';
 import { appReducer, initialAppState, DEFAULT_SINGLE_COLOR } from '@/state/appState';
 import { workflowReducer, initialWorkflowState } from '@/state/workflow';
 import { loadProfiles, upsertProfile } from '@/persistence/calibrationStore';
-import { serializeProject } from '@/persistence/projectStore';
-import { downloadJson } from '@/export/download';
+import { serializeProject, projectFilename } from '@/persistence/projectStore';
+import { downloadText } from '@/export/download';
 import { PROJECT_SCHEMA_VERSION, type ProjectFile } from '@/domain/projectSchema';
-import type { RegionMap } from '@/domain/types';
+import type { ColorSwatch, RegionMap, RgbColor } from '@/domain/types';
 
 export default function App(): JSX.Element {
   const [workflow, dispatchWorkflow] = useReducer(workflowReducer, undefined, initialWorkflowState);
@@ -90,17 +90,17 @@ export default function App(): JSX.Element {
     try {
       const captured = handle.capture(state.reliefSettings.outputResolutionPx, state.colorMode === 'source-material');
       if (!captured) throw new Error('Nothing to capture yet -- load a model first.');
-      const colorArg =
-        captured.color && state.colorMode === 'source-material'
-          ? { data: captured.color, channels: 4 as const, paletteSize: state.paletteSize, seed: state.reliefSettings.seed }
-          : undefined;
+      // exactOptionalPropertyTypes forbids `color: undefined` -- omit the
+      // key entirely rather than assigning an undefined value to it.
       const result = await process({
         depth: captured.depth,
         width: captured.width,
         height: captured.height,
         emptyValue: captured.emptyValue,
         settings: state.reliefSettings,
-        color: colorArg,
+        ...(captured.color && state.colorMode === 'source-material'
+          ? { color: { data: captured.color, channels: 4 as const, paletteSize: state.paletteSize, seed: state.reliefSettings.seed } }
+          : {}),
       });
       dispatch({
         type: 'PROCESSING_SUCCEEDED',
@@ -153,10 +153,13 @@ export default function App(): JSX.Element {
       schemaVersion: PROJECT_SCHEMA_VERSION,
       appVersion: APP_VERSION,
       createdAt: new Date().toISOString(),
+      // exactOptionalPropertyTypes forbids assigning `undefined` to an
+      // optional field -- omit sampleId/originalFilename entirely when
+      // there's no value, rather than setting them to undefined.
       sourceModel:
         state.sourceKind === 'built-in-sample'
-          ? { kind: 'built-in-sample', sampleId: state.sampleId ?? undefined }
-          : { kind: 'user-file', originalFilename: state.sourceFilename ?? undefined },
+          ? { kind: 'built-in-sample' as const, ...(state.sampleId ? { sampleId: state.sampleId } : {}) }
+          : { kind: 'user-file' as const, ...(state.sourceFilename ? { originalFilename: state.sourceFilename } : {}) },
       patternDimensions: state.patternDimensions,
       projection: { viewpoint: 'front', cameraQuaternion: [0, 0, 0, 1], orthographic: true },
       reliefSettings: state.reliefSettings,
@@ -173,8 +176,29 @@ export default function App(): JSX.Element {
       renderSettings: state.renderSettings,
       exportSettings: state.exportSettings,
     };
-    downloadJson(project, 'punch-relief-project.json');
-    void serializeProject; // referenced for symmetry with deserializeProject on load; import path exercised in tests
+    downloadText(serializeProject(project), projectFilename('punch-relief'), 'application/json');
+  };
+
+  /** Restore settings from a reopened project JSON. Per docs/DECISIONS.md,
+   * the original mesh is never embedded in the project file -- if the
+   * project was made from a user-imported model (not a built-in sample),
+   * the user still needs to re-select that file in the Import stage. */
+  const handleLoadProjectJson = (project: ProjectFile): void => {
+    dispatch({ type: 'SET_RELIEF_SETTINGS', settings: project.reliefSettings });
+    dispatch({ type: 'SET_COLOR_MODE', mode: project.colorMode });
+    const swatches: ColorSwatch[] = project.colorMapping.swatchColorsHex.map((hex, i) => ({
+      index: i,
+      color: hexToRgb(hex),
+      yarnName: project.colorMapping.yarnNames[i] ?? `Yarn ${i + 1}`,
+    }));
+    if (swatches.length > 0) dispatch({ type: 'SET_SWATCHES', swatches });
+    dispatch({ type: 'SET_CALIBRATION_PROFILE', profile: project.calibrationProfile });
+    dispatch({ type: 'SET_PATTERN_DIMENSIONS', dimensions: project.patternDimensions });
+    dispatch({ type: 'SET_RENDER_SETTINGS', settings: project.renderSettings });
+    dispatch({ type: 'SET_EXPORT_SETTINGS', settings: project.exportSettings });
+    if (project.sourceModel.kind === 'built-in-sample' && project.sourceModel.sampleId) {
+      handleSelectSample(project.sourceModel.sampleId);
+    }
   };
 
   return (
@@ -272,10 +296,16 @@ export default function App(): JSX.Element {
               }}
               onCalibrationSelect={(profile) => dispatch({ type: 'SET_CALIBRATION_PROFILE', profile })}
               onSaveProjectJson={handleSaveProjectJson}
+              onLoadProjectJson={handleLoadProjectJson}
             />
           )}
         </main>
       </div>
     </ErrorBoundary>
   );
+}
+
+function hexToRgb(hex: string): RgbColor {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }

@@ -73,8 +73,11 @@ self.onmessage = (event: MessageEvent<ProcessRequest>) => {
       requestId: msg.requestId,
       heightIndex: cleaned,
       levels,
-      colorIndex,
-      palette,
+      // exactOptionalPropertyTypes forbids assigning `T | undefined` to an
+      // optional key -- spread conditionally so the key is omitted entirely
+      // rather than set to `undefined`.
+      ...(colorIndex !== undefined ? { colorIndex } : {}),
+      ...(palette !== undefined ? { palette } : {}),
     };
     (self as unknown as Worker).postMessage(response, [cleaned.buffer]);
   } catch (err) {

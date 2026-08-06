@@ -14,7 +14,7 @@ describe('findConnectedComponents', () => {
     const index = Int16Array.from([1, 1, 1, 1]);
     const components = findConnectedComponents(index, 4, 1);
     expect(components).toHaveLength(1);
-    expect(components[0].pixels).toHaveLength(4);
+    expect(components[0]?.pixels).toHaveLength(4);
   });
 
   it('never includes background (-1) pixels in a component', () => {
@@ -51,6 +51,6 @@ describe('findSmallRegions', () => {
     const index = Int16Array.from([-1, 2, -1]); // isolated region, no reassignable neighbor
     const warnings = findSmallRegions(index, 3, 1, 5);
     expect(warnings).toHaveLength(1);
-    expect(warnings[0].sizePx).toBe(1);
+    expect(warnings[0]?.sizePx).toBe(1);
   });
 });

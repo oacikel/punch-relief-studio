@@ -73,6 +73,42 @@ export type AppAction =
 
 export const DEFAULT_SINGLE_COLOR: RgbColor = { r: 139, g: 90, b: 60 };
 
+/** Fixed, deterministic fallback palette for newly-created by-height
+ * swatches (cycled if more levels than colors) -- chosen for reasonable
+ * mutual contrast, not derived from any input data. */
+const DEFAULT_PALETTE: RgbColor[] = [
+  { r: 139, g: 90, b: 60 },
+  { r: 196, g: 148, b: 92 },
+  { r: 90, g: 110, b: 80 },
+  { r: 176, g: 82, b: 74 },
+  { r: 84, g: 100, b: 130 },
+  { r: 210, g: 190, b: 140 },
+  { r: 120, g: 70, b: 110 },
+  { r: 70, g: 130, b: 120 },
+];
+
+function defaultColorForIndex(index: number): RgbColor {
+  return DEFAULT_PALETTE[index % DEFAULT_PALETTE.length] ?? DEFAULT_SINGLE_COLOR;
+}
+
+/**
+ * Pad or truncate a swatch list to exactly `count` entries, preserving
+ * existing color/name choices by index and filling any new slots with a
+ * deterministic default. Used to keep "color by height" mode's swatch
+ * count in sync with the generated height-level count -- without this,
+ * assignColorByHeight() throws when the counts drift apart (see
+ * docs/PLAN_REVIEW.md-equivalent implementation review finding).
+ */
+export function resizeSwatches(swatches: ColorSwatch[], count: number): ColorSwatch[] {
+  if (swatches.length === count) return swatches;
+  const next: ColorSwatch[] = [];
+  for (let i = 0; i < count; i++) {
+    const existing = swatches[i];
+    next.push(existing ? { ...existing, index: i } : { index: i, color: defaultColorForIndex(i), yarnName: `Yarn ${i + 1}` });
+  }
+  return next;
+}
+
 export function initialAppState(): AppState {
   return {
     sourceKind: 'none',
@@ -113,16 +149,30 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     case 'SET_RELIEF_SETTINGS':
       return { ...state, reliefSettings: { ...state.reliefSettings, ...action.settings } };
-    case 'SET_COLOR_MODE':
-      return { ...state, colorMode: action.mode };
+    case 'SET_COLOR_MODE': {
+      // Switching into "by-height" must keep exactly one swatch per height
+      // level, or assignColorByHeight() throws -- resize here so the
+      // invariant holds regardless of which stage the user came from.
+      const swatches =
+        action.mode === 'by-height' && state.processed
+          ? resizeSwatches(state.swatches, state.processed.levels.length)
+          : state.swatches;
+      return { ...state, colorMode: action.mode, swatches };
+    }
     case 'SET_PALETTE_SIZE':
       return { ...state, paletteSize: action.size };
     case 'SET_SWATCHES':
       return { ...state, swatches: action.swatches };
     case 'PROCESSING_STARTED':
       return { ...state, processing: true, processingError: null };
-    case 'PROCESSING_SUCCEEDED':
-      return { ...state, processing: false, processed: action.result, processingError: null };
+    case 'PROCESSING_SUCCEEDED': {
+      // Re-generating the relief can change the level count -- keep
+      // by-height swatches in sync with it immediately, not just on the
+      // next explicit mode change.
+      const swatches =
+        state.colorMode === 'by-height' ? resizeSwatches(state.swatches, action.result.levels.length) : state.swatches;
+      return { ...state, processing: false, processed: action.result, processingError: null, swatches };
+    }
     case 'PROCESSING_FAILED':
       return { ...state, processing: false, processingError: action.message };
     case 'SET_CALIBRATION_PROFILE':

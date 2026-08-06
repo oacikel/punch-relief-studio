@@ -68,5 +68,10 @@ export function applyStandardView(camera: THREE.Camera, view: StandardView, dist
   const dir = directionForStandardView(view).multiplyScalar(distance);
   camera.position.copy(dir);
   camera.lookAt(0, 0, 0);
-  camera.up.set(view === 'top' ? 0 : 0, view === 'top' || view === 'bottom' ? 0 : 1, view === 'top' ? -1 : view === 'bottom' ? 1 : 0);
+  // Looking straight down/up needs a horizontal up-vector (camera.lookAt
+  // can't derive one from a vertical view direction); every other
+  // standard view uses the ordinary world-up.
+  if (view === 'top') camera.up.set(0, 0, -1);
+  else if (view === 'bottom') camera.up.set(0, 0, 1);
+  else camera.up.set(0, 1, 0);
 }

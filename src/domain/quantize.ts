@@ -55,27 +55,27 @@ function quantileBounds(levels: number, field: ScalarField, mask: Mask): HeightL
   }
   values.sort((a, b) => a - b);
 
+  // Build lower bounds first (band 0 always starts at 0), bumping any
+  // collision by a tiny epsilon so the sequence is strictly increasing --
+  // this matters for degenerate (all-equal-value, or heavily repeated
+  // percentile) input. Upper bounds are then derived as *exactly* the next
+  // band's lower bound (band `levels-1` ends at 1), so bands are
+  // contiguous by construction and can never leave a gap that
+  // levelIndexForValue would silently misassign (see implementation review
+  // finding recorded in docs/PLAN_REVIEW.md-equivalent notes).
+  const lowerBounds: number[] = [0];
+  for (let i = 1; i < levels; i++) {
+    const idx = Math.min(Math.floor((i / levels) * values.length), values.length - 1);
+    const candidate = values[idx] as number;
+    const prev = lowerBounds[i - 1] as number;
+    lowerBounds.push(candidate > prev ? candidate : prev + 1e-6);
+  }
+
   const bounds: HeightLevel[] = [];
   for (let i = 0; i < levels; i++) {
-    const lowerIdx = Math.floor((i / levels) * values.length);
-    const lower = i === 0 ? 0 : (values[Math.min(lowerIdx, values.length - 1)] as number);
-    const upper = i === levels - 1 ? 1 : (values[Math.min(
-      Math.floor(((i + 1) / levels) * values.length),
-      values.length - 1,
-    )] as number);
+    const lower = lowerBounds[i] as number;
+    const upper = i === levels - 1 ? 1 : (lowerBounds[i + 1] as number);
     bounds.push({ index: i, lowerBound: normalizedDepth(lower), upperBound: normalizedDepth(upper) });
-  }
-  // Guard against degenerate (all-equal-value) inputs collapsing bounds.
-  return dedupeMonotonic(bounds);
-}
-
-function dedupeMonotonic(bounds: HeightLevel[]): HeightLevel[] {
-  for (let i = 1; i < bounds.length; i++) {
-    const prev = bounds[i - 1] as HeightLevel;
-    const cur = bounds[i] as HeightLevel;
-    if (cur.lowerBound <= prev.lowerBound) {
-      bounds[i] = { ...cur, lowerBound: normalizedDepth(prev.lowerBound + 1e-6) };
-    }
   }
   return bounds;
 }
