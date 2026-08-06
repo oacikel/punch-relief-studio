@@ -1,10 +1,11 @@
 /**
  * Compose the printable SVG pattern: combined color+height regions,
- * region-outline contours (marching-squares-free approximation via per-
- * pixel cell rects grouped by scanline -- simple, deterministic, and fast
- * enough at pattern resolution), grid, legend, scale bar, and registration
- * marks. Kept separate from React so it's testable headlessly and reusable
- * for the PNG rasterization path (draw the same SVG to a canvas).
+ * region-outline contours (a line traced along every cell edge where the
+ * height level changes -- not true marching squares, but deterministic and
+ * fast enough at pattern resolution), grid, legend, scale bar, and
+ * registration marks. Kept separate from React so it's testable headlessly
+ * and reusable for the PNG rasterization path (draw the same SVG to a
+ * canvas).
  */
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
@@ -64,11 +65,14 @@ export function buildSvgPattern(
   const grid = options.showGrid ? buildGrid(widthPx, heightPx, pxPerCm) : '';
   const registration = buildRegistrationMarks(widthPx, heightPx);
   const scaleBar = buildScaleBar(heightPx, pxPerCm);
+  const contour =
+    options.view === 'contour' ? buildContourLines(regionMap, cellW, cellH, options.mirrored) : '';
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPx}" height="${heightPx}"
     viewBox="0 0 ${widthPx} ${heightPx}" data-view="${options.view}">
     <rect width="${widthPx}" height="${heightPx}" fill="#f7f3ec" />
     <g data-layer="regions">${cells.join('')}</g>
+    ${contour}
     ${grid}
     ${registration}
     ${scaleBar}
@@ -114,6 +118,42 @@ function buildRegistrationMarks(widthPx: number, heightPx: number): string {
     ${corner(size, size)}${corner(widthPx - size, size)}
     ${corner(size, heightPx - size)}${corner(widthPx - size, heightPx - size)}
   </g>`;
+}
+
+/**
+ * "contour" view draws region cells with no fill (see `fillForView`), so
+ * without this the view rendered nothing at all. Traces a line along every
+ * cell edge where the height level changes (adjacent-pixel comparison,
+ * not true marching squares -- sufficient at pattern raster resolution and
+ * much cheaper).
+ */
+function buildContourLines(
+  regionMap: RegionMap,
+  cellW: number,
+  cellH: number,
+  mirrored: boolean,
+): string {
+  const { width, height, heightIndex } = regionMap;
+  const cellX = (x: number): number => (mirrored ? width - 1 - x : x) * cellW;
+  const segments: string[] = [];
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const h = heightIndex[y * width + x] as number;
+      if (h === -1) continue;
+
+      if (x + 1 < width && heightIndex[y * width + x + 1] !== h) {
+        const edgeX = mirrored ? cellX(x) : cellX(x) + cellW;
+        segments.push(`M${edgeX},${y * cellH} v${cellH}`);
+      }
+      if (y + 1 < height && heightIndex[(y + 1) * width + x] !== h) {
+        const left = cellX(x);
+        segments.push(`M${left},${(y + 1) * cellH} h${cellW}`);
+      }
+    }
+  }
+  if (segments.length === 0) return '';
+  return `<g data-layer="contour"><path d="${segments.join(' ')}" fill="none" stroke="#000" stroke-width="1" /></g>`;
 }
 
 function buildScaleBar(heightPx: number, pxPerCm: number): string {
