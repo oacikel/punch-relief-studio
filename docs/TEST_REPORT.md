@@ -106,3 +106,28 @@ npx playwright test e2e/main-workflow.spec.ts --headed  # or add explicit page.s
 
 Save representative screenshots (import, orient, relief, height, color,
 preview, export, and a narrow-viewport view) to `docs/screenshots/`.
+
+## Independent implementation review
+
+A fresh-context reviewer subagent (no prior conversation history) inspected
+the actual source, tests, and docs on disk -- not a summary -- and reported
+3 blocking issues, 1 high-severity issue, 3 medium-severity issues, and 2
+low-severity issues. All were fixed in the same session; see the git commit
+"fix: address independent implementation review findings" for the full
+list. Highlights: a reachable crash in "color by height" mode (swatch
+count could drift from height-level count) is now prevented structurally
+via `resizeSwatches()` in the reducer; a quantile-quantization edge case
+that could leave a gap between height bands (causing silent
+misassignment) was fixed by deriving band boundaries contiguously instead
+of patching collisions after the fact, with a regression test added;
+several `exactOptionalPropertyTypes`/`noUncheckedIndexedAccess` violations
+that would have failed `tsc -b` were corrected; and project-JSON loading,
+which existed in the domain/persistence layer but was never wired into the
+UI, is now a working "Load project settings (JSON)" control in the Export
+stage.
+
+This review still could not run any compiler or test runner (same network
+constraint) -- it was a manual code read, so it should not be treated as a
+substitute for actually running `npm run typecheck && npm run test` in a
+networked environment, only as a best-effort reduction of the risk from
+zero compiler feedback.
