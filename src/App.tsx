@@ -160,9 +160,9 @@ export default function App(): JSX.Element {
   }, [state.processed, state.colorMode, state.swatches]);
 
   const legend = useMemo(() => {
-    if (!state.processed) return [];
-    return buildLegend(state.swatches, state.processed.levels, state.calibrationProfile);
-  }, [state.processed, state.swatches, state.calibrationProfile]);
+    if (!state.processed || !regionMap) return [];
+    return buildLegend(state.swatches, state.processed.levels, state.calibrationProfile, regionMap);
+  }, [state.processed, state.swatches, state.calibrationProfile, regionMap]);
 
   const handleSaveProjectJson = (): void => {
     const project: ProjectFile = {
