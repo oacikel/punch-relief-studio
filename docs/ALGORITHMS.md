@@ -93,7 +93,9 @@ size (A4/Letter/actual), overlap, and margin, computes the row/column grid
 and each tile's `[x0,y0,x1,y1]` region in centimetres. Single-page fast
 path when the pattern already fits. The PDF itself is produced via the
 browser's native print pipeline (`window.print()` against a
-print-stylesheet), not a bundled PDF library -- see DECISIONS.md. **Known
-gap:** the tiling math is implemented and unit tested, but the print view
-does not yet automatically paginate into N separate printed pages with
-crop marks per tile -- see docs/LIMITATIONS.md.
+print-stylesheet), not a bundled PDF library -- see DECISIONS.md.
+`ExportStage` renders one `.print-page` per tile (hidden on screen, shown
+only via `@media print`), each clipping a full-size copy of the pattern
+image to that tile's region with a negative CSS offset so every page
+prints at true physical scale (`cmToCssPx`, 96dpi), with a page break
+between tiles and corner crop marks for cutting/aligning overlaps by hand.

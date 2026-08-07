@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
-import { buildSvgPattern, type PatternView } from '@/export/svgPattern';
+import type { PatternView } from '@/export/svgPattern';
+import { usePatternSvgUrl } from '@/hooks/usePatternSvgUrl';
 
 interface Props {
   regionMap: RegionMap;
@@ -29,26 +29,7 @@ export function PatternCanvas({
   showGrid,
   mirrored,
 }: Props): JSX.Element {
-  const result = useMemo(
-    () =>
-      buildSvgPattern(regionMap, legend, {
-        widthCm,
-        heightCm,
-        view,
-        showGrid,
-        showLabels: true,
-        mirrored,
-      }),
-    [regionMap, legend, view, widthCm, heightCm, showGrid, mirrored],
-  );
-  const [url, setUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const blob = new Blob([result.svg], { type: 'image/svg+xml' });
-    const objectUrl = URL.createObjectURL(blob);
-    setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [result.svg]);
+  const { url } = usePatternSvgUrl(regionMap, legend, widthCm, heightCm, view, showGrid, mirrored);
 
   return (
     <img

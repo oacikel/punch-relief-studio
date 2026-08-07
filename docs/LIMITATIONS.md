@@ -17,12 +17,6 @@
 
 ## Implementation-level (this MVP build)
 
-- **Print-PDF tiling is partially wired.** `src/export/printTiling.ts`
-  correctly computes the page grid, overlap, and per-tile regions (and is
-  unit tested for it), but the print view does not yet split the output
-  into N separate per-tile pages with crop marks baked in -- `window.print()`
-  currently prints the pattern as a single continuous document. See
-  docs/DECISIONS.md.
 - **Simplified edge-preserving smoothing.** `smoothRelief` blends a box blur
   with the original value, reducing (not eliminating) blur across strong
   edges -- not a true bilateral filter.

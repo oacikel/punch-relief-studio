@@ -3,12 +3,15 @@ import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
 import type { CalibrationProfile } from '@/domain/calibration';
 import type { PatternDimensions, ExportSettings } from '@/state/appState';
-import { buildSvgPattern } from '@/export/svgPattern';
+import { buildSvgPattern, type PatternView } from '@/export/svgPattern';
 import { downloadSvg, svgToPngBlob, downloadBlob } from '@/export/download';
-import { computeTiling } from '@/export/printTiling';
+import { computeTiling, cmToCssPx } from '@/export/printTiling';
 import { withExtension } from '@/domain/filenameSanitize';
 import { CalibrationEditor } from '@/components/CalibrationEditor';
+import { usePatternSvgUrl } from '@/hooks/usePatternSvgUrl';
 import type { ProjectFile } from '@/domain/projectSchema';
+
+const VIEWS: PatternView[] = ['combined', 'color-only', 'height-only', 'contour'];
 
 interface Props {
   regionMap: RegionMap;
@@ -74,14 +77,16 @@ export function ExportStage({
     }
   };
 
+  const mirrored = exportSettings.orientation === 'mirrored';
+
   const exportSvg = (): void => {
     const result = buildSvgPattern(regionMap, legend, {
       widthCm: safeDimensions.widthCm,
       heightCm: safeDimensions.heightCm,
-      view: 'combined',
+      view: exportSettings.view,
       showGrid: false,
       showLabels: true,
-      mirrored: exportSettings.orientation === 'mirrored',
+      mirrored,
     });
     downloadSvg(result.svg, withExtension('punch-relief-pattern', 'svg'));
   };
@@ -90,10 +95,10 @@ export function ExportStage({
     const result = buildSvgPattern(regionMap, legend, {
       widthCm: safeDimensions.widthCm,
       heightCm: safeDimensions.heightCm,
-      view: 'combined',
+      view: exportSettings.view,
       showGrid: false,
       showLabels: true,
-      mirrored: exportSettings.orientation === 'mirrored',
+      mirrored,
     });
     const widthPx = Math.round(safeDimensions.widthCm * 40);
     const heightPx = Math.round(safeDimensions.heightCm * 40);
@@ -104,116 +109,207 @@ export function ExportStage({
   const printPdf = (): void => {
     // Native browser print-to-PDF, not a bundled PDF library -- see
     // docs/DECISIONS.md for why. window.print() respects the print
-    // stylesheet (@page sizing, tiling markup) rendered on this page.
+    // stylesheet (@page sizing, tiling markup) rendered on this page --
+    // specifically the .print-pages block below, which is the only thing
+    // the print stylesheet leaves visible.
     window.print();
   };
 
+  // Built once here (not per-tile) so every print page reuses the same
+  // rendered pattern image via a CSS "clip window" instead of re-rendering
+  // the SVG per tile.
+  const { url: printImageUrl } = usePatternSvgUrl(
+    regionMap,
+    legend,
+    safeDimensions.widthCm,
+    safeDimensions.heightCm,
+    exportSettings.view,
+    false,
+    mirrored,
+  );
+  const fullWidthPx = cmToCssPx(safeDimensions.widthCm);
+  const fullHeightPx = cmToCssPx(safeDimensions.heightCm);
+
   return (
     <section className="stage-panel" aria-labelledby="export-heading">
-      <h2 id="export-heading">Export</h2>
+      <div className="export-controls">
+        <h2 id="export-heading">Export</h2>
 
-      <div className="field">
-        <label htmlFor="width-cm">Width (cm)</label>
-        <input
-          id="width-cm"
-          type="number"
-          min={1}
-          value={dimensions.widthCm}
-          onChange={(e) => {
-            const widthCm = Number(e.target.value);
-            if (!Number.isFinite(widthCm) || widthCm <= 0) return; // ignore empty/zero/negative input rather than propagating NaN
-            const heightCm =
-              dimensions.lockAspect && dimensions.widthCm > 0
-                ? (widthCm / dimensions.widthCm) * dimensions.heightCm
-                : dimensions.heightCm;
-            onDimensionsChange({ widthCm, heightCm });
-          }}
-        />
-      </div>
-      <div className="field">
-        <label htmlFor="height-cm">Height (cm)</label>
-        <input
-          id="height-cm"
-          type="number"
-          min={1}
-          value={dimensions.heightCm}
-          onChange={(e) => onDimensionsChange({ heightCm: Number(e.target.value) })}
-        />
-      </div>
-      <label>
-        <input
-          type="checkbox"
-          checked={dimensions.lockAspect}
-          onChange={(e) => onDimensionsChange({ lockAspect: e.target.checked })}
-        />{' '}
-        Lock aspect ratio
-      </label>
-
-      <div className="field">
-        <label htmlFor="page-size">Print page size</label>
-        <select
-          id="page-size"
-          value={exportSettings.pageSize}
-          onChange={(e) =>
-            onExportSettingsChange({ pageSize: e.target.value as ExportSettings['pageSize'] })
-          }
-        >
-          <option value="a4">A4</option>
-          <option value="letter">US Letter</option>
-          <option value="actual-size">Actual project size</option>
-        </select>
-      </div>
-      <p className="helper-text">
-        This pattern will print across {tiling.pages.length} page
-        {tiling.pages.length === 1 ? '' : 's'} ({tiling.cols} × {tiling.rows}) with{' '}
-        {exportSettings.overlapCm}cm overlap. Always check the printed scale-check square with a
-        ruler before cutting fabric -- some printers silently rescale to "fit page".
-      </p>
-
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-        <button type="button" onClick={exportSvg}>
-          Export SVG pattern
-        </button>
-        <button type="button" onClick={() => void exportPng()}>
-          Export PNG pattern
-        </button>
-        <button type="button" onClick={printPdf}>
-          Print / Save as PDF
-        </button>
-        <button type="button" onClick={onSaveProjectJson}>
-          Save project settings (JSON)
-        </button>
-        <label className="field" style={{ marginBottom: 0 }}>
-          <span>Load project settings (JSON)</span>
+        <div className="field">
+          <label htmlFor="width-cm">Width (cm)</label>
           <input
-            type="file"
-            accept="application/json"
+            id="width-cm"
+            type="number"
+            min={1}
+            value={dimensions.widthCm}
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void handleLoadProject(file);
+              const widthCm = Number(e.target.value);
+              if (!Number.isFinite(widthCm) || widthCm <= 0) return; // ignore empty/zero/negative input rather than propagating NaN
+              const heightCm =
+                dimensions.lockAspect && dimensions.widthCm > 0
+                  ? (widthCm / dimensions.widthCm) * dimensions.heightCm
+                  : dimensions.heightCm;
+              onDimensionsChange({ widthCm, heightCm });
             }}
           />
+        </div>
+        <div className="field">
+          <label htmlFor="height-cm">Height (cm)</label>
+          <input
+            id="height-cm"
+            type="number"
+            min={1}
+            value={dimensions.heightCm}
+            onChange={(e) => onDimensionsChange({ heightCm: Number(e.target.value) })}
+          />
+        </div>
+        <label>
+          <input
+            type="checkbox"
+            checked={dimensions.lockAspect}
+            onChange={(e) => onDimensionsChange({ lockAspect: e.target.checked })}
+          />{' '}
+          Lock aspect ratio
         </label>
-      </div>
-      {loadError && (
-        <p role="alert" className="warning-banner">
-          {loadError}
-        </p>
-      )}
-      <p className="helper-text">
-        Reopening a project restores settings, calibration, and colors -- if it was made from your
-        own imported file (not a built-in sample), you'll need to re-select that file too, since the
-        original model isn't embedded in the project JSON. See docs/DECISIONS.md.
-      </p>
 
-      <h3>Calibration</h3>
-      <CalibrationEditor
-        profile={calibrationProfile}
-        savedProfiles={savedProfiles}
-        onChange={onCalibrationChange}
-        onSave={onCalibrationSave}
-        onSelectSaved={onCalibrationSelect}
-      />
+        <div className="field">
+          <span id="export-view-label">Pattern view</span>
+          <div role="group" aria-labelledby="export-view-label" style={{ marginTop: 4 }}>
+            {VIEWS.map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={exportSettings.view === v}
+                onClick={() => onExportSettingsChange({ view: v })}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="helper-text">
+          Applies to SVG/PNG export and printing -- "contour" prints outlines only, with no fill,
+          for tracing.
+        </p>
+
+        <div className="field">
+          <label htmlFor="page-size">Print page size</label>
+          <select
+            id="page-size"
+            value={exportSettings.pageSize}
+            onChange={(e) =>
+              onExportSettingsChange({ pageSize: e.target.value as ExportSettings['pageSize'] })
+            }
+          >
+            <option value="a4">A4</option>
+            <option value="letter">US Letter</option>
+            <option value="actual-size">Actual project size</option>
+          </select>
+        </div>
+        <p className="helper-text">
+          This pattern will print across {tiling.pages.length} page
+          {tiling.pages.length === 1 ? '' : 's'} ({tiling.cols} × {tiling.rows}) with{' '}
+          {exportSettings.overlapCm}cm overlap. Always check the printed scale-check square with a
+          ruler before cutting fabric -- some printers silently rescale to "fit page".
+        </p>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+          <button type="button" onClick={exportSvg}>
+            Export SVG pattern
+          </button>
+          <button type="button" onClick={() => void exportPng()}>
+            Export PNG pattern
+          </button>
+          <button type="button" onClick={printPdf}>
+            Print / Save as PDF
+          </button>
+          <button type="button" onClick={onSaveProjectJson}>
+            Save project settings (JSON)
+          </button>
+          <label className="field" style={{ marginBottom: 0 }}>
+            <span>Load project settings (JSON)</span>
+            <input
+              type="file"
+              accept="application/json"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleLoadProject(file);
+              }}
+            />
+          </label>
+        </div>
+        {loadError && (
+          <p role="alert" className="warning-banner">
+            {loadError}
+          </p>
+        )}
+        <p className="helper-text">
+          Reopening a project restores settings, calibration, and colors -- if it was made from your
+          own imported file (not a built-in sample), you'll need to re-select that file too, since
+          the original model isn't embedded in the project JSON. See docs/DECISIONS.md.
+        </p>
+
+        <h3>Calibration</h3>
+        <CalibrationEditor
+          profile={calibrationProfile}
+          savedProfiles={savedProfiles}
+          onChange={onCalibrationChange}
+          onSave={onCalibrationSave}
+          onSelectSaved={onCalibrationSelect}
+        />
+      </div>
+
+      {/* Hidden on screen; this is the only thing the print stylesheet
+          leaves visible (see @media print in styles.css). "Print / Save as
+          PDF" previously called window.print() against the controls above
+          -- which never contained the pattern itself -- so a print/PDF was
+          just the export form and calibration table, not the pattern.
+          Each .print-page clips a full-size copy of the pattern image to
+          that tile's region via a negative offset, so every page prints at
+          true physical scale. */}
+      <div className="print-pages" aria-hidden="true">
+        {tiling.pages.map((tile) => {
+          const tileWidthPx = cmToCssPx(tile.x1Cm - tile.x0Cm);
+          const tileHeightPx = cmToCssPx(tile.y1Cm - tile.y0Cm);
+          return (
+            <div
+              key={tile.pageNumber}
+              className="print-page"
+              style={{ width: tileWidthPx, height: tileHeightPx }}
+            >
+              <div
+                className="print-page-crop"
+                style={{
+                  width: fullWidthPx,
+                  height: fullHeightPx,
+                  marginLeft: -cmToCssPx(tile.x0Cm),
+                  marginTop: -cmToCssPx(tile.y0Cm),
+                }}
+              >
+                {printImageUrl && (
+                  <img
+                    src={printImageUrl}
+                    alt=""
+                    style={{ width: fullWidthPx, height: fullHeightPx, display: 'block' }}
+                  />
+                )}
+              </div>
+              {tiling.pages.length > 1 && (
+                <>
+                  <span className="print-page-number">
+                    Page {tile.pageNumber} of {tiling.pages.length} (row {tile.row + 1}, col{' '}
+                    {tile.col + 1})
+                  </span>
+                  <span className="print-crop-mark print-crop-mark--tl" />
+                  <span className="print-crop-mark print-crop-mark--tr" />
+                  <span className="print-crop-mark print-crop-mark--bl" />
+                  <span className="print-crop-mark print-crop-mark--br" />
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }

@@ -20,14 +20,13 @@ browser print pipeline.
 **Alternative:** jsPDF, pdf-lib, or similar.
 **Why:** a PDF library is a meaningfully sized dependency for output the
 browser can already produce natively, and native print respects the user's
-own printer/page setup. **Trade-off accepted:** the automatic
-multi-page-with-crop-marks tiling described in the product spec is only
-partially wired into the UI in this MVP -- the math is correct and tested,
-but the print view currently prints the current pattern view as one
-continuous document rather than splitting it into per-tile pages with crop
-marks baked in. Documented as a known gap in LIMITATIONS.md rather than
-silently shipped as if complete (decision rule: prefer graceful limitations
-over fake precision).
+own printer/page setup. **Trade-off accepted:** multi-page tiling still
+goes through the browser's own print pipeline rather than a purpose-built
+PDF layout engine, so page-size handling, margins, and exact crop-mark
+placement are ultimately at the mercy of the browser/OS print dialog (users
+are told to verify the printed scale-check square with a ruler before
+cutting fabric, since some printers silently rescale to "fit page"
+regardless of what the app renders).
 
 ## No schema-validation library for project JSON
 
