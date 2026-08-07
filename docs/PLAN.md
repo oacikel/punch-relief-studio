@@ -76,7 +76,7 @@ Biggest technical risk is Three.js depth-capture-to-canvas correctness
 (render-to-texture from an orthographic camera, reading back a depth/linear-Z
 buffer) — mitigated by keeping that logic in one small, well-commented,
 unit-testable-at-the-math-level module (`depthCapture.ts`) separate from pure
-math (`relief.ts`, `quantize.ts`) that *can* be fully unit tested without a
+math (`relief.ts`, `quantize.ts`) that _can_ be fully unit tested without a
 WebGL context. Second risk is claiming false verification — mitigated by the
 policy above: nothing is marked passing without a captured run.
 
@@ -97,8 +97,8 @@ policy above: nothing is marked passing without a captured run.
    reused everywhere rather than re-declared, to minimize drift that a
    compiler would normally catch.
 3. **Local-only asset resolution.** `objLoader.ts` builds a `Map<filename,
-   blobURL>` from the user-supplied `FileList` and installs a Three.js
-   `LoadingManager` with `setURLModifier` that resolves *only* against that
+blobURL>` from the user-supplied `FileList` and installs a Three.js
+   `LoadingManager` with `setURLModifier` that resolves _only_ against that
    map (case-insensitive basename match) and throws for anything else —
    absolute URLs, `http(s)://`, or unmatched filenames never reach `fetch`.
    Enforced by a unit test that asserts a manager constructed this way

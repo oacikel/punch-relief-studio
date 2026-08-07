@@ -18,7 +18,10 @@ function makeValidProject(): ProjectFile {
     patternDimensions: { widthCm: 20, heightCm: 20, lockAspect: true },
     projection: { viewpoint: 'front', cameraQuaternion: [0, 0, 0, 1], orthographic: true },
     reliefSettings: DEFAULT_RELIEF_SETTINGS,
-    heightMapping: { needleSettingNumberByLevel: [1, 2, 3, 4], calibrationProfileId: 'default-uncalibrated' },
+    heightMapping: {
+      needleSettingNumberByLevel: [1, 2, 3, 4],
+      calibrationProfileId: 'default-uncalibrated',
+    },
     colorMode: 'single',
     colorMapping: { swatchColorsHex: ['#8899aa'], yarnNames: ['Yarn 1'] },
     calibrationProfile: createDefaultProfile(),

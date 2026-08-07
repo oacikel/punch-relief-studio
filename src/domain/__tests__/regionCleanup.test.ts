@@ -20,8 +20,7 @@ describe('findConnectedComponents', () => {
   it('never includes background (-1) pixels in a component', () => {
     const index = Int16Array.from([-1, -1, -1]);
     const components = findConnectedComponents(index, 3, 1);
-    expect(components.every((c) => c.levelValue === -1)).toBe(false);
-    expect(components.filter((c) => c.levelValue !== -1)).toHaveLength(0);
+    expect(components).toHaveLength(0);
   });
 });
 

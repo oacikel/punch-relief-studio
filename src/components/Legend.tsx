@@ -45,7 +45,11 @@ export function Legend({ entries, calibrated }: Props): JSX.Element {
               <td>
                 {entry.needleSettingNumber}: {entry.needleSettingLabel}
               </td>
-              <td>{entry.measuredHeightCm !== null ? `${entry.measuredHeightCm.toFixed(2)} cm` : 'uncalibrated'}</td>
+              <td>
+                {entry.measuredHeightCm !== null
+                  ? `${entry.measuredHeightCm.toFixed(2)} cm`
+                  : 'uncalibrated'}
+              </td>
             </tr>
           ))}
         </tbody>

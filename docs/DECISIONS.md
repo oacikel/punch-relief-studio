@@ -8,7 +8,7 @@ Format: decision, alternatives considered, why.
 **Alternative:** R3F for declarative scene graphs.
 **Why:** the app has exactly two Three.js scenes (viewport, simulation),
 each with a small, mostly-static set of objects. R3F's value is managing
-*many* dynamic objects declaratively; here it would add a dependency
+_many_ dynamic objects declaratively; here it would add a dependency
 without simplifying anything (decision rule: prefer the simplest
 architecture that satisfies the acceptance criteria).
 
@@ -20,14 +20,13 @@ browser print pipeline.
 **Alternative:** jsPDF, pdf-lib, or similar.
 **Why:** a PDF library is a meaningfully sized dependency for output the
 browser can already produce natively, and native print respects the user's
-own printer/page setup. **Trade-off accepted:** the automatic
-multi-page-with-crop-marks tiling described in the product spec is only
-partially wired into the UI in this MVP -- the math is correct and tested,
-but the print view currently prints the current pattern view as one
-continuous document rather than splitting it into per-tile pages with crop
-marks baked in. Documented as a known gap in LIMITATIONS.md rather than
-silently shipped as if complete (decision rule: prefer graceful limitations
-over fake precision).
+own printer/page setup. **Trade-off accepted:** multi-page tiling still
+goes through the browser's own print pipeline rather than a purpose-built
+PDF layout engine, so page-size handling, margins, and exact crop-mark
+placement are ultimately at the mercy of the browser/OS print dialog (users
+are told to verify the printed scale-check square with a ruler before
+cutting fabric, since some printers silently rescale to "fit page"
+regardless of what the app renders).
 
 ## No schema-validation library for project JSON
 
@@ -46,7 +45,7 @@ unmatched filenames). See `src/domain/import/objLoader.ts`.
 **Alternative:** trust Three.js's default manager and rely on browser CORS
 to prevent remote fetches.
 **Why:** CORS failures are not the same as "never attempted" -- a default
-manager still *tries* to fetch, which is both a privacy leak (reveals the
+manager still _tries_ to fetch, which is both a privacy leak (reveals the
 user's IP/activity to a third party referenced in someone else's file) and
 against the product's local-only privacy requirement. Raised as a blocking
 issue in the plan review (docs/PLAN_REVIEW.md) and resolved this way before
@@ -54,7 +53,7 @@ implementation.
 
 ## Worker-based processing
 
-**Decision:** the height pipeline *and* color quantization both run inside
+**Decision:** the height pipeline _and_ color quantization both run inside
 `processing.worker.ts`, off the main thread.
 **Alternative:** run color quantization on the main thread since it's
 triggered less often.

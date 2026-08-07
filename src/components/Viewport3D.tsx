@@ -46,7 +46,7 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-    } catch (err) {
+    } catch {
       setInitError(
         'Your browser could not start WebGL, which this app needs for the 3D viewport. Try ' +
           'updating your browser or graphics drivers.',
@@ -88,7 +88,11 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
     onReady?.({
       capture: (resolution, captureColor) => {
         if (!meshRef.current) return null;
-        return captureDepth(renderer, scene, camera, { width: resolution, height: resolution, captureColor });
+        return captureDepth(renderer, scene, camera, {
+          width: resolution,
+          height: resolution,
+          captureColor,
+        });
       },
     });
 
@@ -124,7 +128,11 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
     const measured = centerAndMeasure(geometry);
     radiusRef.current = measured.radius || radius || 4;
 
-    const material = new THREE.MeshStandardMaterial({ color: 0xb5563c, roughness: 0.8, metalness: 0.05 });
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xb5563c,
+      roughness: 0.8,
+      metalness: 0.05,
+    });
     const mesh = new THREE.Mesh(geometry, material);
     scene.add(mesh);
     meshRef.current = mesh;
@@ -149,8 +157,17 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
 
   return (
     <div>
-      <div className="viewport-container" ref={containerRef} aria-label="3D model viewport" role="img" />
-      <div role="group" aria-label="Standard views" style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div
+        className="viewport-container"
+        ref={containerRef}
+        aria-label="3D model viewport"
+        role="img"
+      />
+      <div
+        role="group"
+        aria-label="Standard views"
+        style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}
+      >
         {STANDARD_VIEWS.map((view) => (
           <button key={view} type="button" onClick={() => goToView(view)}>
             {view}

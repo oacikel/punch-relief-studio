@@ -39,13 +39,23 @@ export function ColorStage({
       <fieldset className="field">
         <legend>Color mode</legend>
         <label>
-          <input type="radio" name="color-mode" checked={mode === 'single'} onChange={() => onModeChange('single')} />
-          {' '}Single yarn -- whole pattern is one color
+          <input
+            type="radio"
+            name="color-mode"
+            checked={mode === 'single'}
+            onChange={() => onModeChange('single')}
+          />{' '}
+          Single yarn -- whole pattern is one color
         </label>
         <br />
         <label>
-          <input type="radio" name="color-mode" checked={mode === 'by-height'} onChange={() => onModeChange('by-height')} />
-          {' '}Color by height -- each level gets its own color
+          <input
+            type="radio"
+            name="color-mode"
+            checked={mode === 'by-height'}
+            onChange={() => onModeChange('by-height')}
+          />{' '}
+          Color by height -- each level gets its own color
         </label>
         <br />
         <label>
@@ -55,8 +65,9 @@ export function ColorStage({
             checked={mode === 'source-material'}
             disabled={!hasSourceColor}
             onChange={() => onModeChange('source-material')}
-          />
-          {' '}Source-material color{!hasSourceColor && ' (unavailable -- this import has no color/material data)'}
+          />{' '}
+          Source-material color
+          {!hasSourceColor && ' (unavailable -- this import has no color/material data)'}
         </label>
       </fieldset>
 

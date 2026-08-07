@@ -27,9 +27,17 @@ const DEFAULT_FALLBACK_STEP_CM = 0.25;
  * that matches what the pattern actually specifies -- not the original
  * mesh's continuous surface.
  */
-export function buildReliefGeometry(regionMap: RegionMap, options: ReliefMeshOptions): THREE.BufferGeometry {
+export function buildReliefGeometry(
+  regionMap: RegionMap,
+  options: ReliefMeshOptions,
+): THREE.BufferGeometry {
   const { width, height } = regionMap;
-  const geometry = new THREE.PlaneGeometry(options.widthCm, options.heightCm, width - 1, height - 1);
+  const geometry = new THREE.PlaneGeometry(
+    options.widthCm,
+    options.heightCm,
+    width - 1,
+    height - 1,
+  );
   geometry.rotateX(-Math.PI / 2);
 
   const position = geometry.getAttribute('position') as THREE.BufferAttribute;

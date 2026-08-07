@@ -9,7 +9,9 @@ const STORAGE_KEY = 'punch-relief-studio:calibration-profiles:v1';
 
 export class StorageQuotaError extends Error {
   constructor() {
-    super('Your browser storage is full. Export this profile as JSON before it can be saved locally.');
+    super(
+      'Your browser storage is full. Export this profile as JSON before it can be saved locally.',
+    );
     this.name = 'StorageQuotaError';
   }
 }
@@ -26,7 +28,10 @@ export function loadProfiles(storage: Storage = window.localStorage): Calibratio
   }
 }
 
-export function saveProfiles(profiles: CalibrationProfile[], storage: Storage = window.localStorage): void {
+export function saveProfiles(
+  profiles: CalibrationProfile[],
+  storage: Storage = window.localStorage,
+): void {
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify(profiles));
   } catch (err) {
@@ -37,7 +42,10 @@ export function saveProfiles(profiles: CalibrationProfile[], storage: Storage = 
   }
 }
 
-export function upsertProfile(profile: CalibrationProfile, storage: Storage = window.localStorage): CalibrationProfile[] {
+export function upsertProfile(
+  profile: CalibrationProfile,
+  storage: Storage = window.localStorage,
+): CalibrationProfile[] {
   const profiles = loadProfiles(storage);
   const idx = profiles.findIndex((p) => p.id === profile.id);
   if (idx >= 0) profiles[idx] = profile;
@@ -46,7 +54,10 @@ export function upsertProfile(profile: CalibrationProfile, storage: Storage = wi
   return profiles;
 }
 
-export function deleteProfile(id: string, storage: Storage = window.localStorage): CalibrationProfile[] {
+export function deleteProfile(
+  id: string,
+  storage: Storage = window.localStorage,
+): CalibrationProfile[] {
   const profiles = loadProfiles(storage).filter((p) => p.id !== id);
   saveProfiles(profiles, storage);
   return profiles;

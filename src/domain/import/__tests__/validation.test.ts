@@ -34,7 +34,9 @@ describe('validateFile', () => {
   });
 
   it('rejects a file over the size limit', () => {
-    expect(() => validateFile(makeFile('a.stl', MAX_FILE_SIZE_BYTES + 1))).toThrow(FileTooLargeError);
+    expect(() => validateFile(makeFile('a.stl', MAX_FILE_SIZE_BYTES + 1))).toThrow(
+      FileTooLargeError,
+    );
   });
 
   it('rejects an unsupported format', () => {

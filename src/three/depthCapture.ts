@@ -68,7 +68,19 @@ export function captureDepth(
   const previousOverride = scene.overrideMaterial;
   const previousTarget = renderer.getRenderTarget();
   const previousBackground = scene.background;
+  const previousClearColor = new THREE.Color();
+  renderer.getClearColor(previousClearColor);
+  const previousClearAlpha = renderer.getClearAlpha();
   scene.background = null;
+
+  // WebGLRenderer's default clear alpha is 1 (opaque) unless the renderer
+  // was constructed with `alpha: true` -- ours wasn't, since the on-screen
+  // viewport doesn't need it. Without forcing 0 here, every pixel in this
+  // off-screen render target gets alpha=1 from the clear itself, even
+  // where nothing was drawn, so the `alpha > 0.5` foreground check below
+  // would treat the *entire* frame as foreground -- including the empty
+  // margin the orthographic camera frames around the model.
+  renderer.setClearColor(0x000000, 0);
 
   scene.overrideMaterial = depthMaterial;
   renderer.setRenderTarget(target);
@@ -106,10 +118,15 @@ export function captureDepth(
   scene.overrideMaterial = previousOverride;
   scene.background = previousBackground;
   renderer.setRenderTarget(previousTarget);
+  renderer.setClearColor(previousClearColor, previousClearAlpha);
   target.dispose();
   depthMaterial.dispose();
 
-  return { width, height, depth, emptyValue: EMPTY_DEPTH, color };
+  const result: DepthCaptureResult = { width, height, depth, emptyValue: EMPTY_DEPTH };
+  if (color !== undefined) {
+    result.color = color;
+  }
+  return result;
 }
 
 export { EMPTY_DEPTH };

@@ -38,8 +38,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <h1>Something went wrong</h1>
         <p>
           Punch Relief Studio hit an unexpected error and stopped to avoid showing you a broken
-          state. Your model and settings were not sent anywhere -- everything stayed on this
-          device.
+          state. Your model and settings were not sent anywhere -- everything stayed on this device.
         </p>
         <p className="error-boundary__detail">{this.state.error.message}</p>
         <button type="button" onClick={this.handleReset}>

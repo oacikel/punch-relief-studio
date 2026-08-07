@@ -24,7 +24,16 @@ export function parseRegionId(id: string): { colorIndex: number; heightIndex: nu
 /** Distinct small-multiple symbols (not just numbers) so printed
  * grayscale/colorblind-safe legends stay distinguishable at a glance --
  * cycles through a fixed deterministic set keyed by height index. */
-const HEIGHT_SYMBOLS = ['circle', 'triangle', 'square', 'diamond', 'star', 'inverted-triangle', 'pentagon', 'cross'] as const;
+const HEIGHT_SYMBOLS = [
+  'circle',
+  'triangle',
+  'square',
+  'diamond',
+  'star',
+  'inverted-triangle',
+  'pentagon',
+  'cross',
+] as const;
 
 export function symbolForHeight(heightIndex: number): string {
   return HEIGHT_SYMBOLS[heightIndex % HEIGHT_SYMBOLS.length] ?? 'circle';

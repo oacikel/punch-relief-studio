@@ -1,6 +1,6 @@
 # Product Specification — Punch Relief Studio
 
-Tagline: *Turn 3D models into sculptural punch-needle patterns.*
+Tagline: _Turn 3D models into sculptural punch-needle patterns._
 
 ## 1. Problem
 

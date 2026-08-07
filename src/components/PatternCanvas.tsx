@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
-import { buildSvgPattern, type PatternView } from '@/export/svgPattern';
+import type { PatternView } from '@/export/svgPattern';
+import { usePatternSvgUrl } from '@/hooks/usePatternSvgUrl';
 
 interface Props {
   regionMap: RegionMap;
@@ -20,25 +20,27 @@ interface Props {
  * this SVG is entirely app-generated from numeric data and never contains
  * user-supplied text).
  */
-export function PatternCanvas({ regionMap, legend, view, widthCm, heightCm, showGrid, mirrored }: Props): JSX.Element {
-  const result = useMemo(
-    () => buildSvgPattern(regionMap, legend, { widthCm, heightCm, view, showGrid, showLabels: true, mirrored }),
-    [regionMap, legend, view, widthCm, heightCm, showGrid, mirrored],
-  );
-  const [url, setUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const blob = new Blob([result.svg], { type: 'image/svg+xml' });
-    const objectUrl = URL.createObjectURL(blob);
-    setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [result.svg]);
+export function PatternCanvas({
+  regionMap,
+  legend,
+  view,
+  widthCm,
+  heightCm,
+  showGrid,
+  mirrored,
+}: Props): JSX.Element {
+  const { url } = usePatternSvgUrl(regionMap, legend, widthCm, heightCm, view, showGrid, mirrored);
 
   return (
     <img
       src={url ?? undefined}
       alt={`Punch-needle pattern, ${view} view, ${widthCm} by ${heightCm} centimetres`}
-      style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: 6, background: '#f7f3ec' }}
+      style={{
+        width: '100%',
+        border: '1px solid var(--color-border)',
+        borderRadius: 6,
+        background: '#f7f3ec',
+      }}
     />
   );
 }

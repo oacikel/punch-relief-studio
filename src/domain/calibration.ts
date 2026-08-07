@@ -55,7 +55,8 @@ export interface ValidationError {
 
 export function validateProfile(profile: CalibrationProfile): ValidationError[] {
   const errors: ValidationError[] = [];
-  if (!profile.profileName.trim()) errors.push({ field: 'profileName', message: 'Profile name is required.' });
+  if (!profile.profileName.trim())
+    errors.push({ field: 'profileName', message: 'Profile name is required.' });
   if (profile.settings.length === 0) {
     errors.push({ field: 'settings', message: 'At least one needle setting is required.' });
   }
@@ -75,7 +76,8 @@ export function validateProfile(profile: CalibrationProfile): ValidationError[] 
       if (s.measuredHeightCm > 5) {
         errors.push({
           field: `settings[${s.settingNumber}].measuredHeightCm`,
-          message: 'Measured height over 5cm is almost certainly a units mistake (expected cm, not mm).',
+          message:
+            'Measured height over 5cm is almost certainly a units mistake (expected cm, not mm).',
         });
       }
     }

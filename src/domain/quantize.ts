@@ -75,16 +75,16 @@ function quantileBounds(levels: number, field: ScalarField, mask: Mask): HeightL
   for (let i = 0; i < levels; i++) {
     const lower = lowerBounds[i] as number;
     const upper = i === levels - 1 ? 1 : (lowerBounds[i + 1] as number);
-    bounds.push({ index: i, lowerBound: normalizedDepth(lower), upperBound: normalizedDepth(upper) });
+    bounds.push({
+      index: i,
+      lowerBound: normalizedDepth(lower),
+      upperBound: normalizedDepth(upper),
+    });
   }
   return bounds;
 }
 
-export function quantize(
-  field: ScalarField,
-  mask: Mask,
-  levels: HeightLevel[],
-): QuantizeResult {
+export function quantize(field: ScalarField, mask: Mask, levels: HeightLevel[]): QuantizeResult {
   const heightIndex = new Int16Array(field.data.length).fill(-1);
   for (let i = 0; i < field.data.length; i++) {
     if (mask.data[i] !== 1) continue;
@@ -98,7 +98,10 @@ export function levelIndexForValue(value: NormalizedDepth, levels: HeightLevel[]
   for (let i = 0; i < levels.length; i++) {
     const level = levels[i] as HeightLevel;
     const isLast = i === levels.length - 1;
-    if (value >= level.lowerBound && (isLast ? value <= level.upperBound : value < level.upperBound)) {
+    if (
+      value >= level.lowerBound &&
+      (isLast ? value <= level.upperBound : value < level.upperBound)
+    ) {
       return level.index;
     }
   }

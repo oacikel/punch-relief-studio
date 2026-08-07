@@ -9,3 +9,5 @@ test-results
 .vite
 *.env
 .env.*
+*.bundle
+*.tsbuildinfo

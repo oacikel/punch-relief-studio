@@ -76,7 +76,10 @@ export interface ObjImportResult {
   warnings: string[];
 }
 
-export async function parseObjWithAssets(objFile: File, siblingFiles: File[]): Promise<ObjImportResult> {
+export async function parseObjWithAssets(
+  objFile: File,
+  siblingFiles: File[],
+): Promise<ObjImportResult> {
   const warnings: string[] = [];
   const { map, urls } = buildLocalAssetMap(siblingFiles);
   const manager = localOnlyManager(map);
@@ -99,7 +102,9 @@ export async function parseObjWithAssets(objFile: File, siblingFiles: File[]): P
         materials = undefined;
       }
     } else {
-      warnings.push('No matching .mtl file was provided -- the model will use a single default color.');
+      warnings.push(
+        'No matching .mtl file was provided -- the model will use a single default color.',
+      );
     }
 
     const objLoader = new OBJLoader(manager);

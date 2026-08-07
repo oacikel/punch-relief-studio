@@ -2,7 +2,11 @@
  * Save/load a ProjectFile as downloadable JSON (not localStorage -- project
  * files are meant to be shared/reopened explicitly, per product spec §14).
  */
-import { InvalidProjectFileError, parseProjectFile, type ProjectFile } from '@/domain/projectSchema';
+import {
+  InvalidProjectFileError,
+  parseProjectFile,
+  type ProjectFile,
+} from '@/domain/projectSchema';
 import { withExtension } from '@/domain/filenameSanitize';
 
 export function serializeProject(project: ProjectFile): string {

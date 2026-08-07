@@ -14,7 +14,14 @@ interface Props {
 
 /** Height-levels stage: a per-level preview (pixel share + needle setting)
  * and a small-region warning, per product spec §8/§15. */
-export function HeightStage({ levels, heightIndex, width, height, minRegionPx, profile }: Props): JSX.Element {
+export function HeightStage({
+  levels,
+  heightIndex,
+  width,
+  height,
+  minRegionPx,
+  profile,
+}: Props): JSX.Element {
   const counts = useMemo(() => {
     const c = new Array(levels.length).fill(0) as number[];
     for (const v of heightIndex) if (v >= 0) c[v] = (c[v] ?? 0) + 1;
@@ -53,7 +60,9 @@ export function HeightStage({ levels, heightIndex, width, height, minRegionPx, p
                 <td>{share.toFixed(1)}%</td>
                 <td>
                   {setting.settingNumber}: {setting.label}
-                  {setting.measuredHeightCm !== null ? ` (${setting.measuredHeightCm.toFixed(2)}cm)` : ' (uncalibrated)'}
+                  {setting.measuredHeightCm !== null
+                    ? ` (${setting.measuredHeightCm.toFixed(2)}cm)`
+                    : ' (uncalibrated)'}
                 </td>
               </tr>
             );

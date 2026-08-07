@@ -38,7 +38,11 @@ export interface ProjectFile {
     lightingAzimuthDeg: number;
     lightingElevationDeg: number;
   };
-  exportSettings: { pageSize: 'a4' | 'letter' | 'actual-size'; overlapCm: number; orientation: 'front' | 'mirrored' };
+  exportSettings: {
+    pageSize: 'a4' | 'letter' | 'actual-size';
+    overlapCm: number;
+    orientation: 'front' | 'mirrored';
+  };
 }
 
 export class UnsupportedSchemaVersionError extends Error {

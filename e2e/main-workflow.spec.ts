@@ -29,7 +29,9 @@ test.describe('main workflow', () => {
     await expect(page.getByLabel(/Height levels \(5\)/)).toBeVisible();
 
     await page.getByRole('button', { name: 'Generate relief' }).click();
-    await expect(page.getByRole('heading', { name: 'Height levels' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'Height levels' })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // 4: assign colors
     await page.getByRole('button', { name: '5. Yarn colors' }).click();

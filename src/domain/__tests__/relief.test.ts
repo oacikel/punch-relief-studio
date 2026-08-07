@@ -49,7 +49,7 @@ describe('invertRelief', () => {
   it('is a no-op when invert=false', () => {
     const field: ScalarField = { width: 2, height: 1, data: Float32Array.from([0.2, 0.8]) };
     const result = invertRelief(field, false);
-    expect(Array.from(result.data)).toEqual([0.2, 0.8]);
+    expect(Array.from(result.data)).toEqual(Array.from(Float32Array.from([0.2, 0.8])));
   });
 
   it('flips values around 0.5 when invert=true', () => {
@@ -80,7 +80,15 @@ describe('applyIntensity', () => {
 
 describe('smoothRelief', () => {
   it('strength=0 returns the field unchanged (same values)', () => {
-    const field: ScalarField = { width: 3, height: 3, data: Float32Array.from(Array(9).fill(0).map((_, i) => i / 8)) };
+    const field: ScalarField = {
+      width: 3,
+      height: 3,
+      data: Float32Array.from(
+        Array(9)
+          .fill(0)
+          .map((_, i) => i / 8),
+      ),
+    };
     const mask = makeMask(Array(9).fill(1), 3, 3);
     const result = smoothRelief(field, mask, 0, 0.5);
     expect(Array.from(result.data)).toEqual(Array.from(field.data));

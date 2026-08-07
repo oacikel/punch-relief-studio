@@ -32,7 +32,9 @@ export function generateCalibrationStrip(profile: CalibrationProfile): Calibrati
       const w = BLOCK_WIDTH_CM * PX_PER_CM;
       const h = BLOCK_HEIGHT_CM * PX_PER_CM;
       const measured =
-        s.measuredHeightCm !== null ? `${s.measuredHeightCm.toFixed(2)} cm measured` : 'not yet measured';
+        s.measuredHeightCm !== null
+          ? `${s.measuredHeightCm.toFixed(2)} cm measured`
+          : 'not yet measured';
       return `
         <g>
           <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#333" stroke-width="1.5" />
@@ -62,5 +64,8 @@ export function generateCalibrationStrip(profile: CalibrationProfile): Calibrati
 }
 
 function escapeXml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c] ?? c);
+  return s.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c] ?? c,
+  );
 }

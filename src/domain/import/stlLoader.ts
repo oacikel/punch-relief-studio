@@ -3,7 +3,7 @@
  * No network access is possible here by construction -- STLLoader.parse()
  * only ever reads the ArrayBuffer we hand it.
  */
-import * as THREE from 'three';
+import type * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 
 export class MalformedStlError extends Error {

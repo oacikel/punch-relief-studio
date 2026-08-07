@@ -8,6 +8,7 @@ import { createDefaultProfile, type CalibrationProfile } from '@/domain/calibrat
 import { DEFAULT_RELIEF_SETTINGS } from '@/domain/types';
 import type { ColorMode, ColorSwatch, HeightLevel, ReliefSettings, RgbColor } from '@/domain/types';
 import type { PageSize } from '@/export/printTiling';
+import type { PatternView } from '@/export/svgPattern';
 
 export interface PatternDimensions {
   widthCm: number;
@@ -28,6 +29,10 @@ export interface ExportSettings {
   pageSize: PageSize;
   overlapCm: number;
   orientation: 'front' | 'mirrored';
+  /** Which pattern view (combined/color-only/height-only/contour) gets
+   * used for SVG/PNG/print export -- previously every export path was
+   * hardcoded to 'combined' regardless of what the user might want. */
+  view: PatternView;
 }
 
 export interface ProcessedResult {
@@ -104,7 +109,11 @@ export function resizeSwatches(swatches: ColorSwatch[], count: number): ColorSwa
   const next: ColorSwatch[] = [];
   for (let i = 0; i < count; i++) {
     const existing = swatches[i];
-    next.push(existing ? { ...existing, index: i } : { index: i, color: defaultColorForIndex(i), yarnName: `Yarn ${i + 1}` });
+    next.push(
+      existing
+        ? { ...existing, index: i }
+        : { index: i, color: defaultColorForIndex(i), yarnName: `Yarn ${i + 1}` },
+    );
   }
   return next;
 }
@@ -132,7 +141,7 @@ export function initialAppState(): AppState {
       lightingAzimuthDeg: 45,
       lightingElevationDeg: 55,
     },
-    exportSettings: { pageSize: 'a4', overlapCm: 1, orientation: 'front' },
+    exportSettings: { pageSize: 'a4', overlapCm: 1, orientation: 'front', view: 'combined' },
   };
 }
 
@@ -170,8 +179,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // by-height swatches in sync with it immediately, not just on the
       // next explicit mode change.
       const swatches =
-        state.colorMode === 'by-height' ? resizeSwatches(state.swatches, action.result.levels.length) : state.swatches;
-      return { ...state, processing: false, processed: action.result, processingError: null, swatches };
+        state.colorMode === 'by-height'
+          ? resizeSwatches(state.swatches, action.result.levels.length)
+          : state.swatches;
+      return {
+        ...state,
+        processing: false,
+        processed: action.result,
+        processingError: null,
+        swatches,
+      };
     }
     case 'PROCESSING_FAILED':
       return { ...state, processing: false, processingError: action.message };

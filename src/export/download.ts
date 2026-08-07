@@ -7,7 +7,9 @@ import { sanitizeFilename } from '@/domain/filenameSanitize';
 
 export class ExportFailedError extends Error {
   constructor(cause: unknown) {
-    super('Export failed. Your browser may have blocked the download -- check your download settings.');
+    super(
+      'Export failed. Your browser may have blocked the download -- check your download settings.',
+    );
     this.name = 'ExportFailedError';
     this.cause = cause;
   }
@@ -54,7 +56,10 @@ export async function svgToPngBlob(svg: string, widthPx: number, heightPx: numbe
     if (!ctx) throw new Error('Canvas 2D context unavailable');
     ctx.drawImage(img, 0, 0, widthPx, heightPx);
     return await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('toBlob returned null'))), 'image/png');
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('toBlob returned null'))),
+        'image/png',
+      );
     });
   } finally {
     URL.revokeObjectURL(url);

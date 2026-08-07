@@ -54,17 +54,43 @@ self.onmessage = (event: MessageEvent<ProcessRequest>) => {
     let field = normalizeDepth(msg.depth, mask);
     field = invertRelief(field, msg.settings.invert);
     field = applyIntensity(field, mask, msg.settings.intensity);
-    field = smoothRelief(field, mask, msg.settings.smoothingStrength, msg.settings.edgePreservation);
+    field = smoothRelief(
+      field,
+      mask,
+      msg.settings.smoothingStrength,
+      msg.settings.edgePreservation,
+    );
 
-    const levels = computeLevelBounds(msg.settings.levels, msg.settings.quantizationMode, field, mask);
+    const levels = computeLevelBounds(
+      msg.settings.levels,
+      msg.settings.quantizationMode,
+      field,
+      mask,
+    );
     const { heightIndex } = quantize(field, mask, levels);
-    const cleaned = cleanupTinyRegions(heightIndex, msg.width, msg.height, msg.settings.minRegionPx);
+    const cleaned = cleanupTinyRegions(
+      heightIndex,
+      msg.width,
+      msg.height,
+      msg.settings.minRegionPx,
+    );
 
     let colorIndex: Int16Array | undefined;
     let palette: { r: number; g: number; b: number }[] | undefined;
     if (msg.color) {
-      const result = quantizeColors(msg.color.data, msg.color.channels, mask, msg.color.paletteSize, msg.color.seed);
-      colorIndex = cleanupTinyRegions(result.assignment, msg.width, msg.height, msg.settings.minRegionPx);
+      const result = quantizeColors(
+        msg.color.data,
+        msg.color.channels,
+        mask,
+        msg.color.paletteSize,
+        msg.color.seed,
+      );
+      colorIndex = cleanupTinyRegions(
+        result.assignment,
+        msg.width,
+        msg.height,
+        msg.settings.minRegionPx,
+      );
       palette = result.palette;
     }
 

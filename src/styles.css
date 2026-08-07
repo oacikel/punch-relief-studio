@@ -35,8 +35,7 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-ink);
-  font-family:
-    'Iowan Old Style', 'Palatino Linotype', Georgia, 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, 'Segoe UI', system-ui, sans-serif;
 }
 
 button,
@@ -237,14 +236,85 @@ select:focus-visible {
   border: 0;
 }
 
+/* Off-screen by default; only .print-pages is shown for printing (see
+   @media print below). Each .print-page clips a full-size copy of the
+   pattern image (.print-page-crop) to that page's physical region via a
+   negative margin, so multi-page tiled patterns print at true scale. */
+.print-pages {
+  display: none;
+}
+
+.print-page {
+  position: relative;
+  overflow: hidden;
+}
+
+.print-page-crop {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.print-page-number {
+  position: absolute;
+  bottom: 2mm;
+  right: 2mm;
+  font-size: 9px;
+  background: #fffc;
+  padding: 1px 4px;
+}
+
+/* Corner crop marks on each tiled print page, so overlapping tiles can be
+   cut and aligned by hand -- only shown when there's more than one page. */
+.print-crop-mark {
+  position: absolute;
+  width: 8mm;
+  height: 8mm;
+  pointer-events: none;
+}
+.print-crop-mark--tl {
+  top: 0;
+  left: 0;
+  border-top: 1px solid #000;
+  border-left: 1px solid #000;
+}
+.print-crop-mark--tr {
+  top: 0;
+  right: 0;
+  border-top: 1px solid #000;
+  border-right: 1px solid #000;
+}
+.print-crop-mark--bl {
+  bottom: 0;
+  left: 0;
+  border-bottom: 1px solid #000;
+  border-left: 1px solid #000;
+}
+.print-crop-mark--br {
+  bottom: 0;
+  right: 0;
+  border-bottom: 1px solid #000;
+  border-right: 1px solid #000;
+}
+
 @media print {
   .app-header,
   .stage-nav,
-  button {
+  .export-controls {
     display: none !important;
   }
   .stage-panel {
     max-width: none;
+    padding: 0;
+  }
+  .print-pages {
+    display: block;
+  }
+  .print-page {
+    page-break-after: always;
+  }
+  .print-page:last-child {
+    page-break-after: auto;
   }
 }
 

@@ -31,8 +31,10 @@ export function buildHeightFieldMesh(
       positions[idx + 1] = y;
       positions[idx + 2] = v * (size / 2);
 
-      const dHdu = (heightFn(Math.min(1, u + eps), v) - heightFn(Math.max(-1, u - eps), v)) / (2 * eps);
-      const dHdv = (heightFn(u, Math.min(1, v + eps)) - heightFn(u, Math.max(-1, v - eps))) / (2 * eps);
+      const dHdu =
+        (heightFn(Math.min(1, u + eps), v) - heightFn(Math.max(-1, u - eps), v)) / (2 * eps);
+      const dHdv =
+        (heightFn(u, Math.min(1, v + eps)) - heightFn(u, Math.max(-1, v - eps))) / (2 * eps);
       const nx = -dHdu;
       const ny = 1;
       const nz = -dHdv;

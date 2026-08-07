@@ -19,7 +19,13 @@ describe('appReducer', () => {
     let state = initialAppState();
     state = appReducer(state, {
       type: 'PROCESSING_SUCCEEDED',
-      result: { width: 2, height: 2, heightIndex: new Int16Array(4), colorIndex: new Int16Array(4), levels: [] },
+      result: {
+        width: 2,
+        height: 2,
+        heightIndex: new Int16Array(4),
+        colorIndex: new Int16Array(4),
+        levels: [],
+      },
     });
     expect(state.processed).not.toBeNull();
     state = appReducer(state, { type: 'SET_SOURCE', sourceKind: 'built-in-sample', sampleId: 'x' });

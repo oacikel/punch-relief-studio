@@ -4,7 +4,6 @@
  * verbatim rather than presenting a bare number as fact.
  */
 import type { CalibrationProfile, NeedleSetting } from '../calibration';
-import type { Cm } from '../units';
 
 export interface YarnEstimateInput {
   regionAreaCm2: number;
@@ -47,7 +46,11 @@ export function estimateYarnForRegion(input: YarnEstimateInput): YarnEstimateRes
   return { meters: totalCm / 100, assumptions };
 }
 
-function pickSetting(heightLevelIndex: number, levelCount: number, profile: CalibrationProfile): NeedleSetting {
+function pickSetting(
+  heightLevelIndex: number,
+  levelCount: number,
+  profile: CalibrationProfile,
+): NeedleSetting {
   const settings = [...profile.settings].sort((a, b) => a.settingNumber - b.settingNumber);
   const ratio = heightLevelIndex / Math.max(1, levelCount - 1);
   const idx = Math.round(ratio * (settings.length - 1));

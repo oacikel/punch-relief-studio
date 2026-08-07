@@ -65,7 +65,8 @@ export function assessComplexity(triangleCount: number): ComplexityWarning {
     return {
       triangleCount,
       level: 'block',
-      message: `This model has ${triangleCount.toLocaleString()} triangles, above the ` +
+      message:
+        `This model has ${triangleCount.toLocaleString()} triangles, above the ` +
         `${MAX_TRIANGLES.toLocaleString()} limit this app can process interactively. Simplify the ` +
         `mesh (e.g. with a decimate tool) and re-import.`,
     };
@@ -74,7 +75,8 @@ export function assessComplexity(triangleCount: number): ComplexityWarning {
     return {
       triangleCount,
       level: 'warn',
-      message: `This model has ${triangleCount.toLocaleString()} triangles. Processing may be slow on ` +
+      message:
+        `This model has ${triangleCount.toLocaleString()} triangles. Processing may be slow on ` +
         'this device -- consider a simplified export if the viewport feels sluggish.',
     };
   }
