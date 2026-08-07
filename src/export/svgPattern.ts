@@ -198,8 +198,28 @@ function buildLabels(
       sumX += p % width;
       sumY += Math.floor(p / width);
     }
-    const cx = sumX / comp.pixels.length;
-    const cy = sumY / comp.pixels.length;
+    const avgX = sumX / comp.pixels.length;
+    const avgY = sumY / comp.pixels.length;
+
+    // The pixel average isn't guaranteed to land inside the region -- for
+    // an annular (ring-shaped) region it lands near the center of the
+    // whole circle, nowhere near the ring itself, since ring pixels are
+    // symmetrically distributed all the way around. Anchor to whichever
+    // actual member pixel is closest to that average instead, which by
+    // construction always lies within the region.
+    let bestPixel = comp.pixels[0] as number;
+    let bestDistSq = Infinity;
+    for (const p of comp.pixels) {
+      const px = p % width;
+      const py = Math.floor(p / width);
+      const distSq = (px - avgX) ** 2 + (py - avgY) ** 2;
+      if (distSq < bestDistSq) {
+        bestDistSq = distSq;
+        bestPixel = p;
+      }
+    }
+    const cx = bestPixel % width;
+    const cy = Math.floor(bestPixel / width);
     const px = mirrored ? width - 1 - cx : cx;
     const x = (px + 0.5) * cellW;
     const y = (cy + 0.5) * cellH;

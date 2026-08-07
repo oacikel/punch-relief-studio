@@ -184,4 +184,37 @@ describe('buildSvgPattern region labels', () => {
     expect(result.svg).toContain('>C1-H2<');
     expect(result.svg).not.toContain('>C2-H1<');
   });
+
+  it('anchors an annular (ring-shaped) region label to a pixel actually inside the ring', () => {
+    // 9x9 square ring: a 3x3 hole in the middle is background. The pixel
+    // *average* of the ring's own pixels lands in that hole -- not part of
+    // the region at all -- so the label must not be placed there.
+    const width = 9;
+    const height = 9;
+    const heightIndex = new Int16Array(width * height).fill(-1);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const isHole = x >= 3 && x <= 5 && y >= 3 && y <= 5;
+        if (!isHole) heightIndex[y * width + x] = 0;
+      }
+    }
+    const colorIndex = Int16Array.from(heightIndex).map((h) => (h === -1 ? -1 : 0));
+    const regionMap: RegionMap = { width, height, heightIndex, colorIndex };
+
+    const result = buildSvgPattern(regionMap, makeLegend(), {
+      widthCm: width,
+      heightCm: height,
+      view: 'combined',
+      showGrid: false,
+      showLabels: true,
+      mirrored: false,
+    });
+
+    const match = /<text x="([\d.]+)" y="([\d.]+)"/.exec(result.svg);
+    expect(match).not.toBeNull();
+    const [, xStr, yStr] = match as unknown as [string, string, string];
+    const px = Math.round(Number(xStr) / result.pxPerCm - 0.5);
+    const py = Math.round(Number(yStr) / result.pxPerCm - 0.5);
+    expect(heightIndex[py * width + px]).toBe(0);
+  });
 });
