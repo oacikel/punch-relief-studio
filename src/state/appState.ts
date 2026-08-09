@@ -33,6 +33,11 @@ export interface ExportSettings {
    * used for SVG/PNG/print export -- previously every export path was
    * hardcoded to 'combined' regardless of what the user might want. */
   view: PatternView;
+  /** Whether SVG/PNG/print export prints each region's C{n}-H{n} id.
+   * Defaults on (see CLAUDE.md: never rely on color alone), but some
+   * users punching from color/height alone via the on-screen legend want
+   * an uncluttered print. */
+  showLabels: boolean;
 }
 
 export interface ProcessedResult {
@@ -141,7 +146,13 @@ export function initialAppState(): AppState {
       lightingAzimuthDeg: 45,
       lightingElevationDeg: 55,
     },
-    exportSettings: { pageSize: 'a4', overlapCm: 1, orientation: 'front', view: 'combined' },
+    exportSettings: {
+      pageSize: 'a4',
+      overlapCm: 1,
+      orientation: 'front',
+      view: 'combined',
+      showLabels: true,
+    },
   };
 }
 

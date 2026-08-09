@@ -35,7 +35,14 @@ function makeLegend(): LegendEntry[] {
 const baseDimensions: PatternDimensions = { widthCm: 20, heightCm: 20, lockAspect: true };
 
 function baseExportSettings(overrides: Partial<ExportSettings> = {}): ExportSettings {
-  return { pageSize: 'a4', overlapCm: 1, orientation: 'front', view: 'combined', ...overrides };
+  return {
+    pageSize: 'a4',
+    overlapCm: 1,
+    orientation: 'front',
+    view: 'combined',
+    showLabels: true,
+    ...overrides,
+  };
 }
 
 describe('ExportStage print pages', () => {
@@ -87,5 +94,31 @@ describe('ExportStage print pages', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'contour' }));
     expect(onExportSettingsChange).toHaveBeenCalledWith({ view: 'contour' });
+  });
+
+  it('lets the user turn printed region labels off for export/print', async () => {
+    const onExportSettingsChange = vi.fn();
+    render(
+      <ExportStage
+        regionMap={makeRegionMap()}
+        legend={makeLegend()}
+        dimensions={baseDimensions}
+        onDimensionsChange={vi.fn()}
+        exportSettings={baseExportSettings({ showLabels: true })}
+        onExportSettingsChange={onExportSettingsChange}
+        calibrationProfile={createDefaultProfile()}
+        savedProfiles={[]}
+        onCalibrationChange={vi.fn()}
+        onCalibrationSave={vi.fn()}
+        onCalibrationSelect={vi.fn()}
+        onSaveProjectJson={vi.fn()}
+        onLoadProjectJson={vi.fn()}
+      />,
+    );
+
+    const checkbox = screen.getByRole('checkbox', { name: /Print region labels/i });
+    expect(checkbox).toBeChecked();
+    await userEvent.click(checkbox);
+    expect(onExportSettingsChange).toHaveBeenCalledWith({ showLabels: false });
   });
 });

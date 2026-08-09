@@ -85,7 +85,7 @@ export function ExportStage({
       heightCm: safeDimensions.heightCm,
       view: exportSettings.view,
       showGrid: false,
-      showLabels: true,
+      showLabels: exportSettings.showLabels,
       mirrored,
     });
     downloadSvg(result.svg, withExtension('punch-relief-pattern', 'svg'));
@@ -97,7 +97,7 @@ export function ExportStage({
       heightCm: safeDimensions.heightCm,
       view: exportSettings.view,
       showGrid: false,
-      showLabels: true,
+      showLabels: exportSettings.showLabels,
       mirrored,
     });
     const widthPx = Math.round(safeDimensions.widthCm * 40);
@@ -125,6 +125,7 @@ export function ExportStage({
     safeDimensions.heightCm,
     exportSettings.view,
     false,
+    exportSettings.showLabels,
     mirrored,
   );
   const fullWidthPx = cmToCssPx(safeDimensions.widthCm);
@@ -190,6 +191,19 @@ export function ExportStage({
         <p className="helper-text">
           Applies to SVG/PNG export and printing -- "contour" prints outlines only, with no fill,
           for tracing.
+        </p>
+
+        <label>
+          <input
+            type="checkbox"
+            checked={exportSettings.showLabels}
+            onChange={(e) => onExportSettingsChange({ showLabels: e.target.checked })}
+          />{' '}
+          Print region labels (C1-H1 etc.)
+        </label>
+        <p className="helper-text">
+          Turn off for an uncluttered print if you're reading colors/heights from the on-screen
+          legend instead.
         </p>
 
         <div className="field">

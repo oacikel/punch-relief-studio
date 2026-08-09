@@ -10,6 +10,7 @@ interface Props {
   widthCm: number;
   heightCm: number;
   showGrid: boolean;
+  showLabels: boolean;
   mirrored: boolean;
 }
 
@@ -27,9 +28,19 @@ export function PatternCanvas({
   widthCm,
   heightCm,
   showGrid,
+  showLabels,
   mirrored,
 }: Props): JSX.Element {
-  const { url } = usePatternSvgUrl(regionMap, legend, widthCm, heightCm, view, showGrid, mirrored);
+  const { url } = usePatternSvgUrl(
+    regionMap,
+    legend,
+    widthCm,
+    heightCm,
+    view,
+    showGrid,
+    showLabels,
+    mirrored,
+  );
 
   return (
     <img

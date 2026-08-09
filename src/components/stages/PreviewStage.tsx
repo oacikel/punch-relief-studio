@@ -73,6 +73,7 @@ export function PreviewStage({
             widthCm={dimensions.widthCm}
             heightCm={dimensions.heightCm}
             showGrid={showGrid}
+            showLabels
             mirrored={mirrored}
           />
         </div>

@@ -17,6 +17,7 @@ export function usePatternSvgUrl(
   heightCm: number,
   view: PatternView,
   showGrid: boolean,
+  showLabels: boolean,
   mirrored: boolean,
 ): { url: string | null; result: SvgPatternResult } {
   const result = useMemo(
@@ -26,10 +27,10 @@ export function usePatternSvgUrl(
         heightCm,
         view,
         showGrid,
-        showLabels: true,
+        showLabels,
         mirrored,
       }),
-    [regionMap, legend, widthCm, heightCm, view, showGrid, mirrored],
+    [regionMap, legend, widthCm, heightCm, view, showGrid, showLabels, mirrored],
   );
   const [url, setUrl] = useState<string | null>(null);
 
