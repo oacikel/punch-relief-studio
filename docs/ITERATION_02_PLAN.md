@@ -485,7 +485,7 @@ calibration add/remove UI — Stage C/D/E untouched.
   `docs/DECISIONS.md` for the interpretation of the one-line "sticky
   preview" spec.
 - **Contextual calibration access** (`src/components/stages/
-  HeightStage.tsx`, `src/components/stages/PreviewStage.tsx`,
+HeightStage.tsx`, `src/components/stages/PreviewStage.tsx`,
   `src/components/ExportPanel.tsx`, `src/App.tsx`): a "Calibrate needle
   settings" link/button on Height Levels dispatches to the Preview stage
   and sets a `focusCalibration` flag (local `useState` in `App.tsx`, kept
@@ -495,7 +495,7 @@ calibration add/remove UI — Stage C/D/E untouched.
   `onCalibrationFocused` so the flag doesn't keep re-forcing the panel
   open on later, ordinary visits to Preview.
 - **`CalibrationEditor` add/remove UI** (`src/components/
-  CalibrationEditor.tsx`, `src/domain/calibration.ts`): "Add needle
+CalibrationEditor.tsx`, `src/domain/calibration.ts`): "Add needle
   setting"/"Remove" controls, 1-12 settings per profile
   (`MIN_NEEDLE_SETTINGS`/`MAX_NEEDLE_SETTINGS`), backed by pure
   `addNeedleSetting`/`removeNeedleSetting` domain functions.

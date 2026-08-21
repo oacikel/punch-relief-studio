@@ -103,7 +103,7 @@ hardware/measurement supports" stance.
 **Schema/migration note:** `ProjectFile.reliefSettings.levels`
 (`src/domain/projectSchema.ts`) embeds this number directly. Old project
 JSON files with `levels` anywhere in the old 3-8 range remain valid under
-the widened range -- this is purely additive (a widened *allowed* range,
+the widened range -- this is purely additive (a widened _allowed_ range,
 not a shape change), so no `PROJECT_SCHEMA_VERSION` bump was needed.
 `parseProjectFile`'s structural validation never checked the numeric bound
 in the first place (only `quantize()` and the UI did), so there was

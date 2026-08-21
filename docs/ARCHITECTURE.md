@@ -51,7 +51,7 @@ of Iteration 02 Stage B, `ReliefStage.tsx`'s controls are grouped into
 Basic/Advanced tiers (see `docs/ITERATION_02_PLAN.md` §5) and the Relief
 stage's 3D viewport is pinned in a sticky right-hand column via a
 `className` toggle on `App.tsx`'s `<main>` and the viewport's wrapper
-`<div>` -- deliberately *not* a new conditional wrapper element, so the
+`<div>` -- deliberately _not_ a new conditional wrapper element, so the
 shared `Viewport3D` instance's mount identity across Import<->Relief
 navigation (guarded by `e2e/orient-persistence.spec.ts`) is unaffected; see
 `docs/DECISIONS.md` for the reasoning. `HeightStage.tsx` also gained a

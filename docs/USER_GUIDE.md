@@ -30,6 +30,7 @@ create ever leaves your device.
    preview stays visible alongside the controls (pinned in place while you
    scroll, on wider screens) so you can see the effect of a change without
    scrolling back up.
+
 3. **Height levels** -- see how much of the pattern each level covers and
    which needle setting it maps to, plus a warning if any region is too
    small to punch reliably. A "Calibrate needle settings" link takes you
