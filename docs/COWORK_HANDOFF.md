@@ -66,10 +66,10 @@ locally verified, not yet pushed/merged/deployed.**
 
 ## Delivery blocker (read this before starting Stage B)
 
-This Cowork cloud session's git proxy refused `git push` with: *"access
+This Cowork cloud session's git proxy refused `git push` with: _"access
 denied by the git proxy: oacikel/punch-relief-studio is not in this
 session's authorized repository set... add the repository to the session's
-sources."* Same restriction applies to the GitHub REST/GraphQL API (`gh
+sources."_ Same restriction applies to the GitHub REST/GraphQL API (`gh
 api`, `gh repo view` all 403 with "GitHub access to this repository is not
 enabled for this session. Use add_repo to request access."). No `add_repo`
 tool/command is exposed in this sandbox. Researched during the session:
@@ -104,14 +104,14 @@ deployed.
 
 ## Verification (all run in this Cowork sandbox, on HEAD `dd19ac7`)
 
-| Check | Result |
-| --- | --- |
-| `npm run verify` (format + lint + typecheck + test + build) | **all green** |
-| `npm run test` | 137/137 passing, 23 files (was 134/23 at baseline; +3 new `ImportOrientSection` tests) |
-| `npm run build` | succeeds (pre-existing chunk-size advisory only, not an error) |
-| `npm run test:e2e` (chromium project) | 3/3 passing -- `main-workflow.spec.ts`, `orient-persistence.spec.ts`, `import-fixture.spec.ts`, all rewritten for the 5-stage nav and the new "Export & print" disclosure |
-| `mobile-narrow` (webkit) e2e project | untestable in this sandbox -- no webkit binary available (only a Chromium build ships in the base image), not a code issue. Whoever runs this next in a normal environment (CI included) should get a real webkit result. |
-| Print-safety fix | verified twice: Chromium print-media emulation screenshot + an actual `page.pdf()` render, both from the Preview stage with the Export & print panel left **collapsed** (the harder case) -- output shows only the pattern/crop-marks/scale-check, no app chrome, no leaked Preview content |
+| Check                                                       | Result                                                                                                                                                                                                                                                                                      |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run verify` (format + lint + typecheck + test + build) | **all green**                                                                                                                                                                                                                                                                               |
+| `npm run test`                                              | 137/137 passing, 23 files (was 134/23 at baseline; +3 new `ImportOrientSection` tests)                                                                                                                                                                                                      |
+| `npm run build`                                             | succeeds (pre-existing chunk-size advisory only, not an error)                                                                                                                                                                                                                              |
+| `npm run test:e2e` (chromium project)                       | 3/3 passing -- `main-workflow.spec.ts`, `orient-persistence.spec.ts`, `import-fixture.spec.ts`, all rewritten for the 5-stage nav and the new "Export & print" disclosure                                                                                                                   |
+| `mobile-narrow` (webkit) e2e project                        | untestable in this sandbox -- no webkit binary available (only a Chromium build ships in the base image), not a code issue. Whoever runs this next in a normal environment (CI included) should get a real webkit result.                                                                   |
+| Print-safety fix                                            | verified twice: Chromium print-media emulation screenshot + an actual `page.pdf()` render, both from the Preview stage with the Export & print panel left **collapsed** (the harder case) -- output shows only the pattern/crop-marks/scale-check, no app chrome, no leaked Preview content |
 
 **Playwright/Chromium version note for whoever runs e2e next:** this
 sandbox's pinned Chromium build (`/opt/pw-browsers/chromium-1194`) is older
