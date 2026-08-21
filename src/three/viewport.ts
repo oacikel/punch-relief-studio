@@ -51,17 +51,24 @@ export function normalizeScale(geometry: THREE.BufferGeometry, targetSize = 10):
 }
 
 /** Distance an orthographic camera needs from the origin to comfortably
- * frame a sphere of the given radius, plus the ortho frustum half-size. */
+ * frame a sphere of the given radius, plus the ortho frustum half-size.
+ * `aspect` (canvas width / height) keeps the frustum's proportions matched
+ * to the canvas so the render isn't stretched -- the object always fits
+ * within the *smaller* screen dimension, with the larger dimension scaled
+ * by `aspect` to fill it exactly. */
 export function fitOrthographicCamera(
   camera: THREE.OrthographicCamera,
   radius: number,
   paddingFactor = 1.15,
+  aspect = 1,
 ): void {
   const half = radius * paddingFactor;
-  camera.left = -half;
-  camera.right = half;
-  camera.top = half;
-  camera.bottom = -half;
+  const halfWidth = aspect >= 1 ? half * aspect : half;
+  const halfHeight = aspect >= 1 ? half : half / aspect;
+  camera.left = -halfWidth;
+  camera.right = halfWidth;
+  camera.top = halfHeight;
+  camera.bottom = -halfHeight;
   camera.near = 0.01;
   camera.far = radius * 8 + 10;
   camera.updateProjectionMatrix();

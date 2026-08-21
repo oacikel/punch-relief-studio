@@ -28,6 +28,11 @@ interface Props {
   onCalibrationSelect: (profile: CalibrationProfile) => void;
   onSaveProjectJson: () => void;
   onLoadProjectJson: (project: ProjectFile) => void;
+  /** Iteration 02 Stage B: forwarded straight through to `ExportPanel` --
+   * see its own doc comment. Set from App.tsx via the Height Levels
+   * stage's "Calibrate needle settings" link. */
+  focusCalibration?: boolean;
+  onCalibrationFocused?: () => void;
 }
 
 const VIEWS: PatternView[] = ['combined', 'color-only', 'height-only', 'contour'];
@@ -64,6 +69,8 @@ export function PreviewStage({
   onCalibrationSelect,
   onSaveProjectJson,
   onLoadProjectJson,
+  focusCalibration = false,
+  onCalibrationFocused = () => {},
 }: Props): JSX.Element {
   const [view, setView] = useState<PatternView>('combined');
   const [showGrid, setShowGrid] = useState(false);
@@ -170,6 +177,8 @@ export function PreviewStage({
         onCalibrationSelect={onCalibrationSelect}
         onSaveProjectJson={onSaveProjectJson}
         onLoadProjectJson={onLoadProjectJson}
+        focusCalibration={focusCalibration}
+        onCalibrationFocused={onCalibrationFocused}
       />
     </section>
   );

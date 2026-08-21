@@ -20,8 +20,8 @@ export function computeLevelBounds(
   field: ScalarField,
   mask: Mask,
 ): HeightLevel[] {
-  if (levels < 3 || levels > 8) {
-    throw new RangeError(`levels must be between 3 and 8, got ${levels}`);
+  if (levels < 2 || levels > 12) {
+    throw new RangeError(`levels must be between 2 and 12, got ${levels}`);
   }
   if (mode === 'equal-interval') {
     return equalIntervalBounds(levels);

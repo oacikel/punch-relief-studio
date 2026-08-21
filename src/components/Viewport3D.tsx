@@ -101,6 +101,8 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
       const h = container.clientHeight;
       if (w === 0 || h === 0) return;
       renderer.setSize(w, h);
+      const currentCamera = cameraRef.current;
+      if (currentCamera) fitOrthographicCamera(currentCamera, radiusRef.current, 1.15, w / h);
     });
     resizeObserver.observe(container);
 
@@ -137,7 +139,10 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
     scene.add(mesh);
     meshRef.current = mesh;
 
-    fitOrthographicCamera(camera, radiusRef.current);
+    const container = containerRef.current;
+    const aspect =
+      container && container.clientHeight ? container.clientWidth / container.clientHeight : 1;
+    fitOrthographicCamera(camera, radiusRef.current, 1.15, aspect);
     applyStandardView(camera, 'front', radiusRef.current * 3);
   }, [geometry]);
 

@@ -11,11 +11,18 @@ function mask(values: number[], width: number, height: number): Mask {
 }
 
 describe('computeLevelBounds', () => {
-  it('rejects level counts outside 3-8', () => {
+  it('rejects level counts outside 2-12', () => {
     const f = field([0, 1], 2, 1);
     const m = mask([1, 1], 2, 1);
-    expect(() => computeLevelBounds(2, 'equal-interval', f, m)).toThrow(RangeError);
-    expect(() => computeLevelBounds(9, 'equal-interval', f, m)).toThrow(RangeError);
+    expect(() => computeLevelBounds(1, 'equal-interval', f, m)).toThrow(RangeError);
+    expect(() => computeLevelBounds(13, 'equal-interval', f, m)).toThrow(RangeError);
+  });
+
+  it('accepts the widened bounds (2 and 12 levels)', () => {
+    const f = field([0, 1], 2, 1);
+    const m = mask([1, 1], 2, 1);
+    expect(computeLevelBounds(2, 'equal-interval', f, m)).toHaveLength(2);
+    expect(computeLevelBounds(12, 'equal-interval', f, m)).toHaveLength(12);
   });
 
   it('equal-interval produces evenly spaced, monotonic bounds covering [0,1]', () => {

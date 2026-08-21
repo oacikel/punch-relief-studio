@@ -10,8 +10,13 @@ processing pipeline unit-testable without a browser. Submodules:
 `units.ts`/`types.ts`/`random.ts` (shared primitives), `relief.ts` (mask,
 normalize, invert, intensity, smooth), `quantize.ts` (equal-interval and
 quantile banding), `regionCleanup.ts` (connected components, tiny-region
-reassignment), `regionId.ts` (C{n}-H{n} identity + symbols),
-`calibration.ts`/`calibrationStrip.ts`, `color/colorQuantize.ts` (Lab-space
+reassignment), `regionId.ts` (C{n}-H{n} identity + symbols, 12 distinct symbol words as of
+Iteration 02 Stage B to match the widened 2-12 height-level range),
+`calibration.ts` (profile CRUD helpers, including the Stage B
+`addNeedleSetting`/`removeNeedleSetting` pure functions --
+`CalibrationEditor.tsx` calls these rather than mutating the settings array
+inline, per the component/domain boundary below) /`calibrationStrip.ts`,
+`color/colorQuantize.ts` (Lab-space
 deterministic clustering) and `color/colorMode.ts`, `pattern/legend.ts`,
 `pattern/yarnEstimate.ts`, `pattern/punchOrder.ts`, `projectSchema.ts`,
 `filenameSanitize.ts`, `import/validation.ts`, `samples/*` (the 3 built-in
@@ -41,7 +46,19 @@ export/print/calibration actions live in a compact `ExportPanel`
 no longer a workflow stage) rendered inside Preview rather than a separate
 Export stage). Components read state via props and call
 `src/domain`/`src/three`/`src/export` functions; per CLAUDE.md, no
-quantization/scaling/calibration math is allowed inline in a component.
+quantization/scaling/calibration math is allowed inline in a component. As
+of Iteration 02 Stage B, `ReliefStage.tsx`'s controls are grouped into
+Basic/Advanced tiers (see `docs/ITERATION_02_PLAN.md` §5) and the Relief
+stage's 3D viewport is pinned in a sticky right-hand column via a
+`className` toggle on `App.tsx`'s `<main>` and the viewport's wrapper
+`<div>` -- deliberately _not_ a new conditional wrapper element, so the
+shared `Viewport3D` instance's mount identity across Import<->Relief
+navigation (guarded by `e2e/orient-persistence.spec.ts`) is unaffected; see
+`docs/DECISIONS.md` for the reasoning. `HeightStage.tsx` also gained a
+"Calibrate needle settings" link that navigates to Preview and flags
+`ExportPanel.tsx` (via `focusCalibration`/`onCalibrationFocused` props
+threaded through `PreviewStage.tsx`) to force its disclosure open and
+scroll to the calibration section.
 
 `src/state/**` -- two plain reducers, framework-light enough to unit test
 without React: `workflow.ts` (which stage is active, gating, and the

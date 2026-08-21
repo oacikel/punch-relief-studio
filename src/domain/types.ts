@@ -56,7 +56,7 @@ export interface ColorSwatch {
 
 export interface ReliefSettings {
   outputResolutionPx: Px;
-  levels: number; // 3-8
+  levels: number; // 2-12
   intensity: number; // 0-1, scales relief depth before quantization
   invert: boolean; // near-to-high (false) vs near-to-low (true)
   smoothingStrength: number; // 0-1

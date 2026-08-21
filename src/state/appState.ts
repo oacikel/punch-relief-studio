@@ -85,7 +85,11 @@ export const DEFAULT_SINGLE_COLOR: RgbColor = { r: 139, g: 90, b: 60 };
 
 /** Fixed, deterministic fallback palette for newly-created by-height
  * swatches (cycled if more levels than colors) -- chosen for reasonable
- * mutual contrast, not derived from any input data. */
+ * mutual contrast, not derived from any input data. Sized to 12 entries
+ * (not 8) so it covers the full widened height-levels range (2-12, see
+ * docs/DECISIONS.md) without two levels defaulting to the identical color
+ * before the cycle wraps -- a user can always recolor by hand, but the
+ * *default* shouldn't silently repeat within one pattern. */
 const DEFAULT_PALETTE: RgbColor[] = [
   { r: 139, g: 90, b: 60 },
   { r: 196, g: 148, b: 92 },
@@ -95,6 +99,10 @@ const DEFAULT_PALETTE: RgbColor[] = [
   { r: 210, g: 190, b: 140 },
   { r: 120, g: 70, b: 110 },
   { r: 70, g: 130, b: 120 },
+  { r: 60, g: 60, b: 150 },
+  { r: 200, g: 150, b: 180 },
+  { r: 130, g: 130, b: 60 },
+  { r: 90, g: 90, b: 90 },
 ];
 
 function defaultColorForIndex(index: number): RgbColor {

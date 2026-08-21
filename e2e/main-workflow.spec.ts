@@ -27,10 +27,11 @@ test.describe('main workflow', () => {
     await page.getByRole('button', { name: '2. Create relief' }).click();
     await expect(page.getByRole('heading', { name: 'Create the relief' })).toBeVisible();
 
-    // 3: change from default (4) to 5 height levels
-    const levelsSlider = page.getByLabel(/Height levels/);
+    // 3: change from default (4) to 5 height levels (relabeled "Number of
+    // pile heights" in Iteration 02 Stage B -- see docs/ITERATION_02_PLAN.md §5)
+    const levelsSlider = page.getByLabel(/Number of pile heights/);
     await levelsSlider.fill('5');
-    await expect(page.getByLabel(/Height levels \(5\)/)).toBeVisible();
+    await expect(page.getByLabel(/Number of pile heights \(5\)/)).toBeVisible();
 
     await page.getByRole('button', { name: 'Generate relief' }).click();
     await expect(page.getByRole('heading', { name: 'Height levels' })).toBeVisible({
