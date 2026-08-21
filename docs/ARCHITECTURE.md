@@ -33,9 +33,15 @@ receive a message, call `src/domain` functions in sequence, post the
 result back. This keeps expensive per-pixel work off the main thread.
 
 `src/components/**` -- React. Stage components under `components/stages/`
-correspond 1:1 to the 7 workflow stages. Components read state via props
-and call `src/domain`/`src/three`/`src/export` functions; per CLAUDE.md,
-no quantization/scaling/calibration math is allowed inline in a component.
+correspond 1:1 to the 5 workflow stages (down from 7 as of Iteration 02
+Stage A -- see docs/ITERATION_02_PLAN.md: model orientation now happens on
+Import once a model has loaded rather than a separate Orient stage, and
+export/print/calibration actions live in a compact `ExportPanel`
+(`src/components/ExportPanel.tsx`, outside `components/stages/` since it is
+no longer a workflow stage) rendered inside Preview rather than a separate
+Export stage). Components read state via props and call
+`src/domain`/`src/three`/`src/export` functions; per CLAUDE.md, no
+quantization/scaling/calibration math is allowed inline in a component.
 
 `src/state/**` -- two plain reducers, framework-light enough to unit test
 without React: `workflow.ts` (which stage is active, gating, and the

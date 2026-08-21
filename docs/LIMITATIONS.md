@@ -5,7 +5,8 @@
 - **Single-viewpoint bas-relief only.** The pattern captures the nearest
   visible surface from one chosen orthographic viewpoint. Undercuts,
   occluded geometry, and the back/sides of the model are never represented.
-  This is communicated in the Orient stage UI, not only here.
+  This is communicated in the Import stage's orientation section UI (formerly
+  a separate "Orient" stage -- see docs/ITERATION_02_PLAN.md), not only here.
 - **Uncalibrated height is not a physical measurement.** Without a
   calibration profile with at least one measured setting, height levels are
   ordered low-to-high only. The app labels this "uncalibrated" everywhere a

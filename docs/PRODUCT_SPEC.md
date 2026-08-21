@@ -25,9 +25,10 @@ slicer turns a mesh into printable layers. Here, the "slices" are:
 ## 3. MVP Boundary
 
 In scope: local, client-side, no-account, deterministic pipeline covering
-Import → Orient → Relief → Height levels → Color → Preview → Export, three
-built-in sample models, a calibration-profile system, PNG/SVG/PDF export,
-project persistence via JSON, and a Three.js finished-piece simulation.
+Import (incl. orientation) → Relief → Height levels → Color → Preview
+(incl. export), three built-in sample models, a calibration-profile system,
+PNG/SVG/PDF export, project persistence via JSON, and a Three.js
+finished-piece simulation.
 
 Out of scope for MVP: accounts, payments, cloud storage/sync, multi-user
 collaboration, generative AI, server-side rendering, multi-view/360° capture,
@@ -52,14 +53,22 @@ recognizable, and whether the pattern is printable and followable.
   "uncalibrated" everywhere they appear (viewport, legend, PDF).
   Yarn-usage estimates are labeled as estimates with stated assumptions.
 - Undercuts / occluded geometry are not represented; this is communicated in
-  the Orient stage and in docs/LIMITATIONS.md.
+  the orientation section of the Import stage and in docs/LIMITATIONS.md.
 
-## 6. Primary Workflow (7 stages)
+## 6. Primary Workflow (5 stages)
 
-Import → Orient → Create Relief → Height Levels → Yarn Colors → Preview →
-Export. All settings persist when moving backward/forward. Built-in samples
-(ripple, rounded-eye relief, geometric step block) let the full workflow run
-without any upload.
+Import → Create Relief → Height Levels → Yarn Colors → Preview. All
+settings persist when moving backward/forward. Built-in samples (ripple,
+rounded-eye relief, geometric step block) let the full workflow run without
+any upload.
+
+As of Iteration 02 Stage A (see `docs/ITERATION_02_PLAN.md`), model
+orientation is no longer a separate visible stage: it happens on Import
+itself, once a model has loaded, before Create Relief. Export/print/
+calibration actions are no longer a separate visible stage either: they
+live in a compact panel on Preview. Both changes are navigation/layout only
+-- the underlying capabilities (single-viewpoint bas-relief capture,
+SVG/PNG/print-PDF export, calibration profile CRUD) are unchanged.
 
 ## 7. Non-Functional Requirements
 

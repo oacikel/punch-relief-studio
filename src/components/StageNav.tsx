@@ -2,12 +2,10 @@ import { WORKFLOW_STAGES, type WorkflowStage } from '@/state/workflow';
 
 const LABELS: Record<WorkflowStage, string> = {
   import: '1. Import',
-  orient: '2. Orient',
-  relief: '3. Create relief',
-  height: '4. Height levels',
-  color: '5. Yarn colors',
-  preview: '6. Preview',
-  export: '7. Export',
+  relief: '2. Create relief',
+  height: '3. Height levels',
+  color: '4. Yarn colors',
+  preview: '5. Preview',
 };
 
 interface Props {

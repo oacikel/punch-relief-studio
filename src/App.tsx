@@ -4,13 +4,11 @@ import { APP_NAME, APP_TAGLINE, APP_VERSION } from '@/config/branding';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StageNav } from '@/components/StageNav';
 import { Viewport3D, type Viewport3DHandle } from '@/components/Viewport3D';
-import { ImportStage } from '@/components/stages/ImportStage';
-import { OrientStage } from '@/components/stages/OrientStage';
+import { ImportStage, ImportOrientSection } from '@/components/stages/ImportStage';
 import { ReliefStage } from '@/components/stages/ReliefStage';
 import { HeightStage } from '@/components/stages/HeightStage';
 import { ColorStage } from '@/components/stages/ColorStage';
 import { PreviewStage } from '@/components/stages/PreviewStage';
-import { ExportStage } from '@/components/stages/ExportStage';
 import { getSampleById } from '@/domain/samples';
 import { meshDataToGeometry } from '@/three/sampleAdapter';
 import { parseStlFile } from '@/domain/import/stlLoader';
@@ -44,7 +42,9 @@ export default function App(): JSX.Element {
     setGeometry(meshDataToGeometry(sample.generate()));
     dispatch({ type: 'SET_SOURCE', sourceKind: 'built-in-sample', sampleId });
     dispatchWorkflow({ type: 'MODEL_LOADED' });
-    dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'orient' });
+    // Iteration 02 Stage A: orientation now happens on the Import stage
+    // itself (see ImportOrientSection below) -- no separate stage to
+    // navigate to. The user is already on 'import'.
   };
 
   const handleFilesSelected = async (files: File[]): Promise<void> => {
@@ -78,7 +78,8 @@ export default function App(): JSX.Element {
         return;
       }
       dispatchWorkflow({ type: 'MODEL_LOADED' });
-      dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'orient' });
+      // See handleSelectSample above -- already on 'import', which now
+      // shows the orientation section once hasModel is true.
     } catch (err) {
       setImportWarning(err instanceof Error ? err.message : 'Import failed.');
     }
@@ -250,10 +251,13 @@ export default function App(): JSX.Element {
                   {importWarning}
                 </p>
               )}
+              {workflow.hasModel && (
+                <ImportOrientSection
+                  onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'relief' })}
+                />
+              )}
             </>
           )}
-
-          {workflow.currentStage === 'orient' && <OrientStage />}
 
           {workflow.currentStage === 'relief' && (
             <ReliefStage
@@ -266,13 +270,16 @@ export default function App(): JSX.Element {
           )}
 
           {/* Rendered once, unconditionally, for both stages that need it, so the
-              orientation chosen on "Orient" survives navigating on to "Create
-              relief" instead of resetting to the default camera on remount. */}
-          {(workflow.currentStage === 'orient' || workflow.currentStage === 'relief') && (
-            <div className="stage-panel">
-              <Viewport3D geometry={geometry} onReady={(h) => (viewportHandle.current = h)} />
-            </div>
-          )}
+              orientation chosen on Import survives navigating on to "Create
+              relief" instead of resetting to the default camera on remount.
+              Guarded by hasModel now that Import is reachable before a model
+              is loaded (it wasn't, when this was the separate Orient stage). */}
+          {(workflow.currentStage === 'import' || workflow.currentStage === 'relief') &&
+            workflow.hasModel && (
+              <div className="stage-panel">
+                <Viewport3D geometry={geometry} onReady={(h) => (viewportHandle.current = h)} />
+              </div>
+            )}
 
           {workflow.currentStage === 'height' && state.processed && (
             <HeightStage
@@ -305,26 +312,17 @@ export default function App(): JSX.Element {
               legend={legend}
               profile={state.calibrationProfile}
               dimensions={state.patternDimensions}
+              onDimensionsChange={(patch) =>
+                dispatch({ type: 'SET_PATTERN_DIMENSIONS', dimensions: patch })
+              }
               renderSettings={state.renderSettings}
               onRenderSettingsChange={(patch) =>
                 dispatch({ type: 'SET_RENDER_SETTINGS', settings: patch })
-              }
-            />
-          )}
-
-          {workflow.currentStage === 'export' && regionMap && (
-            <ExportStage
-              regionMap={regionMap}
-              legend={legend}
-              dimensions={state.patternDimensions}
-              onDimensionsChange={(patch) =>
-                dispatch({ type: 'SET_PATTERN_DIMENSIONS', dimensions: patch })
               }
               exportSettings={state.exportSettings}
               onExportSettingsChange={(patch) =>
                 dispatch({ type: 'SET_EXPORT_SETTINGS', settings: patch })
               }
-              calibrationProfile={state.calibrationProfile}
               savedProfiles={state.savedProfiles}
               onCalibrationChange={(profile) =>
                 dispatch({ type: 'SET_CALIBRATION_PROFILE', profile })
