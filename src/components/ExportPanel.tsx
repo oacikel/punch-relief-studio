@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
 import type { CalibrationProfile } from '@/domain/calibration';
@@ -27,6 +27,17 @@ interface Props {
   onCalibrationSelect: (profile: CalibrationProfile) => void;
   onSaveProjectJson: () => void;
   onLoadProjectJson: (project: ProjectFile) => void;
+  /** Iteration 02 Stage B: when true, forces this panel's disclosure open
+   * and scrolls/focuses the calibration section -- set from App.tsx when
+   * the user follows the "Calibrate needle settings" link on the Height
+   * Levels stage (see docs/ITERATION_02_PLAN.md §14 decision #1). Optional
+   * so existing callers/tests that don't care about this behave exactly as
+   * before. */
+  focusCalibration?: boolean;
+  /** Called once the forced-open/scroll/focus above has happened, so the
+   * caller can reset its flag and a later, ordinary visit to Preview
+   * doesn't keep re-forcing it. */
+  onCalibrationFocused?: () => void;
 }
 
 /**
@@ -52,8 +63,32 @@ export function ExportPanel({
   onCalibrationSelect,
   onSaveProjectJson,
   onLoadProjectJson,
+  focusCalibration = false,
+  onCalibrationFocused,
 }: Props): JSX.Element {
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const calibrationRef = useRef<HTMLDivElement | null>(null);
+
+  // Force the disclosure open when asked to focus calibration (see the
+  // "Calibrate needle settings" link on the Height Levels stage).
+  useEffect(() => {
+    if (focusCalibration) setDetailsOpen(true);
+  }, [focusCalibration]);
+
+  // Once open, scroll to and focus the calibration section, then tell the
+  // caller so it can clear the flag -- otherwise a later, ordinary visit to
+  // Preview would keep re-forcing the panel open. `scrollIntoView` doesn't
+  // exist in jsdom (unit tests), so both the ref and the method are
+  // optionally chained rather than mocked -- this effect simply becomes a
+  // no-op scroll/focus in that environment, which is fine since tests only
+  // assert the `open` state and that the callback fired.
+  useEffect(() => {
+    if (!focusCalibration || !detailsOpen) return;
+    calibrationRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    calibrationRef.current?.focus?.();
+    onCalibrationFocused?.();
+  }, [focusCalibration, detailsOpen, onCalibrationFocused]);
   // Guard against a cleared/invalid width producing NaN/Infinity, which
   // would otherwise propagate into the tiling math and SVG dimensions
   // below (a real crash path found in implementation review).
@@ -139,7 +174,11 @@ export function ExportPanel({
 
   return (
     <>
-      <details className="export-panel">
+      <details
+        className="export-panel"
+        open={detailsOpen}
+        onToggle={(e) => setDetailsOpen(e.currentTarget.open)}
+      >
         <summary>Export &amp; print</summary>
         <div className="export-controls">
           <div className="field">
@@ -269,14 +308,16 @@ export function ExportPanel({
             since the original model isn't embedded in the project JSON. See docs/DECISIONS.md.
           </p>
 
-          <h3>Calibration</h3>
-          <CalibrationEditor
-            profile={calibrationProfile}
-            savedProfiles={savedProfiles}
-            onChange={onCalibrationChange}
-            onSave={onCalibrationSave}
-            onSelectSaved={onCalibrationSelect}
-          />
+          <div ref={calibrationRef} tabIndex={-1}>
+            <h3>Calibration</h3>
+            <CalibrationEditor
+              profile={calibrationProfile}
+              savedProfiles={savedProfiles}
+              onChange={onCalibrationChange}
+              onSave={onCalibrationSave}
+              onSelectSaved={onCalibrationSelect}
+            />
+          </div>
         </div>
       </details>
 

@@ -242,6 +242,80 @@ select:focus-visible {
   margin-bottom: var(--space-3);
 }
 
+/* Basic/Advanced control grouping on the Relief stage (Iteration 02 Stage
+   B) -- see docs/ITERATION_02_PLAN.md §5 for the terminology audit these
+   groups implement. */
+.control-group {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.control-group h3 {
+  margin-top: 0;
+}
+
+.advanced-controls {
+  margin-top: var(--space-3);
+}
+
+.advanced-controls summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.advanced-controls[open] summary {
+  margin-bottom: var(--space-3);
+}
+
+/* Sticky preview on the Relief stage (Iteration 02 Stage B) -- controls in
+   a scrollable left column, the shared 3D viewport pinned in a right
+   column so adjusting a control further down the page doesn't lose sight
+   of its effect. See docs/DECISIONS.md for the interpretation this
+   implements (the source spec only mentioned "sticky preview" once, with
+   no further detail) and for why this is done via a className toggle on
+   the existing `<main>`/viewport-wrapper elements rather than new
+   conditional wrappers, to avoid remounting the shared Viewport3D
+   instance. Falls back to normal stacking at the same width where
+   `.app-shell` already collapses to one column, since a sticky side-by-side
+   layout doesn't make sense on a phone-width screen. */
+main.relief-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  gap: var(--space-4);
+  align-items: start;
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+main.relief-layout > .relief-controls-col {
+  grid-column: 1;
+  min-width: 0;
+}
+
+main.relief-layout > .relief-controls-col .stage-panel {
+  padding: 0;
+  max-width: none;
+}
+
+main.relief-layout > .relief-preview-col {
+  grid-column: 2;
+  position: sticky;
+  top: var(--space-3);
+  align-self: start;
+}
+
+@media (max-width: 720px) {
+  main.relief-layout {
+    display: block;
+    padding: 0;
+  }
+
+  main.relief-layout > .relief-preview-col {
+    position: static;
+  }
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

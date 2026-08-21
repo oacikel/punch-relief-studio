@@ -122,3 +122,54 @@ describe('ExportPanel print pages', () => {
     expect(onExportSettingsChange).toHaveBeenCalledWith({ showLabels: false });
   });
 });
+
+describe('ExportPanel contextual calibration focus (Iteration 02 Stage B)', () => {
+  it('is collapsed by default when focusCalibration is not set', () => {
+    render(
+      <ExportPanel
+        regionMap={makeRegionMap()}
+        legend={makeLegend()}
+        dimensions={baseDimensions}
+        onDimensionsChange={vi.fn()}
+        exportSettings={baseExportSettings()}
+        onExportSettingsChange={vi.fn()}
+        calibrationProfile={createDefaultProfile()}
+        savedProfiles={[]}
+        onCalibrationChange={vi.fn()}
+        onCalibrationSave={vi.fn()}
+        onCalibrationSelect={vi.fn()}
+        onSaveProjectJson={vi.fn()}
+        onLoadProjectJson={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelector('.export-panel')).not.toHaveAttribute('open');
+  });
+
+  it('forces the panel open and reports focus completion when focusCalibration is true', () => {
+    const onCalibrationFocused = vi.fn();
+    render(
+      <ExportPanel
+        regionMap={makeRegionMap()}
+        legend={makeLegend()}
+        dimensions={baseDimensions}
+        onDimensionsChange={vi.fn()}
+        exportSettings={baseExportSettings()}
+        onExportSettingsChange={vi.fn()}
+        calibrationProfile={createDefaultProfile()}
+        savedProfiles={[]}
+        onCalibrationChange={vi.fn()}
+        onCalibrationSave={vi.fn()}
+        onCalibrationSelect={vi.fn()}
+        onSaveProjectJson={vi.fn()}
+        onLoadProjectJson={vi.fn()}
+        focusCalibration
+        onCalibrationFocused={onCalibrationFocused}
+      />,
+    );
+
+    expect(document.querySelector('.export-panel')).toHaveAttribute('open');
+    expect(screen.getByRole('heading', { name: 'Calibration', level: 3 })).toBeVisible();
+    expect(onCalibrationFocused).toHaveBeenCalledTimes(1);
+  });
+});

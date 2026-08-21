@@ -10,10 +10,20 @@ interface Props {
   height: number;
   minRegionPx: number;
   profile: CalibrationProfile;
+  onCalibrate: () => void;
 }
 
 /** Height-levels stage: a per-level preview (pixel share + needle setting)
- * and a small-region warning, per product spec §8/§15. */
+ * and a small-region warning, per product spec §8/§15.
+ *
+ * As of Iteration 02 Stage B, this stage also owns the app's contextual
+ * entry point into calibration (docs/ITERATION_02_PLAN.md §14 decision
+ * #1): calibration itself still lives in Preview's compact "Export &
+ * print" panel (unchanged since Stage A), but a "Calibrate needle
+ * settings" link here jumps straight there and opens/scrolls to it, since
+ * this is the stage where an uncalibrated profile's limits are most
+ * visible (every row below shows relative order only until the user
+ * calibrates). See src/App.tsx's `onCalibrate` wiring. */
 export function HeightStage({
   levels,
   heightIndex,
@@ -21,6 +31,7 @@ export function HeightStage({
   height,
   minRegionPx,
   profile,
+  onCalibrate,
 }: Props): JSX.Element {
   const counts = useMemo(() => {
     const c = new Array(levels.length).fill(0) as number[];
@@ -42,6 +53,18 @@ export function HeightStage({
         Each level below maps to a needle setting from your calibration profile. Uncalibrated
         settings show relative order only -- not a real measurement.
       </p>
+
+      <p className="helper-text">
+        Profile: <strong>{profile.profileName}</strong> --{' '}
+        <span>
+          {profile.calibrated ? 'calibrated' : 'not yet calibrated (relative order only)'}
+        </span>
+        .
+      </p>
+      <button type="button" onClick={onCalibrate}>
+        Calibrate needle settings &rarr;
+      </button>
+
       <table className="legend-table">
         <thead>
           <tr>

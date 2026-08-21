@@ -29,6 +29,12 @@ export default function App(): JSX.Element {
   const [state, dispatch] = useReducer(appReducer, undefined, initialAppState);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [importWarning, setImportWarning] = useState<string | null>(null);
+  // Iteration 02 Stage B: ephemeral navigation flag, not app/domain data --
+  // kept local like `importWarning` above rather than added to appReducer
+  // (see docs/ITERATION_02_PLAN.md §14 decision #1). Set by the Height
+  // Levels stage's "Calibrate needle settings" link; consumed by Preview's
+  // ExportPanel to force its disclosure open and scroll to calibration.
+  const [focusCalibration, setFocusCalibration] = useState(false);
   const viewportHandle = useRef<Viewport3DHandle | null>(null);
   const { process } = useProcessingWorker();
 
@@ -131,6 +137,15 @@ export default function App(): JSX.Element {
         message: err instanceof Error ? err.message : String(err),
       });
     }
+  };
+
+  /** Iteration 02 Stage B: the Height Levels stage's contextual "Calibrate
+   * needle settings" link -- jumps to Preview and flags its ExportPanel to
+   * force-open and scroll to the Calibration section (see
+   * docs/ITERATION_02_PLAN.md §14 decision #1). */
+  const handleCalibrate = (): void => {
+    dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'preview' });
+    setFocusCalibration(true);
   };
 
   const regionMap: RegionMap | null = useMemo(() => {
@@ -239,7 +254,15 @@ export default function App(): JSX.Element {
           hasModel={workflow.hasModel}
           onSelect={(stage) => dispatchWorkflow({ type: 'GO_TO_STAGE', stage })}
         />
-        <main>
+        {/* Iteration 02 Stage B: on 'relief', this becomes a sticky two-column
+            layout (controls left, 3D preview right) via the `relief-layout`
+            class alone -- see docs/DECISIONS.md for why a class toggle on
+            this same, always-present `<main>` element (rather than a new
+            conditional wrapper) was chosen: it cannot affect reconciliation
+            of the shared Viewport3D instance below, which must never remount
+            when navigating between Import and Relief (see
+            e2e/orient-persistence.spec.ts). */}
+        <main className={workflow.currentStage === 'relief' ? 'relief-layout' : undefined}>
           {workflow.currentStage === 'import' && (
             <>
               <ImportStage
@@ -260,23 +283,34 @@ export default function App(): JSX.Element {
           )}
 
           {workflow.currentStage === 'relief' && (
-            <ReliefStage
-              settings={state.reliefSettings}
-              onChange={(patch) => dispatch({ type: 'SET_RELIEF_SETTINGS', settings: patch })}
-              onGenerate={() => void handleGenerateRelief()}
-              processing={state.processing}
-              error={state.processingError}
-            />
+            <div className="relief-controls-col">
+              <ReliefStage
+                settings={state.reliefSettings}
+                onChange={(patch) => dispatch({ type: 'SET_RELIEF_SETTINGS', settings: patch })}
+                onGenerate={() => void handleGenerateRelief()}
+                processing={state.processing}
+                error={state.processingError}
+              />
+            </div>
           )}
 
           {/* Rendered once, unconditionally, for both stages that need it, so the
               orientation chosen on Import survives navigating on to "Create
               relief" instead of resetting to the default camera on remount.
               Guarded by hasModel now that Import is reachable before a model
-              is loaded (it wasn't, when this was the separate Orient stage). */}
+              is loaded (it wasn't, when this was the separate Orient stage).
+              Only its className changes based on stage (sticky preview on
+              Relief, plain stage panel on Import) -- same element, same
+              position in the tree either way, so this cannot remount it. */}
           {(workflow.currentStage === 'import' || workflow.currentStage === 'relief') &&
             workflow.hasModel && (
-              <div className="stage-panel">
+              <div
+                className={
+                  workflow.currentStage === 'relief'
+                    ? 'stage-panel relief-preview-col'
+                    : 'stage-panel'
+                }
+              >
                 <Viewport3D geometry={geometry} onReady={(h) => (viewportHandle.current = h)} />
               </div>
             )}
@@ -289,6 +323,7 @@ export default function App(): JSX.Element {
               height={state.processed.height}
               minRegionPx={state.reliefSettings.minRegionPx}
               profile={state.calibrationProfile}
+              onCalibrate={handleCalibrate}
             />
           )}
 
@@ -336,6 +371,8 @@ export default function App(): JSX.Element {
               }
               onSaveProjectJson={handleSaveProjectJson}
               onLoadProjectJson={handleLoadProjectJson}
+              focusCalibration={focusCalibration}
+              onCalibrationFocused={() => setFocusCalibration(false)}
             />
           )}
         </main>

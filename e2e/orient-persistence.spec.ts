@@ -30,8 +30,13 @@ test('camera orientation chosen on Import carries over to relief generation', as
   await page.getByRole('button', { name: '2. Create relief' }).click();
   await expect(page.getByRole('heading', { name: 'Create the relief' })).toBeVisible();
 
-  await page.getByLabel(/Height levels/).fill('8');
-  await page.getByLabel('Quantization mode').selectOption('quantile');
+  // Labels/grouping updated in Iteration 02 Stage B -- see
+  // docs/ITERATION_02_PLAN.md §5. "Height band spacing" (formerly
+  // "Quantization mode") now lives behind the "Advanced shape controls"
+  // disclosure, so it must be opened before the select is reachable.
+  await page.getByLabel(/Number of pile heights/).fill('8');
+  await page.getByText('Advanced shape controls').click();
+  await page.getByLabel('Height band spacing').selectOption('quantile');
   await page.getByRole('button', { name: 'Generate relief' }).click();
   await expect(page.getByRole('heading', { name: 'Height levels' })).toBeVisible({
     timeout: 15_000,
