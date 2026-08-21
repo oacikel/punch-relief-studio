@@ -3,17 +3,20 @@
  * per CLAUDE.md. React components dispatch actions; they never encode
  * navigation rules inline. Settings are preserved across stage changes --
  * navigation never resets prior work.
+ *
+ * Five visible stages (down from seven as of Iteration 02 Stage A -- see
+ * docs/ITERATION_02_PLAN.md). 'orient' and 'export' are no longer distinct
+ * stages: orientation now happens on 'import' (the 3D viewport and its
+ * standard-view controls render there once a model is loaded, sharing the
+ * same persistent Viewport3D instance 'relief' also uses -- see App.tsx),
+ * and export/print/calibration actions live in a compact panel on
+ * 'preview'. No alias/migration is needed for the old stage names: stage is
+ * plain in-memory state, never persisted to localStorage, the project JSON
+ * schema, or a URL (verified in docs/ITERATION_02_PLAN.md §2.2), so no real
+ * data path can ever produce the old values.
  */
 
-export const WORKFLOW_STAGES = [
-  'import',
-  'orient',
-  'relief',
-  'height',
-  'color',
-  'preview',
-  'export',
-] as const;
+export const WORKFLOW_STAGES = ['import', 'relief', 'height', 'color', 'preview'] as const;
 
 export type WorkflowStage = (typeof WORKFLOW_STAGES)[number];
 

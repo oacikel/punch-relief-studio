@@ -29,10 +29,16 @@ interface Props {
   onLoadProjectJson: (project: ProjectFile) => void;
 }
 
-/** Export stage: PNG/SVG/print-PDF pattern export, project JSON, and the
- * calibration editor (profiles are exported/imported from here too, per
- * product spec §9/§13). */
-export function ExportStage({
+/**
+ * Compact export/print panel, rendered inside the Preview stage as of
+ * Iteration 02 Stage A (formerly its own "Export" workflow stage -- see
+ * docs/ITERATION_02_PLAN.md). Same underlying logic and the same
+ * `CalibrationEditor`, just relocated and collapsed behind a `<details>`
+ * disclosure so Preview isn't a wall of controls (product owner feedback
+ * item 19). The hidden `.print-pages` block is unaffected by whether the
+ * disclosure is open or closed -- it lives outside the `<details>` element
+ * so printing always works regardless of the panel's on-screen state. */
+export function ExportPanel({
   regionMap,
   legend,
   dimensions,
@@ -132,146 +138,147 @@ export function ExportStage({
   const fullHeightPx = cmToCssPx(safeDimensions.heightCm);
 
   return (
-    <section className="stage-panel" aria-labelledby="export-heading">
-      <div className="export-controls">
-        <h2 id="export-heading">Export</h2>
-
-        <div className="field">
-          <label htmlFor="width-cm">Width (cm)</label>
-          <input
-            id="width-cm"
-            type="number"
-            min={1}
-            value={dimensions.widthCm}
-            onChange={(e) => {
-              const widthCm = Number(e.target.value);
-              if (!Number.isFinite(widthCm) || widthCm <= 0) return; // ignore empty/zero/negative input rather than propagating NaN
-              const heightCm =
-                dimensions.lockAspect && dimensions.widthCm > 0
-                  ? (widthCm / dimensions.widthCm) * dimensions.heightCm
-                  : dimensions.heightCm;
-              onDimensionsChange({ widthCm, heightCm });
-            }}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="height-cm">Height (cm)</label>
-          <input
-            id="height-cm"
-            type="number"
-            min={1}
-            value={dimensions.heightCm}
-            onChange={(e) => onDimensionsChange({ heightCm: Number(e.target.value) })}
-          />
-        </div>
-        <label>
-          <input
-            type="checkbox"
-            checked={dimensions.lockAspect}
-            onChange={(e) => onDimensionsChange({ lockAspect: e.target.checked })}
-          />{' '}
-          Lock aspect ratio
-        </label>
-
-        <div className="field">
-          <span id="export-view-label">Pattern view</span>
-          <div role="group" aria-labelledby="export-view-label" style={{ marginTop: 4 }}>
-            {VIEWS.map((v) => (
-              <button
-                key={v}
-                type="button"
-                aria-pressed={exportSettings.view === v}
-                onClick={() => onExportSettingsChange({ view: v })}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        </div>
-        <p className="helper-text">
-          Applies to SVG/PNG export and printing -- "contour" prints outlines only, with no fill,
-          for tracing.
-        </p>
-
-        <label>
-          <input
-            type="checkbox"
-            checked={exportSettings.showLabels}
-            onChange={(e) => onExportSettingsChange({ showLabels: e.target.checked })}
-          />{' '}
-          Print region labels (C1-H1 etc.)
-        </label>
-        <p className="helper-text">
-          Turn off for an uncluttered print if you're reading colors/heights from the on-screen
-          legend instead.
-        </p>
-
-        <div className="field">
-          <label htmlFor="page-size">Print page size</label>
-          <select
-            id="page-size"
-            value={exportSettings.pageSize}
-            onChange={(e) =>
-              onExportSettingsChange({ pageSize: e.target.value as ExportSettings['pageSize'] })
-            }
-          >
-            <option value="a4">A4</option>
-            <option value="letter">US Letter</option>
-            <option value="actual-size">Actual project size</option>
-          </select>
-        </div>
-        <p className="helper-text">
-          This pattern will print across {tiling.pages.length} page
-          {tiling.pages.length === 1 ? '' : 's'} ({tiling.cols} × {tiling.rows}) with{' '}
-          {exportSettings.overlapCm}cm overlap. Always check the printed scale-check square with a
-          ruler before cutting fabric -- some printers silently rescale to "fit page".
-        </p>
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-          <button type="button" onClick={exportSvg}>
-            Export SVG pattern
-          </button>
-          <button type="button" onClick={() => void exportPng()}>
-            Export PNG pattern
-          </button>
-          <button type="button" onClick={printPdf}>
-            Print / Save as PDF
-          </button>
-          <button type="button" onClick={onSaveProjectJson}>
-            Save project settings (JSON)
-          </button>
-          <label className="field" style={{ marginBottom: 0 }}>
-            <span>Load project settings (JSON)</span>
+    <>
+      <details className="export-panel">
+        <summary>Export &amp; print</summary>
+        <div className="export-controls">
+          <div className="field">
+            <label htmlFor="width-cm">Width (cm)</label>
             <input
-              type="file"
-              accept="application/json"
+              id="width-cm"
+              type="number"
+              min={1}
+              value={dimensions.widthCm}
               onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleLoadProject(file);
+                const widthCm = Number(e.target.value);
+                if (!Number.isFinite(widthCm) || widthCm <= 0) return; // ignore empty/zero/negative input rather than propagating NaN
+                const heightCm =
+                  dimensions.lockAspect && dimensions.widthCm > 0
+                    ? (widthCm / dimensions.widthCm) * dimensions.heightCm
+                    : dimensions.heightCm;
+                onDimensionsChange({ widthCm, heightCm });
               }}
             />
+          </div>
+          <div className="field">
+            <label htmlFor="height-cm">Height (cm)</label>
+            <input
+              id="height-cm"
+              type="number"
+              min={1}
+              value={dimensions.heightCm}
+              onChange={(e) => onDimensionsChange({ heightCm: Number(e.target.value) })}
+            />
+          </div>
+          <label>
+            <input
+              type="checkbox"
+              checked={dimensions.lockAspect}
+              onChange={(e) => onDimensionsChange({ lockAspect: e.target.checked })}
+            />{' '}
+            Lock aspect ratio
           </label>
-        </div>
-        {loadError && (
-          <p role="alert" className="warning-banner">
-            {loadError}
-          </p>
-        )}
-        <p className="helper-text">
-          Reopening a project restores settings, calibration, and colors -- if it was made from your
-          own imported file (not a built-in sample), you'll need to re-select that file too, since
-          the original model isn't embedded in the project JSON. See docs/DECISIONS.md.
-        </p>
 
-        <h3>Calibration</h3>
-        <CalibrationEditor
-          profile={calibrationProfile}
-          savedProfiles={savedProfiles}
-          onChange={onCalibrationChange}
-          onSave={onCalibrationSave}
-          onSelectSaved={onCalibrationSelect}
-        />
-      </div>
+          <div className="field">
+            <span id="export-view-label">Export pattern view</span>
+            <div role="group" aria-labelledby="export-view-label" style={{ marginTop: 4 }}>
+              {VIEWS.map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  aria-pressed={exportSettings.view === v}
+                  onClick={() => onExportSettingsChange({ view: v })}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="helper-text">
+            Applies to SVG/PNG export and printing -- "contour" prints outlines only, with no fill,
+            for tracing.
+          </p>
+
+          <label>
+            <input
+              type="checkbox"
+              checked={exportSettings.showLabels}
+              onChange={(e) => onExportSettingsChange({ showLabels: e.target.checked })}
+            />{' '}
+            Print region labels (C1-H1 etc.)
+          </label>
+          <p className="helper-text">
+            Turn off for an uncluttered print if you're reading colors/heights from the on-screen
+            legend instead.
+          </p>
+
+          <div className="field">
+            <label htmlFor="page-size">Print page size</label>
+            <select
+              id="page-size"
+              value={exportSettings.pageSize}
+              onChange={(e) =>
+                onExportSettingsChange({ pageSize: e.target.value as ExportSettings['pageSize'] })
+              }
+            >
+              <option value="a4">A4</option>
+              <option value="letter">US Letter</option>
+              <option value="actual-size">Actual project size</option>
+            </select>
+          </div>
+          <p className="helper-text">
+            This pattern will print across {tiling.pages.length} page
+            {tiling.pages.length === 1 ? '' : 's'} ({tiling.cols} × {tiling.rows}) with{' '}
+            {exportSettings.overlapCm}cm overlap. Always check the printed scale-check square with a
+            ruler before cutting fabric -- some printers silently rescale to "fit page".
+          </p>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+            <button type="button" onClick={exportSvg}>
+              Export SVG pattern
+            </button>
+            <button type="button" onClick={() => void exportPng()}>
+              Export PNG pattern
+            </button>
+            <button type="button" onClick={printPdf}>
+              Print / Save as PDF
+            </button>
+            <button type="button" onClick={onSaveProjectJson}>
+              Save project settings (JSON)
+            </button>
+            <label className="field" style={{ marginBottom: 0 }}>
+              <span>Load project settings (JSON)</span>
+              <input
+                type="file"
+                accept="application/json"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleLoadProject(file);
+                }}
+              />
+            </label>
+          </div>
+          {loadError && (
+            <p role="alert" className="warning-banner">
+              {loadError}
+            </p>
+          )}
+          <p className="helper-text">
+            Reopening a project restores settings, calibration, and colors -- if it was made from
+            your own imported file (not a built-in sample), you'll need to re-select that file too,
+            since the original model isn't embedded in the project JSON. See docs/DECISIONS.md.
+          </p>
+
+          <h3>Calibration</h3>
+          <CalibrationEditor
+            profile={calibrationProfile}
+            savedProfiles={savedProfiles}
+            onChange={onCalibrationChange}
+            onSave={onCalibrationSave}
+            onSelectSaved={onCalibrationSelect}
+          />
+        </div>
+      </details>
 
       {/* Hidden on screen; this is the only thing the print stylesheet
           leaves visible (see @media print in styles.css). "Print / Save as
@@ -324,6 +331,6 @@ export function ExportStage({
           );
         })}
       </div>
-    </section>
+    </>
   );
 }

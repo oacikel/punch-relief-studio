@@ -224,6 +224,24 @@ select:focus-visible {
   text-transform: uppercase;
 }
 
+/* Compact export/print disclosure on the Preview stage (Iteration 02 Stage
+   A) -- collapsed by default so Preview isn't a wall of controls. */
+.export-panel {
+  margin-top: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.export-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.export-panel[open] summary {
+  margin-bottom: var(--space-3);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -298,8 +316,19 @@ select:focus-visible {
 }
 
 @media print {
+  /* .screen-only wraps every stage's normal on-screen content (added in
+     Iteration 02 Stage A when Export's actions moved onto Preview -- see
+     docs/ITERATION_02_PLAN.md §7/§7.1). Before that change, Export and
+     Preview were mutually exclusive stages, so .export-controls alone was
+     enough; now Preview's own pattern/simulation/legend markup shares the
+     DOM with the relocated export panel and must be hidden too, or it
+     would print alongside (or instead of) the intended .print-pages
+     output. .export-panel/.export-controls stay listed for belt-and-braces
+     even though .screen-only does not currently wrap them. */
   .app-header,
   .stage-nav,
+  .screen-only,
+  .export-panel,
   .export-controls {
     display: none !important;
   }

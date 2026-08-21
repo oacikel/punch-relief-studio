@@ -10,9 +10,10 @@ interface Props {
 
 /** Relief stage: all the depth-processing controls from product spec §8.
  * The 3D viewport is rendered by the parent (App) as the same persistent
- * instance shared with the Orient stage, so re-orienting here doesn't lose
- * these settings and the orientation chosen on the Orient stage isn't lost
- * either. */
+ * instance shared with the Import stage's orientation section (formerly a
+ * separate "Orient" stage -- see docs/ITERATION_02_PLAN.md), so re-orienting
+ * there doesn't lose these settings and the orientation chosen there isn't
+ * lost either. */
 export function ReliefStage({
   settings,
   onChange,
