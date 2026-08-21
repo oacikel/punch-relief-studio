@@ -14,13 +14,28 @@ create ever leaves your device.
    from this one viewpoint becomes the pattern; back and hidden surfaces are
    not captured (see the in-app note on this step). Click "Continue to
    Create Relief" when you're happy with the view.
-2. **Create relief** -- adjust height levels (3-8), relief intensity,
-   smoothing, edge preservation, minimum region size, output resolution, and
-   quantization mode, then click "Generate relief". This runs in the
-   background so the rest of the app stays responsive.
+2. **Create relief** -- controls are grouped by what they actually affect:
+   - **Needle & pile**: how many distinct pile heights the pattern uses
+     ("Number of pile heights", 2-12).
+   - **Punch detail**: "Smallest punchable region" (removes fiddly tiny
+     areas); "Detail resolution", behind an "Advanced punch detail
+     controls" disclosure, for how finely the shape is sampled.
+   - **Shape interpretation**: "Relief depth", "Smoothing", and "Raise near
+     surfaces" (which end of the model becomes the tallest pile); "Height
+     band spacing" and "Keep edges crisp", behind an "Advanced shape
+     controls" disclosure.
+
+   Click "Generate relief" when you're happy with the settings -- this runs
+   in the background so the rest of the app stays responsive. The 3D
+   preview stays visible alongside the controls (pinned in place while you
+   scroll, on wider screens) so you can see the effect of a change without
+   scrolling back up.
 3. **Height levels** -- see how much of the pattern each level covers and
    which needle setting it maps to, plus a warning if any region is too
-   small to punch reliably.
+   small to punch reliably. A "Calibrate needle settings" link takes you
+   straight to the calibration editor on the Preview step (see
+   "Calibration" below) if your profile isn't calibrated yet, or you want
+   to add/remove needle settings.
 4. **Yarn colors** -- choose single-color, color-by-height, or (when the
    model has material/texture data) source-material color extraction, and
    edit swatches/names.
@@ -44,6 +59,14 @@ measure the pile height with a ruler, and enter the measurements back into
 the profile. Save the profile so it's remembered next time (stored locally
 in your browser; export it as JSON to back it up or move it to another
 device).
+
+You can add or remove needle settings from a profile (1-12 per profile,
+matching the 2-12 range of pile heights a pattern can use) with the "Add
+needle setting"/"Remove" controls in the calibration editor -- most needles
+only have a handful of real settings, so a profile isn't padded with unused
+rows by default. The calibration editor lives in the "Export & print"
+panel on Preview; the "Calibrate needle settings" link on the Height
+Levels step jumps there directly and opens it for you.
 
 ## Printing
 

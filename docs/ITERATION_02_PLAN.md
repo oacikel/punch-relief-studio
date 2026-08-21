@@ -1,11 +1,18 @@
 # Iteration 02 — Craft-Tool UX Pass
 
-Status: **Stage A implemented and locally verified in Cowork Session 1**
-(not yet pushed/merged/deployed — see `docs/COWORK_HANDOFF.md` for exactly
-where delivery stands and why). See `docs/COWORK_HANDOFF.md` for the live
-cross-session continuation state — if the two disagree, trust the handoff
-and the repository, not this document's "Status" line, which is not kept in
-perfect sync.
+Status: **Stage A merged and deployed to `main`** (commit `73f0868`).
+**Stage B (Relief workspace redesign) implemented on branch
+`feat/ux-iteration-02-stage-b`, locally verified (full `npm run verify` plus
+`npm run test:e2e` on both the `chromium` and `mobile-narrow`/webkit
+projects), PR opened against `main`, not yet merged** — per this
+iteration's deployment-checkpoint rule (§13), a session implementing Stage
+B stops at "PR open, CI green" and does not merge or start Stage C, since
+Stage B involves real product/design decisions (§14) a human should review
+first. See §15 below for what was actually built vs. planned, and how the
+§14 decisions were resolved. Stage C/D/E are unstarted. See
+`docs/COWORK_HANDOFF.md` for the Stage-A-era cross-session continuation
+state — it predates Stage A's actual merge and Stage B's implementation, so
+trust this document and the repository over it where they disagree.
 
 ## 0. Why this iteration
 
@@ -414,3 +421,108 @@ push authorization) that paused it mid-stage.
 3. Whether `CalibrationProfile.settings` needs a real add/remove-setting UI
    before 12-level support is usable, or whether a fixed 12-slot profile
    (some unmeasured) is an acceptable interim (§10).
+
+**Resolved in Stage B implementation** (full rationale in
+`docs/DECISIONS.md`, flagged here so a reviewer can find the calls quickly
+and agree/disagree before merge):
+
+1. **Calibration stays inside Preview's compact panel.** A second,
+   contextual "Calibrate needle settings" link was added on Height Levels
+   instead of building a new global Settings surface — the app has no
+   navigation concept outside the 5-item workflow stage list, and §9's own
+   affected-modules table for Stage B only asked for "Heights (contextual
+   calibration link)", not a new route/component. Left explicitly open for
+   reconsideration if user testing shows people want to calibrate before a
+   model is loaded (Preview is `hasModel`-gated).
+2. **Implemented as designed, no deviation from §5's table**, with one
+   small gap filled in: the table only names one disclosure label
+   ("Advanced shape controls", the product owner's own item-7 phrasing);
+   Punch Detail's lone Advanced field (output resolution) needed its own
+   disclosure too, named "Advanced punch detail controls" for consistency
+   rather than left unlabeled.
+3. **Real add/remove UI was built**, not a fixed 12-slot stub — leaning on
+   §10's own diagnosis that this was "a real UI + validation gap, not just
+   a bound change." Turned out to be low-risk: the domain layer
+   (`mapHeightLevelToSetting`, `generateCalibrationStrip`) already handled
+   an arbitrary setting count with no changes needed; the actual gap was
+   UI-only, exactly as §10 predicted. New pure `addNeedleSetting`/
+   `removeNeedleSetting` functions live in `src/domain/calibration.ts`
+   (moved there from the editor component after independent review flagged
+   the first draft as calibration-mutation logic sitting in
+   `src/components/**`, against CLAUDE.md's architecture boundary).
+
+## 15. Stage B — what was actually built
+
+Implemented on branch `feat/ux-iteration-02-stage-b` (off `main` @
+`73f0868`, Stage A). Scope was Relief-stage terminology/grouping, the 2-12
+height-level widening, sticky preview, contextual calibration access, and
+calibration add/remove UI — Stage C/D/E untouched.
+
+- **Relief-stage terminology, copy, and Basic/Advanced grouping**
+  (`src/components/stages/ReliefStage.tsx`): every control renamed and
+  regrouped per §5's table verbatim (label text, helper text, and tier).
+  Three groups — **Needle & pile** (height levels only), **Punch detail**
+  (minimum region size Basic, output resolution behind "Advanced punch
+  detail controls"), **Shape interpretation** (relief depth/smoothing/
+  invert Basic, quantization mode/edge preservation behind "Advanced shape
+  controls"). No changes to the underlying `onChange`/`ReliefSettings`
+  wiring — purely presentation.
+- **2-12 height levels**: `computeLevelBounds`'s `RangeError` bound
+  (`src/domain/quantize.ts`), the Relief-stage slider `min`/`max`, and the
+  `ReliefSettings.levels` comment (`src/domain/types.ts`) all widened
+  together. Two fixed-size arrays sized for the old 8-level ceiling were
+  found (via independent plan review) and widened to 12 in lockstep:
+  `HEIGHT_SYMBOLS` (`src/domain/regionId.ts`) and `DEFAULT_PALETTE`
+  (`src/state/appState.ts`) — see `docs/DECISIONS.md` for why these were
+  in scope even though the original plan didn't name them.
+- **Sticky preview** (`src/App.tsx`, `src/styles.css`): a `className`
+  toggle on `<main>` (`relief-layout`) and on the shared `Viewport3D`
+  wrapper (`relief-preview-col`) — deliberately not a new conditional
+  wrapper element, to protect the existing "Viewport3D never remounts
+  between Import and Relief" invariant. CSS grid two-column layout with
+  `position: sticky` on the preview column, falling back to normal
+  stacking at the same 720px breakpoint `.app-shell` already uses. See
+  `docs/DECISIONS.md` for the interpretation of the one-line "sticky
+  preview" spec.
+- **Contextual calibration access** (`src/components/stages/
+  HeightStage.tsx`, `src/components/stages/PreviewStage.tsx`,
+  `src/components/ExportPanel.tsx`, `src/App.tsx`): a "Calibrate needle
+  settings" link/button on Height Levels dispatches to the Preview stage
+  and sets a `focusCalibration` flag (local `useState` in `App.tsx`, kept
+  out of `appReducer` since it's ephemeral navigation state, not app
+  data), which `ExportPanel` uses to force its `<details>` open and
+  scroll/focus the calibration section, then reports back via
+  `onCalibrationFocused` so the flag doesn't keep re-forcing the panel
+  open on later, ordinary visits to Preview.
+- **`CalibrationEditor` add/remove UI** (`src/components/
+  CalibrationEditor.tsx`, `src/domain/calibration.ts`): "Add needle
+  setting"/"Remove" controls, 1-12 settings per profile
+  (`MIN_NEEDLE_SETTINGS`/`MAX_NEEDLE_SETTINGS`), backed by pure
+  `addNeedleSetting`/`removeNeedleSetting` domain functions.
+  `validateProfile` also gained an explicit >12 check, so a profile
+  imported directly as JSON can't silently exceed the cap either.
+- **Process followed per this iteration's own convention**: a draft
+  implementation plan was reviewed by an independent, fresh-context
+  `general-purpose` subagent before implementation began (found no
+  blocking issues, several real completeness gaps — the fixed-size
+  `HEIGHT_SYMBOLS`/`DEFAULT_PALETTE` arrays, incomplete prop-threading
+  itemization for the calibration-focus flow — all addressed before
+  coding); a second independent, fresh-context review ran against the
+  finished implementation (found one real architecture-boundary issue —
+  calibration add/remove logic living in the component instead of
+  `src/domain/calibration.ts` — fixed by extracting
+  `addNeedleSetting`/`removeNeedleSetting`; everything else came back
+  clean on a skeptical, traced-not-trusted read).
+- **Verification**: `npm run verify` (format + lint + typecheck + test +
+  build) green, 157/157 unit/component tests passing (26 files, up from
+  137/23 at the Stage A baseline on `main` @ `73f0868` — 3 new test files
+  for `ReliefStage`, `HeightStage`, and `CalibrationEditor`, none of which
+  had coverage before Stage B, plus additions to `ExportPanel.test.tsx`
+  and `calibration.test.ts` — the growth is genuinely new Stage B
+  coverage, not renamed existing tests). `npm run test:e2e` green on both
+  the `chromium` and
+  `mobile-narrow` (WebKit) projects, 12/12 tests, including a new
+  `e2e/relief-workspace.spec.ts` covering the Advanced-controls
+  disclosures, the sticky/static CSS position at desktop vs. narrow
+  viewports, and the Height Levels → Preview calibration-focus flow
+  end-to-end.

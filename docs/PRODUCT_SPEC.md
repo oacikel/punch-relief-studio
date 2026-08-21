@@ -16,7 +16,8 @@ slicer turns a mesh into printable layers. Here, the "slices" are:
 
 1. A single **orthographic depth capture** of the model from a chosen
    viewpoint (not the geometry's full volume — see Limitations).
-2. A quantized **height-level map** (3–8 discrete pile heights).
+2. A quantized **height-level map** (2–12 discrete pile heights, widened
+   from 3–8 in Iteration 02 Stage B -- see `docs/DECISIONS.md`).
 3. A quantized **yarn-color map** (1–12 colors).
 4. A **printable pattern** combining both, plus a legend and scale check.
 5. An **interactive simulation** of the textile result built from the same
@@ -69,6 +70,21 @@ calibration actions are no longer a separate visible stage either: they
 live in a compact panel on Preview. Both changes are navigation/layout only
 -- the underlying capabilities (single-viewpoint bas-relief capture,
 SVG/PNG/print-PDF export, calibration profile CRUD) are unchanged.
+
+As of Iteration 02 Stage B, the Create Relief stage's controls are
+reorganized around punch-needle vocabulary instead of engineering terms,
+and grouped into **Needle & Pile**, **Punch Detail**, and **Shape
+Interpretation**, each with a Basic tier shown by default and an "Advanced
+... controls" disclosure for the rest (see `docs/ITERATION_02_PLAN.md` §5
+for the full control-by-control mapping from old to new names). The 3D
+preview stays visible in a sticky right-hand column while scrolling the
+controls on desktop widths. The Height Levels stage gains a "Calibrate
+needle settings" link that jumps to Preview's calibration editor and opens
+it directly -- calibration itself still lives on Preview, not a separate
+Settings surface (see `docs/DECISIONS.md` for why). The calibration editor
+now supports adding and removing needle settings (1-12 per profile,
+matching the widened 2-12 height-level range), not just editing a fixed
+set.
 
 ## 7. Non-Functional Requirements
 
