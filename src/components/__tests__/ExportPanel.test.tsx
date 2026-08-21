@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ExportStage } from '../stages/ExportStage';
+import { ExportPanel } from '../ExportPanel';
 import { createDefaultProfile } from '@/domain/calibration';
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
@@ -45,13 +45,13 @@ function baseExportSettings(overrides: Partial<ExportSettings> = {}): ExportSett
   };
 }
 
-describe('ExportStage print pages', () => {
+describe('ExportPanel print pages', () => {
   it('renders one .print-page per tile computeTiling produces, not just a single continuous document', () => {
     // A 30cm-wide pattern on A4 (printable width ~19cm) must tile across
     // more than one page -- this is exactly the case that was previously
     // invisible, since the export page never rendered the pattern at all.
     render(
-      <ExportStage
+      <ExportPanel
         regionMap={makeRegionMap()}
         legend={makeLegend()}
         dimensions={{ ...baseDimensions, widthCm: 30, heightCm: 20 }}
@@ -75,7 +75,7 @@ describe('ExportStage print pages', () => {
   it('lets the user choose the pattern view used for export and print', async () => {
     const onExportSettingsChange = vi.fn();
     render(
-      <ExportStage
+      <ExportPanel
         regionMap={makeRegionMap()}
         legend={makeLegend()}
         dimensions={baseDimensions}
@@ -99,7 +99,7 @@ describe('ExportStage print pages', () => {
   it('lets the user turn printed region labels off for export/print', async () => {
     const onExportSettingsChange = vi.fn();
     render(
-      <ExportStage
+      <ExportPanel
         regionMap={makeRegionMap()}
         legend={makeLegend()}
         dimensions={baseDimensions}

@@ -7,8 +7,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 /**
  * Imports a small, legally-generated local STL fixture (e2e/fixtures/cube.stl,
  * a hand-authored 12-triangle cube) and confirms the app accepts it and
- * advances to the Orient stage. NOT YET RUN in this session -- see
- * docs/TEST_REPORT.md.
+ * shows the post-load orientation section on Import (Iteration 02 Stage A
+ * merged the former separate "Orient" stage into Import -- see
+ * docs/ITERATION_02_PLAN.md).
  */
 test('imports a local STL fixture via the file picker', async ({ page }) => {
   await page.goto('/');

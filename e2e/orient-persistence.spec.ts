@@ -7,7 +7,11 @@ import { expect, test } from '@playwright/test';
  * unmounted and remounted the 3D viewport, silently discarding whatever
  * camera orientation the user had just chosen and resetting to the
  * default 'front' view. Fixed by rendering a single, persistent Viewport3D
- * shared by both stages.
+ * shared by both stages. As of Iteration 02 Stage A, "Orient" is no longer
+ * a separate workflow stage -- its content (and the shared viewport) now
+ * renders on "Import" once a model has loaded (see
+ * docs/ITERATION_02_PLAN.md) -- this test now exercises that same
+ * persistence guarantee across Import -> Relief instead of Orient -> Relief.
  *
  * This can only be verified in a real browser: choosing 'top' vs the
  * default 'front' for the ripple sample changes which surface the depth
@@ -16,14 +20,14 @@ import { expect, test } from '@playwright/test';
  * bands would have any pixels (confirmed manually); with 'top' correctly
  * applied, several distinct bands do.
  */
-test('camera orientation chosen on Orient carries over to relief generation', async ({ page }) => {
+test('camera orientation chosen on Import carries over to relief generation', async ({ page }) => {
   await page.goto('/');
   await page.getByText('Concentric Ripple').click();
   await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
 
   await page.getByRole('button', { name: 'top', exact: true }).click();
 
-  await page.getByRole('button', { name: '3. Create relief' }).click();
+  await page.getByRole('button', { name: '2. Create relief' }).click();
   await expect(page.getByRole('heading', { name: 'Create the relief' })).toBeVisible();
 
   await page.getByLabel(/Height levels/).fill('8');

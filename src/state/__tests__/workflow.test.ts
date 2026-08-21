@@ -17,8 +17,8 @@ describe('workflowReducer', () => {
   it('allows navigating to any stage once a model is loaded', () => {
     let state = initialWorkflowState();
     state = workflowReducer(state, { type: 'MODEL_LOADED' });
-    state = workflowReducer(state, { type: 'GO_TO_STAGE', stage: 'export' });
-    expect(state.currentStage).toBe('export');
+    state = workflowReducer(state, { type: 'GO_TO_STAGE', stage: 'preview' });
+    expect(state.currentStage).toBe('preview');
   });
 
   it('NEXT/BACK move one stage at a time and clamp at the ends', () => {
@@ -27,7 +27,17 @@ describe('workflowReducer', () => {
     state = workflowReducer(state, { type: 'BACK' }); // already at first stage
     expect(state.currentStage).toBe('import');
     state = workflowReducer(state, { type: 'NEXT' });
-    expect(state.currentStage).toBe('orient');
+    expect(state.currentStage).toBe('relief');
+  });
+
+  it('has exactly the five Iteration-02 stages, in order (no separate orient/export stage)', () => {
+    let state = initialWorkflowState();
+    state = workflowReducer(state, { type: 'MODEL_LOADED' });
+    state = workflowReducer(state, { type: 'GO_TO_STAGE', stage: 'preview' });
+    // clamps at the last stage -- if 'preview' weren't the final stage,
+    // NEXT would move past it.
+    state = workflowReducer(state, { type: 'NEXT' });
+    expect(state.currentStage).toBe('preview');
   });
 
   it('does not lose reachedStages when moving backward and forward again', () => {
