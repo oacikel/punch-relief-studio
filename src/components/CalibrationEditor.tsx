@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import {
+  addNeedleSetting,
   createDefaultProfile,
+  MAX_NEEDLE_SETTINGS,
+  MIN_NEEDLE_SETTINGS,
+  removeNeedleSetting,
   validateProfile,
   type CalibrationProfile,
   type NeedleSetting,
@@ -40,6 +44,19 @@ export function CalibrationEditor({
       ),
     });
   };
+
+  // Add/remove needle settings, up to MAX_NEEDLE_SETTINGS (12, matching the
+  // widened height-levels range -- see docs/DECISIONS.md). The actual
+  // profile-mutation rules (next-number derivation, min/max bounds) live in
+  // src/domain/calibration.ts, not here -- per CLAUDE.md, components call
+  // domain functions rather than containing calibration math inline. Real
+  // add/remove UI rather than a fixed 12-slot stub (docs/ITERATION_02_PLAN.md
+  // §10/§14 decision #3) -- most needles have far fewer than 12 real
+  // settings, so padding every profile with unused "not yet measured" rows
+  // would be dishonest padding, not help.
+  const addSetting = (): void => onChange(addNeedleSetting(profile));
+  const removeSetting = (settingNumber: number): void =>
+    onChange(removeNeedleSetting(profile, settingNumber));
 
   const handleImport = async (file: File): Promise<void> => {
     try {
@@ -121,6 +138,9 @@ export function CalibrationEditor({
             <th scope="col">Setting</th>
             <th scope="col">Label</th>
             <th scope="col">Measured height (cm)</th>
+            <th scope="col">
+              <span className="visually-hidden">Remove</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -155,10 +175,40 @@ export function CalibrationEditor({
                   }
                 />
               </td>
+              <td>
+                <button
+                  type="button"
+                  onClick={() => removeSetting(s.settingNumber)}
+                  disabled={profile.settings.length <= MIN_NEEDLE_SETTINGS}
+                  aria-label={`Remove needle setting ${s.settingNumber}`}
+                  title={
+                    profile.settings.length <= MIN_NEEDLE_SETTINGS
+                      ? 'A profile needs at least one needle setting.'
+                      : undefined
+                  }
+                >
+                  Remove
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <div style={{ marginTop: 8 }}>
+        <button
+          type="button"
+          onClick={addSetting}
+          disabled={profile.settings.length >= MAX_NEEDLE_SETTINGS}
+          title={
+            profile.settings.length >= MAX_NEEDLE_SETTINGS
+              ? `A profile can have at most ${MAX_NEEDLE_SETTINGS} needle settings.`
+              : undefined
+          }
+        >
+          Add needle setting
+        </button>
+      </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
         <button type="button" onClick={() => onSave(profile)} disabled={errors.length > 0}>

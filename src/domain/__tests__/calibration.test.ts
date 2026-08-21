@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addNeedleSetting,
   createDefaultProfile,
   isCalibrated,
   mapHeightLevelToSetting,
+  MAX_NEEDLE_SETTINGS,
+  MIN_NEEDLE_SETTINGS,
+  removeNeedleSetting,
   validateProfile,
   type NeedleSetting,
 } from '../calibration';
@@ -50,6 +54,26 @@ describe('validateProfile', () => {
     profile.settings[0] = { ...(profile.settings[0] as NeedleSetting), measuredHeightCm: cm(0.6) };
     expect(validateProfile(profile)).toHaveLength(0);
   });
+
+  it('accepts up to 12 needle settings', () => {
+    const profile = createDefaultProfile();
+    profile.settings = Array.from({ length: 12 }, (_, i) => ({
+      settingNumber: i + 1,
+      label: `Setting ${i + 1}`,
+      measuredHeightCm: null,
+    }));
+    expect(validateProfile(profile)).toHaveLength(0);
+  });
+
+  it('flags more than 12 needle settings', () => {
+    const profile = createDefaultProfile();
+    profile.settings = Array.from({ length: 13 }, (_, i) => ({
+      settingNumber: i + 1,
+      label: `Setting ${i + 1}`,
+      measuredHeightCm: null,
+    }));
+    expect(validateProfile(profile).some((e) => e.message.includes('at most 12'))).toBe(true);
+  });
 });
 
 describe('isCalibrated', () => {
@@ -61,6 +85,52 @@ describe('isCalibrated', () => {
     const profile = createDefaultProfile();
     profile.settings[0] = { ...(profile.settings[0] as NeedleSetting), measuredHeightCm: cm(0.5) };
     expect(isCalibrated(profile)).toBe(true);
+  });
+});
+
+describe('addNeedleSetting / removeNeedleSetting (Iteration 02 Stage B)', () => {
+  it('appends a new setting numbered one past the current highest', () => {
+    const profile = createDefaultProfile(); // settings 1-4
+    const updated = addNeedleSetting(profile);
+    expect(updated.settings).toHaveLength(5);
+    expect(updated.settings[4]).toEqual({
+      settingNumber: 5,
+      label: 'Setting 5',
+      measuredHeightCm: null,
+    });
+  });
+
+  it('is a no-op once a profile already has the maximum number of settings', () => {
+    const profile = createDefaultProfile();
+    profile.settings = Array.from({ length: MAX_NEEDLE_SETTINGS }, (_, i) => ({
+      settingNumber: i + 1,
+      label: `Setting ${i + 1}`,
+      measuredHeightCm: null,
+    }));
+    const updated = addNeedleSetting(profile);
+    expect(updated.settings).toHaveLength(MAX_NEEDLE_SETTINGS);
+  });
+
+  it('removes the setting matching the given number, leaving others untouched', () => {
+    const profile = createDefaultProfile(); // settings 1-4
+    const updated = removeNeedleSetting(profile, 2);
+    expect(updated.settings.map((s) => s.settingNumber)).toEqual([1, 3, 4]);
+  });
+
+  it('is a no-op once a profile is down to the minimum number of settings', () => {
+    const profile = createDefaultProfile();
+    profile.settings = [{ settingNumber: 1, label: 'only', measuredHeightCm: null }];
+    const updated = removeNeedleSetting(profile, 1);
+    expect(updated.settings).toHaveLength(MIN_NEEDLE_SETTINGS);
+  });
+
+  it('does not renumber survivors, since settingNumber is a stable identifier elsewhere', () => {
+    const profile = createDefaultProfile();
+    const afterRemove = removeNeedleSetting(profile, 1);
+    const afterAdd = addNeedleSetting(afterRemove);
+    // Removing #1 then adding should number the new one 5 (one past the
+    // remaining highest, 4), not renumber down to fill the gap left by #1.
+    expect(afterAdd.settings.map((s) => s.settingNumber)).toEqual([2, 3, 4, 5]);
   });
 });
 

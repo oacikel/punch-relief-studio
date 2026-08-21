@@ -48,6 +48,15 @@ export function createDefaultProfile(): CalibrationProfile {
   };
 }
 
+/** Needle-setting count bounds, matching the widened height-levels range
+ * (2-12, see docs/DECISIONS.md) -- a profile with more settings than a
+ * pattern has levels is harmless (`mapHeightLevelToSetting` simply never
+ * reaches the extras), but there is no point going past 12. Exported so
+ * `CalibrationEditor.tsx` can disable its Add/Remove buttons at the same
+ * bounds `validateProfile` enforces, without duplicating the numbers. */
+export const MIN_NEEDLE_SETTINGS = 1;
+export const MAX_NEEDLE_SETTINGS = 12;
+
 export interface ValidationError {
   field: string;
   message: string;
@@ -59,6 +68,12 @@ export function validateProfile(profile: CalibrationProfile): ValidationError[] 
     errors.push({ field: 'profileName', message: 'Profile name is required.' });
   if (profile.settings.length === 0) {
     errors.push({ field: 'settings', message: 'At least one needle setting is required.' });
+  }
+  if (profile.settings.length > MAX_NEEDLE_SETTINGS) {
+    errors.push({
+      field: 'settings',
+      message: `A profile can have at most ${MAX_NEEDLE_SETTINGS} needle settings.`,
+    });
   }
   const seen = new Set<number>();
   for (const s of profile.settings) {
@@ -87,6 +102,46 @@ export function validateProfile(profile: CalibrationProfile): ValidationError[] 
 
 export function isCalibrated(profile: CalibrationProfile): boolean {
   return profile.settings.some((s) => s.measuredHeightCm !== null);
+}
+
+/**
+ * Append a new needle setting, numbered one past the current highest
+ * `settingNumber` (not renumbered/compacted on removal -- `settingNumber`
+ * is treated as a stable identifier elsewhere, e.g. `mapHeightLevelToSetting`
+ * only sorts by it, never assumes contiguity). A no-op past
+ * `MAX_NEEDLE_SETTINGS` -- callers (e.g. `CalibrationEditor`) should also
+ * disable the triggering control at that bound, this is a defensive floor,
+ * not the only enforcement (see `validateProfile`, which flags is already
+ * over the cap for direct JSON import too). Pure and domain-only per
+ * CLAUDE.md -- profile-mutation rules live here, not inline in the editor
+ * component.
+ */
+export function addNeedleSetting(profile: CalibrationProfile): CalibrationProfile {
+  if (profile.settings.length >= MAX_NEEDLE_SETTINGS) return profile;
+  const nextNumber = profile.settings.reduce((max, s) => Math.max(max, s.settingNumber), 0) + 1;
+  return {
+    ...profile,
+    settings: [
+      ...profile.settings,
+      { settingNumber: nextNumber, label: `Setting ${nextNumber}`, measuredHeightCm: null },
+    ],
+  };
+}
+
+/**
+ * Remove one needle setting by number. A no-op at or below
+ * `MIN_NEEDLE_SETTINGS` -- a profile always needs at least one setting for
+ * `mapHeightLevelToSetting` to have anything to map onto.
+ */
+export function removeNeedleSetting(
+  profile: CalibrationProfile,
+  settingNumber: number,
+): CalibrationProfile {
+  if (profile.settings.length <= MIN_NEEDLE_SETTINGS) return profile;
+  return {
+    ...profile,
+    settings: profile.settings.filter((s) => s.settingNumber !== settingNumber),
+  };
 }
 
 /**
