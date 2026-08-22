@@ -218,3 +218,91 @@ describe('buildSvgPattern region labels', () => {
     expect(heightIndex[py * width + px]).toBe(0);
   });
 });
+
+describe('buildSvgPattern punch guide (Iteration 02 Stage C)', () => {
+  function makeRegionMap(): RegionMap {
+    return {
+      width: 10,
+      height: 10,
+      heightIndex: new Int16Array(100).fill(0),
+      colorIndex: new Int16Array(100).fill(0),
+    };
+  }
+
+  it('omits the punch-guide layer when punchGuide is not provided at all', () => {
+    const result = buildSvgPattern(makeRegionMap(), makeLegend(), {
+      widthCm: 10,
+      heightCm: 10,
+      view: 'combined',
+      showGrid: false,
+      showLabels: false,
+      mirrored: false,
+    });
+    expect(result.svg).not.toContain('data-layer="punch-guide"');
+  });
+
+  it('omits the punch-guide layer when mode is "none"', () => {
+    const result = buildSvgPattern(makeRegionMap(), makeLegend(), {
+      widthCm: 10,
+      heightCm: 10,
+      view: 'combined',
+      showGrid: false,
+      showLabels: false,
+      mirrored: false,
+      punchGuide: { mode: 'none', spacingCm: 1 },
+    });
+    expect(result.svg).not.toContain('data-layer="punch-guide"');
+  });
+
+  it('renders a punch-guide layer of circles when mode is "dots"', () => {
+    const result = buildSvgPattern(makeRegionMap(), makeLegend(), {
+      widthCm: 10,
+      heightCm: 10,
+      view: 'combined',
+      showGrid: false,
+      showLabels: false,
+      mirrored: false,
+      punchGuide: { mode: 'dots', spacingCm: 2 },
+    });
+    expect(result.svg).toContain('data-layer="punch-guide"');
+    expect(result.svg).toMatch(/<circle /);
+  });
+
+  it('renders more dots for a smaller spacing than a larger one', () => {
+    const countCircles = (svg: string): number => (svg.match(/<circle /g) ?? []).length;
+
+    const dense = buildSvgPattern(makeRegionMap(), makeLegend(), {
+      widthCm: 10,
+      heightCm: 10,
+      view: 'combined',
+      showGrid: false,
+      showLabels: false,
+      mirrored: false,
+      punchGuide: { mode: 'dots', spacingCm: 1 },
+    });
+    const sparse = buildSvgPattern(makeRegionMap(), makeLegend(), {
+      widthCm: 10,
+      heightCm: 10,
+      view: 'combined',
+      showGrid: false,
+      showLabels: false,
+      mirrored: false,
+      punchGuide: { mode: 'dots', spacingCm: 4 },
+    });
+
+    expect(countCircles(dense.svg)).toBeGreaterThan(countCircles(sparse.svg));
+  });
+
+  it('renders the punch-guide layer in every pattern view, including "contour" (which has no region fill)', () => {
+    const result = buildSvgPattern(makeRegionMap(), makeLegend(), {
+      widthCm: 10,
+      heightCm: 10,
+      view: 'contour',
+      showGrid: false,
+      showLabels: false,
+      mirrored: false,
+      punchGuide: { mode: 'dots', spacingCm: 2 },
+    });
+    expect(result.svg).toContain('data-layer="punch-guide"');
+  });
+});
