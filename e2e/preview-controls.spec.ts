@@ -195,9 +195,28 @@ test.describe('Mobile-narrow layout with the small-region warning banner active 
       /smaller than the minimum punchable size/,
     );
 
-    const hasHorizontalOverflow = await page.evaluate(
-      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
-    );
-    expect(hasHorizontalOverflow).toBe(false);
+    // Diagnostic-rich failure message: if this ever regresses again, the
+    // exact offending element (not just true/false) should show up
+    // directly in the CI log without needing an artifact download.
+    const diagnostics = await page.evaluate(() => {
+      const doc = document.documentElement;
+      let worst: { tag: string; cls: string; right: number } | null = null;
+      document.querySelectorAll('*').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (!worst || r.right > worst.right) {
+          worst = { tag: el.tagName, cls: (el as HTMLElement).className || '', right: r.right };
+        }
+      });
+      return {
+        scrollWidth: doc.scrollWidth,
+        clientWidth: doc.clientWidth,
+        innerWidth: window.innerWidth,
+        worst,
+      };
+    });
+    expect(
+      diagnostics.scrollWidth,
+      `scrollWidth=${diagnostics.scrollWidth} clientWidth=${diagnostics.clientWidth} innerWidth=${diagnostics.innerWidth} worst=${JSON.stringify(diagnostics.worst)}`,
+    ).toBeLessThanOrEqual(diagnostics.clientWidth);
   });
 });
