@@ -335,6 +335,120 @@ convention): one against the finished implementation before docs were
 written, one against the final diff afterward. See the PR description for
 this branch for both passes' findings and what was fixed in response.
 
+## Session 4: Iteration 03 combined-workspace verification
+
+Branch `feat/iteration-03-combined-workspace`. Run from the repository
+root, Node 22.16.0 (`$HOME/.nvm/versions/node/v22.16.0/bin` prepended to
+`PATH`), npm 10.9.2.
+
+### `npm install`
+
+Exit code 0. `@axe-core/playwright` (already a devDependency as of Round 2) needed a fresh `npm install` in this checkout since it hadn't
+previously been installed here.
+
+### `vitest.config.ts` fix, found during this session
+
+`npm run test` from this checkout initially discovered and ran 202 test
+files instead of this project's real ~33 -- the config's `exclude` list
+(`['e2e/**', 'node_modules/**']`) doesn't match nested paths like
+`.claude/worktrees/*/node_modules/**`, and providing a custom Vitest
+`exclude` replaces (not extends) Vitest's own defaults. Fixed by adding
+`.claude/worktrees/**` to the list; see `docs/DECISIONS.md`. All test
+counts below are from the corrected config.
+
+### `npm run verify` (`format` + `lint` + `typecheck` + `test` + `build`)
+
+All green, exit code 0:
+
+```
+> prettier --check .
+All matched files use Prettier code style!
+
+> eslint . --max-warnings=0
+(no output — 0 errors, 0 warnings)
+
+> tsc -b --noEmit
+(no output — 0 errors)
+
+> vitest run
+ Test Files  36 passed (36)
+      Tests  255 passed (255)
+
+> tsc -b && vite build
+✓ built in ~1.3s
+```
+
+New test files: `src/hooks/__tests__/useLiveRelief.test.ts` (7 tests,
+including a deferred-promise-based out-of-order-completion race test),
+`src/components/__tests__/RotationControls.test.tsx` (4 tests),
+`src/components/workspace/__tests__/{ReliefControls,YarnColorsGroup,
+PatternPanel,Workspace}.test.tsx` (7/4/3/5 tests respectively).
+
+### Real-browser verification before the e2e suite was updated
+
+Before touching any e2e spec, the actual built app was driven through a
+real headless-Chromium session (`npm run build && npm run preview`) to
+confirm both architectural resolutions work end-to-end, not just pass
+unit tests: live regeneration fired automatically on landing on Workspace
+with no manual button; the rail's coverage chips and Pattern panel updated
+without navigation; `document.querySelectorAll('[aria-label="Straighten
+model"]')` returned exactly 1 element on both Import and Workspace (no
+duplicate rotation controls); adjusting Pitch from Workspace's own
+`SimulationPanel` rotation control changed the live chip values (proving
+rotation from its new home genuinely affects the captured relief, not
+just the on-screen simulation); rotation set from Import
+(`document.getElementById('import-rotate-roll')`) was reflected in
+Workspace's own control and vice versa (the lifted-`AppState` design
+working as intended). No console errors observed.
+
+Also used to find and fix, before the e2e suite even existed for it: the
+`.screen-only` print-hiding gap and the `main.workspace-layout` grid
+staying active during `@media print` (root-caused with a standalone
+Playwright script emulating print media and inspecting `.print-pages`'s
+actual computed style/bounding rect -- see `docs/DECISIONS.md` for the
+fixes).
+
+### `npx playwright test --project=chromium` / `--project=mobile-narrow`
+
+```
+chromium:       31 passed (17.7s)
+mobile-narrow:  30 passed, 1 skipped (19.9s)
+```
+
+The one skip is the pre-existing, intentional
+`test.skip(browserName !== 'chromium', ...)` in
+`e2e/print-emulation.spec.ts` (PDF generation is Chromium-only in
+Playwright), unrelated to this session's changes. Every spec that
+navigated the old 5-stage wizard was updated for the new Import ->
+Workspace flow (`e2e/main-workflow.spec.ts`, `e2e/orient-persistence.spec.ts`,
+`e2e/preview-controls.spec.ts`, `e2e/print-emulation.spec.ts`,
+`e2e/palette-picker.spec.ts`, `e2e/accessibility.spec.ts`); `e2e/
+relief-workspace.spec.ts` was renamed to `e2e/workspace.spec.ts` (its
+HeightStage-table assertions rewritten as chip-based) with two new tests
+added (both preview panels visible at once; rotating from Workspace's own
+controls changes the pattern). `e2e/orient-persistence.spec.ts` gained a
+third test proving rotation from Workspace's own controls affects the
+live-regenerated relief. `e2e/import-fixture.spec.ts` needed no change.
+
+Two real bugs were found and fixed via this e2e run, not worked around in
+the tests: an ambiguous `getByText('Export & print')` locator (the new
+`StageNav` caption text contains the same substring) fixed by matching
+exact text; and the print/`.screen-only` issues above, root-caused via a
+standalone debug script before being fixed in `Workspace.tsx`/
+`styles.css` and re-verified green.
+
+### Independent review passes
+
+Two independent, fresh-context `general-purpose` subagent reviews were run
+against this branch per this project's established process: one against
+the implementation plan before any code was written (found four concrete
+gaps — `view`/`showGrid`/`mirrored` state needing to move up to
+`Workspace.tsx`, `ExportPanel` needing the same not-ready-yet gate as the
+preview panels, stale "Generate relief"-referencing copy, and a stale e2e
+assertion plan — all fixed before implementation), one against the
+finished diff afterward (found zero blocking issues). See the PR
+description for this branch for both passes' full findings.
+
 ## Session 1 (prior, sandboxed): what was reviewed manually
 
 This MVP was originally built in a sandboxed session with no outbound

@@ -427,6 +427,90 @@ explicitly held for its own future sign-off. #11 (its former dependent) was
 independently resolved and shipped in Round 1 (see above); #3/#4 remain
 tied to this item and stay open.
 
+> **RESOLVED — shipped as the combined-workspace change** (this is the
+> largest single change of the engagement; given its own explicit sign-off
+> and a dedicated plan/review process, per the note above). The 5-stage
+> wizard (Import, Create relief, Height levels, Yarn colors, Preview)
+> collapses to 2 stages: **Import** (unchanged — a model is a real
+> prerequisite for everything else) and **Workspace**, a persistent
+> control rail (left) alongside a sticky, always-visible preview column
+> (right) with two stacked panels — Pattern and Finished-piece simulation
+> — both visible at once, no tab-switching. `WORKFLOW_STAGES` is now
+> `['import', 'workspace']`. This fully absorbs #3 (a live 2D height-
+> profile curve becomes unnecessary — the whole workspace _is_ the live
+> preview now) and #4 (no "Generate relief" button exists anymore to be
+> hard to reach).
+>
+> **Rail structure**: "Needle & pile" (pile-heights slider, plus a live
+> H1/H2/... coverage-percentage chip row folded in from the former Height
+> Levels stage — it was really just live feedback for that one slider, not
+> its own destination), "Punch detail" (min-region preset, plus the former
+> Height Levels stage's small-region warning, moved here since it's driven
+> by this group's own preset control — cause and effect stay visually
+> adjacent), "Shape interpretation", "Yarn colors" (the former Yarn Colors
+> stage's content verbatim), and "Export & print" (the existing compact
+> `ExportPanel`, simply relocated into the rail as one more collapsed
+> section rather than living at the bottom of a separate Preview page).
+>
+> **Live regeneration replaces the manual "Generate relief" button.**
+> `src/hooks/useLiveRelief.ts` debounces relief-generation-affecting
+> setting changes (pile heights, min-region preset, relief depth,
+> smoothing, invert, quantization mode, edge preservation, model rotation)
+> by 300ms, then runs the existing capture→worker pipeline unchanged.
+> Yarn-color/palette/view-mode/grid/label/pile-style/lighting changes
+> stay purely client-side (no worker round-trip) — the same distinction
+> the original brief asked for. A monotonic generation counter (bumped
+> synchronously the instant a newer trigger is observed, not just at
+> completion) discards a slower, superseded in-flight result rather than
+> letting it overwrite a newer one — chosen over `AbortController`-style
+> cancellation since the single long-lived Worker this app already uses
+> per CLAUDE.md's worker-based-processing decision has no real
+> cancellation primitive to begin with. The rail heading's live-status
+> pill ("● Live — updates as you adjust" / "● Processing…") reflects real
+> `AppState.processing` state, not a static label. See docs/DECISIONS.md
+> for the debounce-interval profiling, the full algorithm, and its test
+> coverage (including a dedicated test for the out-of-order-completion
+> race this design exists to prevent).
+>
+> **The rotation-panel wrinkle**: the product owner asked for the
+> Roll/Pitch/Yaw model-straightening controls (Round 1, #5) to be
+> reachable from the new Finished-piece simulation panel rather than only
+> from the separate Import step — genuinely non-trivial, since that
+> control lived as local state inside `Viewport3D.tsx` (the _raw-model_
+> viewport `capture()` reads from), while the simulation panel renders a
+> _different_ component (`SimulationView.tsx`, built from the _processed_
+> region map) with no rotation awareness at all. Resolved by lifting
+> rotation into `AppState.modelRotationDeg`, extracting the slider UI into
+> a shared `RotationControls` component rendered in both places (Import's
+> `Viewport3D`, and Workspace's new `SimulationPanel`) bound to the same
+> value, and keeping `Viewport3D` mounted-but-visually-hidden during
+> Workspace so `capture()` keeps working from wherever the user actually
+> adjusts rotation. `SimulationView`'s real yarn-colored/pile-textured
+> render stays what's shown — no fallback to the raw-model view. Full
+> reasoning, the rejected alternative, and the accessibility handling for
+> the hidden `Viewport3D` instance are in docs/DECISIONS.md.
+>
+> **Process**: implementation plan drafted, reviewed by an independent
+> fresh-context agent before any code was written (findings: four
+> concrete gaps, all fixed — `view`/`showGrid`/`mirrored` state lifted to
+> `Workspace.tsx` so `ExportPanel` could read it, `ExportPanel` given the
+> same not-ready-yet placeholder gate as the preview panels, stale
+> "Generate relief"-referencing copy reworded, and a stale e2e assertion
+> plan corrected). Implementation verified against a real running browser
+> (both wrinkles confirmed working end-to-end, not just unit-tested) before
+> the e2e suite was updated. A second independent fresh-context review of
+> the finished diff found zero blocking issues. Full local gate
+> (format/lint/typecheck/test/build) and the full Playwright e2e suite —
+> chromium and mobile-narrow (WebKit) — are green; see docs/TEST_REPORT.md.
+>
+> **What changed structurally, in one line**: 5 stage components
+> (`ReliefStage`/`HeightStage`/`ColorStage`/`PreviewStage.tsx`) are deleted
+> and their content redistributed into `src/components/workspace/`
+> (`Workspace`/`ReliefControls`/`YarnColorsGroup`/`PatternPanel`/
+> `SimulationPanel.tsx`) plus a new shared `src/components/
+RotationControls.tsx` and `src/hooks/useLiveRelief.ts`; `ImportStage.tsx`
+> is unchanged apart from its "Continue to..." button text.
+
 ---
 
 ## Proposed sequencing
@@ -474,6 +558,13 @@ you're about to make) right now.
 > owner). See `docs/DECISIONS.md` for the implementation decisions behind
 > each resolved point, and each point's own "RESOLVED"/"Status" note above
 > for what changed from the original proposal.
+
+> **Combined-workspace outcome note.** #13 (and, by absorption, #3 and #4)
+> shipped after its own dedicated plan doc, independent pre-implementation
+> review, and independent post-implementation diff review, per the process
+> this section called for. See point #13's own "RESOLVED" note above for
+> the full account of what was built and how both architectural wrinkles
+> (rotation-panel placement, live-regeneration correctness) were resolved.
 
 ## Cross-reference: Iteration 02's own Stage E survey
 
