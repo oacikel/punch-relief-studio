@@ -29,11 +29,14 @@ test.describe('Relief workspace (Iteration 02 Stage B)', () => {
     // Advanced controls are collapsed by default (product owner's own
     // "Advanced shape controls" label from item 7, per §5's table).
     await expect(page.getByLabel('Height band spacing')).toBeHidden();
-    await expect(page.getByLabel('Detail resolution')).toBeHidden();
     await page.getByText('Advanced shape controls').click();
     await expect(page.getByLabel('Height band spacing')).toBeVisible();
-    await page.getByText('Advanced punch detail controls').click();
-    await expect(page.getByLabel('Detail resolution')).toBeVisible();
+
+    // "Detail resolution" was removed entirely in Iteration 03 Round 1
+    // (docs/ITERATION_03_PLAN.md #2) -- no longer a control anywhere, not
+    // even under Advanced.
+    await expect(page.getByLabel('Detail resolution')).toHaveCount(0);
+    await expect(page.getByText('Advanced punch detail controls')).toHaveCount(0);
 
     // Sticky preview: the shared viewport panel is pinned via CSS
     // `position: sticky` at desktop width (see the `.relief-preview-col`

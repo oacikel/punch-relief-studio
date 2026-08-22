@@ -57,12 +57,40 @@ describe('ReliefStage (Iteration 02 Stage B labels/grouping)', () => {
     );
 
     expect(screen.getByLabelText('Height band spacing')).not.toBeVisible();
-    expect(screen.getByLabelText('Detail resolution')).not.toBeVisible();
 
     await userEvent.click(screen.getByText('Advanced shape controls'));
     expect(screen.getByLabelText('Height band spacing')).toBeVisible();
+  });
 
-    await userEvent.click(screen.getByText('Advanced punch detail controls'));
-    expect(screen.getByLabelText('Detail resolution')).toBeVisible();
+  it('has no "Detail resolution" control -- removed entirely per docs/ITERATION_03_PLAN.md #2, not just hidden under Advanced', () => {
+    render(
+      <ReliefStage
+        settings={DEFAULT_RELIEF_SETTINGS}
+        onChange={vi.fn()}
+        onGenerate={vi.fn()}
+        processing={false}
+        error={null}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Detail resolution')).not.toBeInTheDocument();
+    expect(screen.queryByText('Advanced punch detail controls')).not.toBeInTheDocument();
+  });
+
+  it('shows the "Smallest punchable region" preset select with the three named presets', () => {
+    render(
+      <ReliefStage
+        settings={DEFAULT_RELIEF_SETTINGS}
+        onChange={vi.fn()}
+        onGenerate={vi.fn()}
+        processing={false}
+        error={null}
+      />,
+    );
+
+    const select = screen.getByLabelText('Smallest punchable region') as HTMLSelectElement;
+    const optionLabels = Array.from(select.options).map((o) => o.textContent);
+    expect(optionLabels).toEqual(['Fine detail', 'Balanced', 'Bold & simple']);
+    expect(select.value).toBe('balanced');
   });
 });
