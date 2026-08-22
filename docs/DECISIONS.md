@@ -1131,3 +1131,271 @@ had to be worked around with an explicit `src`-path scope before the real
 fix was made. Fixed by
 adding `'.claude/worktrees/**'` to the exclude list -- a narrow, one-line
 fix with no effect on any worktree's own copy of this same config file.
+
+## Workspace usability fixes (post-Iteration-03 audit)
+
+A separate hands-on usability audit of the just-shipped combined-Workspace
+redesign (see the section above), using a real 74MB STL file rather than a
+synthetic sample, found five concrete, precisely root-caused problems.
+Fixed on branch `feat/workspace-usability-fixes`, one commit per item
+below. All five were re-verified against the actual code before a fix was
+proposed (line numbers/values in the audit were treated as recent but not
+authoritative), and the sticky-preview and viewport-order fixes were
+confirmed working in a real running browser (`getBoundingClientRect`/
+`getComputedStyle` measurements), not just inferred from reading CSS.
+
+### 1. Sticky preview column: independent scroll boundary, not a shorter-sibling accident
+
+**Decision:** `main.workspace-layout > .workspace-preview-col`
+(`src/styles.css`) gets `max-height: calc(100vh - 2 * var(--space-3));
+overflow-y: auto; overscroll-behavior: contain;`, reset to `max-height:
+none; overflow-y: visible;` alongside the existing `position: static` in
+the `@media (max-width: 720px)` mobile fallback.
+
+**Root cause:** a CSS grid row auto-sizes to the _taller_ of its two
+column children's natural content height. `.workspace-preview-col`'s
+`position: sticky` had no explicit height cap, so in the default/light
+state (4 pile levels, single color, nothing expanded -- what every new
+user sees first) the preview column's own natural height exceeded the
+rail's, meaning the preview column's natural height _was_ the row height
+-- leaving the column's own containing block zero taller than the column
+itself, so `position: sticky` had no slack to pin within and the column
+just scrolled in lockstep with the page. It only worked once heavier use
+(more pile levels, an open disclosure, more swatches) grew the rail past
+the preview column's natural height by accident.
+
+**Why a height cap fixes both states, not just relocates the bug:**
+capping the column's own height means its contribution to the grid row's
+auto-sizing is always `<= 100vh - 32px`, so the rail (which only grows
+from a modest baseline) reliably becomes the taller sibling for any
+realistic rail content -- confirmed against a running build at both the
+light state (rail ~1444px) and a heavy state (12 pile levels, "Advanced
+shape controls" open, color-by-height with 12 swatches; rail ~2461px):
+both pinned correctly, `getBoundingClientRect().top` staying at the
+pinned `16px` across multiple scroll positions in each state. The column
+becomes independently scrollable for its own contents (Pattern +
+Finished-piece simulation + Legend) once they exceed the cap, rather than
+relying on page scroll -- a deliberate, common pattern (this is the same
+"cap + own scrollbar" shape as, e.g., a sidebar in most IDEs), not merely
+a workaround.
+
+**Alternative considered:** pinning only the Pattern panel specifically
+(since that's what most rail controls actually affect) and letting
+Simulation/Legend scroll beneath it inside the column. Rejected as more
+complex (a second nested sticky/scroll boundary, more surface area for
+the Three.js canvas's own resize handling to interact badly with) for no
+clear benefit over capping the whole column, which already keeps all
+three panels reachable via one predictable scroll gesture.
+
+**Test strengthened, not just re-passed:** `e2e/workspace.spec.ts`'s
+sticky-position test previously only asserted `getComputedStyle(el)
+.position === 'sticky'` -- true the entire time the bug shipped, since it
+only checks the CSS declaration exists, not that the element visually
+stays pinned during a real scroll. Replaced with two new tests (light
+state, heavy state) that scroll the page and assert
+`getBoundingClientRect().top` stays within 2px of the pinned `top` value
+at each scroll position, per the task's explicit requirement that a
+state-dependent bug needs both states covered, not just one.
+
+### 2. Import viewport moved above the fold: a real DOM reorder, not CSS `order`
+
+**Decision:** in `src/App.tsx`, `ImportOrientSection` (heading,
+explanatory text, "Continue to Workspace" button) is rendered in a new
+top-level JSX conditional slot placed _after_ the Viewport3D conditional
+block, instead of nested inside the earlier `workflow.currentStage ===
+'import'` fragment (which rendered it _before_ Viewport3D). Viewport3D's
+own conditional block is completely untouched -- same source position,
+same guard condition.
+
+**Root cause:** on the Import stage, `<main>` has no flex/grid layout
+class, so DOM order is visual order. The prior order (ImportStage samples/
+dropzone -> warning -> orient heading/text/button -> Viewport3D) meant a
+user could reach and click "Continue to Workspace" -- fully visible above
+the fold -- without the 3D viewport they're meant to orient ever
+scrolling into view (confirmed by the audit at 1440x900: viewport top at
+929.6px, entirely below a 900px-tall window).
+
+**Why a real DOM reorder instead of the brief's suggested CSS `order`:**
+the "never remount across Import <-> Workspace" invariant this must
+preserve (`e2e/orient-persistence.spec.ts`, and the original sticky-
+preview entry above) only requires that Viewport3D's _own_ JSX slot stay
+positionally stable among `<main>`'s children across renders -- it does
+not require `ImportOrientSection` to stay adjacent to or before it. Since
+Viewport3D's block was always a separate, later sibling from
+`ImportOrientSection`'s original nested position (not literally adjacent
+in the source), moving only `ImportOrientSection` to a new slot after it
+changes visual, DOM, _and_ tab order together, consistently -- with no
+CSS needed. This is a strictly better outcome than CSS `order` would have
+given: CSS `order` reorders visual position while leaving tab order at
+the old DOM position, a real keyboard-user mismatch (WCAG 2.4.3 focus-
+order territory) that this approach avoids entirely by not needing it.
+
+**Verified working in a real browser** (not just inferred from JSX): at
+1440x900 with the "Concentric Ripple" sample, the 3D viewport (dark
+canvas) now starts at `top: 723px` -- visible without any scrolling --
+versus the pre-fix baseline of `929.6px` (below the fold). A screenshot at
+this viewport shows the canvas visible immediately beneath "Or import your
+own."
+
+**Trade-off flagged, not silently accepted:** the "Orient the model"
+heading now reads, in DOM/tab order, _after_ the viewport it describes --
+a minor inversion of the usual "heading precedes its content" convention.
+The viewport has its own independent `aria-label="3D model viewport"` /
+`role="img"` (`Viewport3D.tsx`), so it isn't orphaned or unlabeled for a
+screen-reader user, just encountered in a different order. A version that
+splits `ImportOrientSection` into a heading/intro half (rendered before
+Viewport3D) and a button-only half (rendered after) would give strictly
+better heading-before-content order at the cost of a real component split
+and more test churn (`src/components/__tests__/ImportStage.test.tsx`
+currently renders `ImportOrientSection` as one unit) -- not done here,
+left as a possible future refinement if this specific ordering nuance
+becomes a real complaint rather than a theoretical one.
+
+**Test coverage:** `e2e/orient-persistence.spec.ts` gained a new test
+asserting the viewport's `getBoundingClientRect().top` is `< 900` (visible
+without scrolling) and less than the Continue button's `top` (viewport
+genuinely precedes the button visually), at a realistic 1440x900 window --
+not an artificially tall test window, which would trivially mask the bug.
+The three pre-existing orientation-persistence tests in that file pass
+unmodified in their actual assertions.
+
+### 3 & 4. Rail jump-nav, sticky mini-headers, and reachable Export & print -- one combined fix
+
+**Decision:** a single new "Jump to:" nav row (`.rail-jump-nav` in
+`Workspace.tsx`, styled in `styles.css`) directly under the existing
+`.workspace-rail-heading`, with one button per top-level rail section
+(Needle & pile / Punch detail / Shape interpretation / Yarn colors /
+Export & print), each scrolling its target into view via
+`document.getElementById(id).scrollIntoView({ behavior: 'smooth', block:
+'start' })`. Combined with sticky `<h3>` mini-headers via a new
+`.rail-section` class applied to exactly those same 4 top-level groups
+(`ReliefControls.tsx` x3, `YarnColorsGroup.tsx` x1).
+
+**Why one fix for two numbered items:** #3 asked for a jump-nav and/or
+sticky headers as a small navigational aid; #4 asked for a persistent,
+easy-to-find affordance for "Export & print" specifically. A jump-nav row
+that includes an Export & print entry satisfies both at once, rather than
+building a separate dedicated "Export" button elsewhere in the rail that
+would duplicate the jump-nav's own Export entry.
+
+**Why `.rail-section` excludes the nested "Color story palettes" group:**
+`YarnColorsGroup.tsx` nests a second `.control-group` ("Color story
+palettes") inside the top-level "Yarn colors" group when color-by-height
+mode is active. A selector matching every `.control-group h3` regardless
+of nesting would let both headers try to stick at `top: 0`
+simultaneously once the user has scrolled past the outer group's top but
+is still within the nested group's bounds -- two sticky boxes rendering at
+the same position, one visually covering the other. `.rail-section` is
+applied only to the 4 top-level groups (via an explicit class, not a
+`:not()` exclusion on the nested group), so the nested header stays
+`position: static` and never competes. Confirmed in a running browser:
+scrolling into the "Yarn colors" section sticks its own `<h3>` at `top:
+0`, while the nested "Color story palettes" heading (revealed by
+switching to color-by-height mode) remains `position: static` throughout.
+
+**Export & print reachability:** the jump-nav's Export & print button
+both scrolls to and opens the `<details>` disclosure in one click, since
+it's otherwise the last thing in the rail after every color swatch.
+`ExportPanel.tsx`'s previously-local `detailsOpen` `useState` is lifted
+into an optional controlled `open`/`onOpenChange` prop pair (`Workspace
+.tsx` owns the state and passes both); when neither prop is supplied, the
+component falls back to its own internal `useState`, so the 7 existing
+`ExportPanel.test.tsx` render call sites (none of which pass these props)
+keep working completely unchanged. Passing only one of the two props is
+a real footgun (documented inline in `ExportPanel.tsx`): `open` alone
+pins the disclosure to a fixed value while click-driven writes go to an
+internal state the display no longer reads, and `onOpenChange` alone
+observes clicks that never actually open/close anything, since the
+displayed `open` value still falls back to internal state. The one real
+caller (`Workspace.tsx`) always passes both together.
+
+**Scroll target for the not-yet-generated placeholder:** before the first
+relief has generated, `Workspace.tsx` renders a plain placeholder div
+instead of the real `ExportPanel` ("Export & print will be available once
+the first relief has generated") -- it shares the `id="rail-export-print"`
+with the real panel's `<details>`, so the jump-nav's Export button always
+has a valid scroll target regardless of generation state.
+
+**A known, accepted rough edge:** because "Export & print" is the very
+last section in the rail, `scrollIntoView({ block: 'start' })` cannot
+always align its heading flush with the viewport top -- there's nothing
+below it left to scroll past, so at the document's max scroll position the
+disclosure lands partway down the viewport instead of at the very top
+(confirmed in a running browser: ~302px from the top in a heavy-swatch
+state, not 0). Still a large, reliable improvement over the pre-fix state
+(requiring a full manual scroll through the entire rail), and adding
+artificial bottom padding to the rail just to force perfect top-alignment
+was judged not worth the empty visual space it would introduce for a
+one-section edge case.
+
+**Test coverage:** two new tests in `e2e/workspace.spec.ts` -- one
+exercising every jump-nav button (confirming Shape interpretation's
+heading lands near the viewport top, and Export & print both opens and
+scrolls into view), one confirming a top-level section's `<h3>` sticks at
+`top: 0` while scrolled within its own section, and that the nested
+"Color story palettes" heading stays `position: static`.
+
+**Ripple effect on existing e2e tests:** the jump-nav's "Export & print"
+button text duplicates the `<summary>`'s own text, so `page.getByText
+('Export & print', { exact: true })` -- used across 6 existing test files
+(`workspace.spec.ts`, `accessibility.spec.ts`, `main-workflow.spec.ts`,
+`print-emulation.spec.ts`, and three call sites in
+`preview-controls.spec.ts`) to open the disclosure -- became ambiguous
+(two matching elements). All 7 call sites were updated to
+`page.locator('.export-panel summary')`, which is both unambiguous and
+more precisely targeted at the actual disclosure toggle than a text match
+ever was.
+
+### 5. Mobile-overflow at 375px: reproduced with the exact missing precondition, does not reproduce
+
+**Outcome: does not reproduce.** A previously-reported 375px-width
+horizontal-overflow bug (`document.documentElement.scrollWidth: 420` vs
+`clientWidth: 375`) could not be reproduced by an earlier follow-up audit
+that toggled every discrete control (disclosures, palettes, pattern-view
+buttons, checkboxes) at 375px width on both a local build and the live
+deployment. That audit's own working theory -- untested at the time -- was
+that the original overflow was found while the small-region warning
+banner ("N region(s) are smaller than the minimum punchable size... may be
+difficult to punch reliably", `ReliefControls.tsx`) was actively showing,
+a state its control-toggling sweep never happened to trigger.
+
+**This investigation deliberately reproduced that exact state** rather
+than continuing to guess. First attempted with the built-in samples
+(Concentric Ripple, Rounded Relief, Geometric Steps) under combinations of
+the "Bold & simple" min-region preset, 12 pile levels, and model rotation
+up to 40 degrees on multiple axes -- **none of these triggered the
+warning banner.** Root cause: `cleanupTinyRegions`
+(`src/domain/regionCleanup.ts`) runs with the _same_ threshold the warning
+check later reads, and only leaves a region unmerged when
+`neighborCounts.size === 0` -- i.e., every one of its bordering pixels is
+background, with no other foreground region to merge into. The three
+built-in samples are smooth, single-blob height fields; every small region
+they can produce borders _some_ other foreground region and gets merged
+away during generation, before the warning check ever sees it.
+
+**Reliable reproduction required a genuinely disconnected shape.** Built
+`e2e/fixtures/sliver.stl`: one 20x20x20 cube plus one small
+(0.3x0.15x0.3), fully separated sliver positioned well outside it (x in
+[18, 18.3] vs. the cube's [-10, 10]). Captured from the front view, the
+sliver projects as an isolated foreground island bordered entirely by
+background -- `cleanupTinyRegions`'s one exception -- so it survives
+cleanup at the _default_ "Balanced" preset with no setting changes needed,
+and the warning banner fires reliably. Confirmed by hand against a running
+build, with real measurements, at both 375px and the project's own 390px
+mobile-narrow width: banner genuinely showing (`.warning-banner` text
+present and matching), zero horizontal overflow
+(`document.documentElement.scrollWidth === clientWidth` exactly, and a
+full-page element sweep found no element with `getBoundingClientRect()
+.right` exceeding the viewport width).
+
+**No CSS fix was made for #5** -- there was nothing to fix once the exact
+missing precondition from the prior investigation was actually
+reproduced. `e2e/preview-controls.spec.ts` gained a permanent regression
+test using the new fixture, so this specific state (warning banner +
+narrow viewport) has real, deterministic e2e coverage going forward
+instead of relying on incidental model/setting combinations that may or
+may not trigger it. `docs/ITERATION_02_PLAN.md`'s §18 item 2 (which
+originally tracked and fixed a _different_, already-resolved mobile-
+overflow bug) is updated with a closing note pointing here, so this
+specific question doesn't get re-litigated a third time without new
+information.
