@@ -37,7 +37,14 @@ interface Props {
    * afar (it's otherwise the last, easy-to-forget thing in a long rail).
    * Both omitted -- the default -- falls back to the panel's own
    * `useState`, exactly as before, so existing callers/tests that don't
-   * care about this keep working unchanged. */
+   * care about this keep working unchanged. Pass both together or
+   * neither -- passing only `open` without `onOpenChange` pins the
+   * disclosure to that fixed value (clicks still fire, but they update an
+   * internal state the display no longer reads), and passing only
+   * `onOpenChange` without `open` observes toggle clicks but never
+   * actually opens/closes anything, since `open` still falls back to
+   * internal state. Neither half-applied combination is likely to be what
+   * a future caller wants. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
