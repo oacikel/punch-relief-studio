@@ -14,6 +14,7 @@ import { meshDataToGeometry } from '@/three/sampleAdapter';
 import { parseStlFile } from '@/domain/import/stlLoader';
 import { parseObjWithAssets } from '@/domain/import/objLoader';
 import { assignSingleColor, assignColorByHeight } from '@/domain/color/colorMode';
+import { applyPaletteToSwatches, getPaletteById } from '@/domain/color/palettes';
 import { buildLegend } from '@/domain/pattern/legend';
 import { useProcessingWorker } from '@/hooks/useProcessingWorker';
 import { appReducer, initialAppState, DEFAULT_SINGLE_COLOR } from '@/state/appState';
@@ -362,6 +363,14 @@ export default function App(): JSX.Element {
               onModeChange={(mode) => dispatch({ type: 'SET_COLOR_MODE', mode })}
               onSwatchesChange={(swatches) => dispatch({ type: 'SET_SWATCHES', swatches })}
               onPaletteSizeChange={(size) => dispatch({ type: 'SET_PALETTE_SIZE', size })}
+              onApplyPalette={(paletteId) => {
+                const palette = getPaletteById(paletteId);
+                if (!palette) return;
+                dispatch({
+                  type: 'SET_SWATCHES',
+                  swatches: applyPaletteToSwatches(state.swatches, palette),
+                });
+              }}
             />
           )}
 
