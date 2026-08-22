@@ -654,3 +654,145 @@ playful) without becoming its own sub-system (search, favorites,
 custom-palette authoring, etc., all deliberately not built).
 **No network calls:** all palette data is a bundled TypeScript array, per
 CLAUDE.md -- no fetching a palette API or CDN-hosted swatch library.
+
+## Iteration 03 Round 2
+
+Implements the two carried-forward Iteration 02 Stage E findings (camera
+framing, Preview mobile-narrow overflow) plus three further real bugs found
+on fresh re-verification against the post-Round-1 codebase (Legend table
+overflow, region-label overlap, and closing the axe-core accessibility gap)
+-- see `docs/ITERATION_02_PLAN.md` §18 for the full "what was actually
+built" account and which findings were confirmed as-is vs. already resolved
+by Round 1's own changes.
+
+### Camera framing: project the geometry's real extent, not an isotropic sphere (#1)
+
+**Decision:** `src/three/viewport.ts` adds `projectedHalfExtent(box, right,
+up, matrixWorld?)` -- projects a `THREE.Box3`'s 8 corners onto a given
+screen-space right/up basis (optionally after a `matrixWorld` transform,
+e.g. a straightened model's rotation) and returns the half-width/
+half-height an orthographic frustum needs to frame it exactly for that
+view direction -- and `fitOrthographicCameraToExtent(camera, extent,
+paddingFactor, aspect)`, the same aspect-fill algorithm
+`fitOrthographicCamera` already used, but driven by that real 2D extent
+instead of a single isotropic radius. `Viewport3D.tsx` adds a `refit()`
+helper (stores the geometry's own local-space bounding box in
+`contentBoxRef`, reads the camera's current basis via
+`camera.matrixWorld.extractBasis`, and the mesh's current rotation via
+`mesh.matrixWorld`) called after every point that used to call the old
+sphere-based fit: new-geometry load, standard-view button clicks, window
+resize, and (newly) every model-straightening rotation change. The old
+`fitOrthographicCamera`/isotropic-radius path is kept as `refit`'s fallback
+for the brief window before any geometry has loaded (no bounding box to
+project yet), and its own unit tests are left unchanged -- it's still a
+correct, simpler special case (a sphere is the extent-based fit's limit
+when `halfWidth === halfHeight` in every direction), not deleted.
+**Alternative considered:** a true per-vertex silhouette projection (exact
+screen-space convex hull of every actual mesh vertex, not just the 8
+bounding-box corners).
+**Why the bounding-box corners, not a true silhouette:** the box-corner
+projection is exact for any axis-aligned standard view of an unrotated
+model (which is the common case -- Import defaults to 'front' and offers
+only the 6 standard views plus straightening rotation, no free-form
+low-level mesh editing that would make the box a loose fit), and a safe
+(never-clipping) over-estimate for an arbitrarily rotated model or
+off-axis orbit angle. A punch-needle relief's source model is expected to
+be a reasonably box-like/convex-ish shape to begin with (it's about to be
+flattened into a bas-relief), so the bounding box is already a tight fit
+in practice; a full per-vertex silhouette solver would be real additional
+complexity (and a live per-frame cost during orbiting, since the
+silhouette would need re-projecting continuously, unlike a fixed box)
+for a shape class where it wouldn't visibly improve the result.
+**Why refit only at discrete trigger points, not continuously during
+orbit:** re-fitting every frame while the user is actively
+orbiting/dollying with `OrbitControls` would fight their own zoom -- the
+camera's frustum size is exactly the thing `OrbitControls`' scroll-to-zoom
+adjusts for an orthographic camera, so continuously overwriting it would
+make manual zoom impossible. Framing is instead only recomputed at the
+same discrete moments a user would expect the view to "snap to a sensible
+frame": loading a new model, clicking a standard-view button, resizing the
+window, and straightening the model (a rotation slider change measurably
+changes what's on screen for the current view direction, unlike orbiting,
+which is the user actively choosing their own framing).
+**A related, previously-undiscovered bug fixed in the same pass:**
+`capture()`'s render target is always square (`state.reliefSettings.
+outputResolutionPx` used for both width and height, `App.tsx`), but the
+on-screen frustum is fit to the _container's_ aspect ratio, which is
+usually not square -- rendering the capture through a mismatched frustum
+silently stretches the captured depth/color non-uniformly, which then
+propagates into the actual relief geometry, not just a display artifact.
+`capture` now calls `refit(1)` (square aspect) immediately before
+`captureDepth`, then restores the camera's prior on-screen left/right/top/
+bottom afterward, so generating a relief no longer visibly changes the
+live viewport's own framing.
+**Left open, deliberately:** the box-corner approach's slack for an
+arbitrarily-rotated model (see above) means framing isn't pixel-perfectly
+tight in that case -- acceptable per the analysis above, revisit only if a
+real model surfaces where it's visibly wasteful.
+
+### Region-label collision avoidance, not a stricter size gate or leader lines (#4)
+
+**Decision:** new `src/domain/pattern/labelPlacement.ts` exports a pure
+`placeLabels(candidates, options)`: candidates are sorted by region pixel
+area descending (tie-broken by id string for full determinism, never
+insertion order alone), each candidate first tries its own centroid, and
+on a collision with an already-placed label's box tries a small fixed ring
+search (3 concentric rings x 8 compass directions, radii as multiples of
+the estimated label height) before giving up and dropping that label
+entirely. `buildLabels` in `src/export/svgPattern.ts` now builds
+`LabelCandidate[]` (unchanged centroid/nearest-pixel anchor logic) and
+calls `placeLabels` before emitting `<text>` markup, instead of rendering
+every candidate's raw centroid directly. The existing `MIN_LABEL_AREA_PX`
+gate (regions too small in raw pixel count to attempt a label at all) is
+unchanged and runs first, before candidates ever reach `placeLabels`.
+**Alternatives considered:** (a) leader lines (draw the label away from a
+crowded cluster with a thin line back to the region it identifies); (b) a
+stricter minimum-region-size gate tuned to the label's actual rendered
+footprint rather than a fixed small pixel-area threshold.
+**Why collision avoidance over leader lines:** leader lines solve the same
+problem but need real placement-quality reasoning of their own (where does
+the line go so it doesn't cross other regions/labels, does it read as
+pointing at the right region from a distance, does it visually clash with
+the pattern's other line layers -- contour, grid, punch guide,
+registration marks). The nudge-then-drop approach reuses the exact visual
+language the labels already have (a small stroked-halo text token sitting
+directly on/near its region), asks a much narrower question (is there a
+nearby free spot, yes/no), and degrades gracefully (a dropped label leaves
+the region's fill/outline intact, still visually distinct, just without
+its redundant text token) rather than needing a "good leader line" quality
+bar to clear.
+**Why not just a stricter size-only gate:** raising `MIN_LABEL_AREA_PX`
+until the average label physically fits would either (a) still fail for
+elongated/thin regions with a large-enough pixel _count_ but no single
+wide-enough spot (a thin ring or band), which is exactly the shape class
+the bug report called out, or (b) be so conservative it drops labels from
+plenty of regions that could have fit fine on their own and only became a
+problem because a _neighbor_ happened to be labeled at the same moment --
+collision avoidance is a strictly better answer to "did two labels
+actually collide," since raw region area alone can't tell you that.
+**Determinism:** no randomness anywhere in the algorithm (fixed sort order,
+fixed compass-direction/ring-radius search sequence) -- the same
+`RegionMap` and settings always produce the same rendered labels, per
+CLAUDE.md's determinism requirement (this isn't pseudo-random generation in
+the `src/domain/random.ts` sense, but the same "same input, same output"
+principle applies).
+**Left open, deliberately:** the label-width estimate
+(`id.length * LABEL_CHAR_WIDTH`, a fixed average-glyph-width heuristic) is
+an approximation, not a real text-measurement API (no `<canvas>`
+`measureText` call, since `src/export/svgPattern.ts` must stay usable
+outside a browser/DOM context per CLAUDE.md's architecture boundaries) --
+good enough for the AABB overlap test's purposes, not pixel-exact.
+
+### Camera-framing and mobile-layout fixes carry no schema/persistence changes
+
+**Decision:** none of the Round 2 fixes touch `ProjectFile`,
+`AppState`, or any persisted setting -- camera framing is purely
+`Viewport3D.tsx`-local derived behavior (see above, mirrors how rotation
+state is already local per the Iteration 03 Round 1 rotation decision);
+the Preview two-column layout and Legend table wrapper are CSS-only; label
+placement is a pure function of the already-persisted `RegionMap`/
+`LegendEntry[]` data, not a new setting. No `PROJECT_SCHEMA_VERSION` bump,
+no new `AppState` fields, no new UI controls (a printed/exported pattern
+from an old project JSON will simply render with legible, non-overlapping
+labels the next time it's regenerated, with nothing new for a user to
+configure).
