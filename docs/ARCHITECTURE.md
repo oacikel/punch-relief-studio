@@ -18,9 +18,12 @@ Iteration 02 Stage B to match the widened 2-12 height-level range),
 inline, per the component/domain boundary below) /`calibrationStrip.ts`,
 `color/colorQuantize.ts` (Lab-space
 deterministic clustering) and `color/colorMode.ts`, `pattern/legend.ts`,
-`pattern/yarnEstimate.ts`, `pattern/punchOrder.ts`, `projectSchema.ts`,
-`filenameSanitize.ts`, `import/validation.ts`, `samples/*` (the 3 built-in
-fixtures, as plain mesh data).
+`pattern/yarnEstimate.ts`, `pattern/punchOrder.ts`, `pattern/punchGuide.ts`
+(Iteration 02 Stage C: punch-guide dot-grid geometry -- the first place a
+user-entered _physical_ measurement, dot spacing in cm, is converted to
+raster pixels, via `units.ts`'s `cm`/`cmToPx`, never a bare multiplication),
+`projectSchema.ts`, `filenameSanitize.ts`, `import/validation.ts`,
+`samples/*` (the 3 built-in fixtures, as plain mesh data).
 
 `src/three/**` -- everything that touches a WebGL context or Three.js
 types: `depthCapture.ts` (render-to-texture depth/color readback),
@@ -59,6 +62,17 @@ navigation (guarded by `e2e/orient-persistence.spec.ts`) is unaffected; see
 `ExportPanel.tsx` (via `focusCalibration`/`onCalibrationFocused` props
 threaded through `PreviewStage.tsx`) to force its disclosure open and
 scroll to the calibration section.
+
+As of Iteration 02 Stage C, `PreviewStage.tsx` also owns the on-screen
+"Region labels" toggle and the "Punch guide" selector/spacing controls,
+reading/writing a new `patternViewSettings` slice of `AppState`
+(`src/state/appState.ts`) and forwarding the shared `punchGuide` setting
+down to both `PatternCanvas.tsx` (on-screen) and `ExportPanel.tsx`
+(export/print), so the same guide renders in both places rather than being
+duplicated per surface. `usePatternSvgUrl.ts` (`src/hooks/`) was refactored
+from six positional primitive args to a single `SvgPatternOptions` object,
+to avoid making an already-long positional call signature worse when the
+`punchGuide` option was added.
 
 `src/state/**` -- two plain reducers, framework-light enough to unit test
 without React: `workflow.ts` (which stage is active, gating, and the

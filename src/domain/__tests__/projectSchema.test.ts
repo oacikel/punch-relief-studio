@@ -63,3 +63,26 @@ describe('parseProjectFile', () => {
     expect(() => parseProjectFile(project)).toThrow(InvalidProjectFileError);
   });
 });
+
+describe('parseProjectFile punch guide field (Iteration 02 Stage C)', () => {
+  it('accepts an old-style (schema v1, pre-Stage-C) project whose exportSettings has no punchGuide key at all', () => {
+    // makeValidProject()'s exportSettings deliberately has no punchGuide
+    // field -- this is exactly what every project saved before Stage C
+    // looks like. It must keep loading, not fail to parse, per the
+    // (a)-vs-(b) schema decision in docs/DECISIONS.md.
+    const project = makeValidProject();
+    expect('punchGuide' in project.exportSettings).toBe(false);
+    const parsed = parseProjectFile(project);
+    expect(parsed.exportSettings.punchGuide).toBeUndefined();
+  });
+
+  it('accepts and round-trips a project whose exportSettings includes a punchGuide', () => {
+    const project = makeValidProject();
+    project.exportSettings = {
+      ...project.exportSettings,
+      punchGuide: { mode: 'dots', spacingCm: 1.5 },
+    };
+    const parsed = parseProjectFile(project);
+    expect(parsed.exportSettings.punchGuide).toEqual({ mode: 'dots', spacingCm: 1.5 });
+  });
+});

@@ -42,10 +42,20 @@ create ever leaves your device.
    edit swatches/names.
 5. **Preview** -- compare pattern views (combined/color-only/height-only/
    contour) against the finished-piece simulation, and read the legend that
-   ties color IDs, height IDs, yarn names, and needle settings together.
-   Open the "Export & print" panel on this page to set the physical project
-   size, export SVG/PNG/print-PDF, save project settings as JSON, and manage
-   your calibration profile (including a printable calibration strip).
+   ties color IDs, height IDs, yarn names, and needle settings together. A
+   "Region labels (C1-H1 etc.)" checkbox controls whether the on-screen
+   pattern shows those ids -- independent of the separate "Print region
+   labels" checkbox in the export panel below, which only affects what
+   actually prints. A "Punch guide" selector (None/Dots) adds an optional
+   grid of evenly spaced dots at a spacing (in cm) you choose, as a rough
+   placement guide -- the same guide setting is used both on screen and in
+   every SVG/PNG/print export, so what you see in Preview is what prints.
+   This is the spacing you set, not a measurement of your printer's actual
+   output; always check the printed scale-check square with a ruler before
+   punching. Open the "Export & print" panel on this page to set the
+   physical project size, export SVG/PNG/print-PDF, save project settings
+   as JSON, and manage your calibration profile (including a printable
+   calibration strip).
 
 You can move backward and forward through these steps without losing your
 settings.

@@ -17,6 +17,7 @@ import { assignSingleColor, assignColorByHeight } from '@/domain/color/colorMode
 import { buildLegend } from '@/domain/pattern/legend';
 import { useProcessingWorker } from '@/hooks/useProcessingWorker';
 import { appReducer, initialAppState, DEFAULT_SINGLE_COLOR } from '@/state/appState';
+import { DEFAULT_PUNCH_GUIDE_SPACING_CM } from '@/domain/pattern/punchGuide';
 import { workflowReducer, initialWorkflowState } from '@/state/workflow';
 import { loadProfiles, upsertProfile } from '@/persistence/calibrationStore';
 import { serializeProject, projectFilename } from '@/persistence/projectStore';
@@ -215,7 +216,13 @@ export default function App(): JSX.Element {
       },
       calibrationProfile: state.calibrationProfile,
       renderSettings: state.renderSettings,
-      exportSettings: state.exportSettings,
+      // Iteration 02 Stage C: `punchGuide` is the one field of
+      // `patternViewSettings` that's actually persisted -- Stage D needs it
+      // to reprint the same guide a saved project was made with.
+      // `showOnScreenLabels` deliberately stays AppState-only (see
+      // docs/DECISIONS.md), matching the existing view/showLabels
+      // precedent already on this same `exportSettings` object.
+      exportSettings: { ...state.exportSettings, punchGuide: state.patternViewSettings.punchGuide },
     };
     downloadText(serializeProject(project), projectFilename('punch-relief'), 'application/json');
   };
@@ -236,7 +243,36 @@ export default function App(): JSX.Element {
     dispatch({ type: 'SET_CALIBRATION_PROFILE', profile: project.calibrationProfile });
     dispatch({ type: 'SET_PATTERN_DIMENSIONS', dimensions: project.patternDimensions });
     dispatch({ type: 'SET_RENDER_SETTINGS', settings: project.renderSettings });
-    dispatch({ type: 'SET_EXPORT_SETTINGS', settings: project.exportSettings });
+    // `ExportSettings` (AppState) has no `punchGuide` field -- it lives
+    // separately on `patternViewSettings` (see below) -- so pick only the
+    // fields `ExportSettings` actually declares, rather than spreading the
+    // whole `project.exportSettings` object (which now types an optional
+    // `punchGuide`) wholesale into a `Partial<ExportSettings>` action.
+    // Passing the raw object still type-checked (excess-property checking
+    // doesn't apply to values, only literals) but would have left an
+    // untyped, unused `punchGuide` key sitting on `state.exportSettings`
+    // alongside the real one on `state.patternViewSettings.punchGuide` --
+    // two sources of truth for the same setting, found in independent
+    // review.
+    dispatch({
+      type: 'SET_EXPORT_SETTINGS',
+      settings: {
+        pageSize: project.exportSettings.pageSize,
+        overlapCm: project.exportSettings.overlapCm,
+        orientation: project.exportSettings.orientation,
+      },
+    });
+    // Iteration 02 Stage C schema decision (a): old (pre-Stage-C) project
+    // files never have `exportSettings.punchGuide` -- default explicitly
+    // to "no guide" rather than trusting `??` alone to "just work" without
+    // a test proving the old-file path. See docs/DECISIONS.md.
+    dispatch({
+      type: 'SET_PATTERN_VIEW_SETTINGS',
+      punchGuide: project.exportSettings.punchGuide ?? {
+        mode: 'none',
+        spacingCm: DEFAULT_PUNCH_GUIDE_SPACING_CM,
+      },
+    });
     if (project.sourceModel.kind === 'built-in-sample' && project.sourceModel.sampleId) {
       handleSelectSample(project.sourceModel.sampleId);
     }
@@ -373,6 +409,10 @@ export default function App(): JSX.Element {
               onLoadProjectJson={handleLoadProjectJson}
               focusCalibration={focusCalibration}
               onCalibrationFocused={() => setFocusCalibration(false)}
+              patternViewSettings={state.patternViewSettings}
+              onPatternViewSettingsChange={(patch) =>
+                dispatch({ type: 'SET_PATTERN_VIEW_SETTINGS', ...patch })
+              }
             />
           )}
         </main>

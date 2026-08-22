@@ -5,7 +5,7 @@ import { ExportPanel } from '../ExportPanel';
 import { createDefaultProfile } from '@/domain/calibration';
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
-import type { ExportSettings, PatternDimensions } from '@/state/appState';
+import type { ExportSettings, PatternDimensions, PunchGuideSettings } from '@/state/appState';
 
 function makeRegionMap(): RegionMap {
   return {
@@ -45,6 +45,10 @@ function baseExportSettings(overrides: Partial<ExportSettings> = {}): ExportSett
   };
 }
 
+function basePunchGuide(overrides: Partial<PunchGuideSettings> = {}): PunchGuideSettings {
+  return { mode: 'none', spacingCm: 1, ...overrides };
+}
+
 describe('ExportPanel print pages', () => {
   it('renders one .print-page per tile computeTiling produces, not just a single continuous document', () => {
     // A 30cm-wide pattern on A4 (printable width ~19cm) must tile across
@@ -65,6 +69,7 @@ describe('ExportPanel print pages', () => {
         onCalibrationSelect={vi.fn()}
         onSaveProjectJson={vi.fn()}
         onLoadProjectJson={vi.fn()}
+        punchGuide={basePunchGuide()}
       />,
     );
 
@@ -89,6 +94,7 @@ describe('ExportPanel print pages', () => {
         onCalibrationSelect={vi.fn()}
         onSaveProjectJson={vi.fn()}
         onLoadProjectJson={vi.fn()}
+        punchGuide={basePunchGuide()}
       />,
     );
 
@@ -113,6 +119,7 @@ describe('ExportPanel print pages', () => {
         onCalibrationSelect={vi.fn()}
         onSaveProjectJson={vi.fn()}
         onLoadProjectJson={vi.fn()}
+        punchGuide={basePunchGuide()}
       />,
     );
 
@@ -140,6 +147,7 @@ describe('ExportPanel contextual calibration focus (Iteration 02 Stage B)', () =
         onCalibrationSelect={vi.fn()}
         onSaveProjectJson={vi.fn()}
         onLoadProjectJson={vi.fn()}
+        punchGuide={basePunchGuide()}
       />,
     );
 
@@ -163,6 +171,7 @@ describe('ExportPanel contextual calibration focus (Iteration 02 Stage B)', () =
         onCalibrationSelect={vi.fn()}
         onSaveProjectJson={vi.fn()}
         onLoadProjectJson={vi.fn()}
+        punchGuide={basePunchGuide()}
         focusCalibration
         onCalibrationFocused={onCalibrationFocused}
       />,
@@ -171,5 +180,35 @@ describe('ExportPanel contextual calibration focus (Iteration 02 Stage B)', () =
     expect(document.querySelector('.export-panel')).toHaveAttribute('open');
     expect(screen.getByRole('heading', { name: 'Calibration', level: 3 })).toBeVisible();
     expect(onCalibrationFocused).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ExportPanel punch guide (Iteration 02 Stage C)', () => {
+  it('renders without crashing when a "dots" punch guide is active, at any spacing', () => {
+    render(
+      <ExportPanel
+        regionMap={makeRegionMap()}
+        legend={makeLegend()}
+        dimensions={baseDimensions}
+        onDimensionsChange={vi.fn()}
+        exportSettings={baseExportSettings()}
+        onExportSettingsChange={vi.fn()}
+        calibrationProfile={createDefaultProfile()}
+        savedProfiles={[]}
+        onCalibrationChange={vi.fn()}
+        onCalibrationSave={vi.fn()}
+        onCalibrationSelect={vi.fn()}
+        onSaveProjectJson={vi.fn()}
+        onLoadProjectJson={vi.fn()}
+        punchGuide={basePunchGuide({ mode: 'dots', spacingCm: 0.5 })}
+      />,
+    );
+
+    // The punch guide has no dedicated UI inside ExportPanel itself (the
+    // selector/spacing controls live on PreviewStage, shared down as a
+    // prop) -- this just confirms passing an active guide through to the
+    // export/print SVG-building calls doesn't throw or otherwise break
+    // the panel's own rendering.
+    expect(document.querySelector('.export-panel')).toBeInTheDocument();
   });
 });

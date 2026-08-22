@@ -3,6 +3,7 @@ import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
 import type { CalibrationProfile } from '@/domain/calibration';
 import type { PatternDimensions, ExportSettings } from '@/state/appState';
+import type { PunchGuideSettings } from '@/domain/pattern/punchGuide';
 import { buildSvgPattern, type PatternView } from '@/export/svgPattern';
 import { downloadSvg, svgToPngBlob, downloadBlob } from '@/export/download';
 import { computeTiling, cmToCssPx } from '@/export/printTiling';
@@ -38,6 +39,10 @@ interface Props {
    * caller can reset its flag and a later, ordinary visit to Preview
    * doesn't keep re-forcing it. */
   onCalibrationFocused?: () => void;
+  /** Iteration 02 Stage C: the same punch-guide setting shown on the
+   * on-screen Preview pattern, applied to every export/print path too --
+   * what you preview is what prints. */
+  punchGuide: PunchGuideSettings;
 }
 
 /**
@@ -65,6 +70,7 @@ export function ExportPanel({
   onLoadProjectJson,
   focusCalibration = false,
   onCalibrationFocused,
+  punchGuide,
 }: Props): JSX.Element {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -128,6 +134,7 @@ export function ExportPanel({
       showGrid: false,
       showLabels: exportSettings.showLabels,
       mirrored,
+      punchGuide,
     });
     downloadSvg(result.svg, withExtension('punch-relief-pattern', 'svg'));
   };
@@ -140,6 +147,7 @@ export function ExportPanel({
       showGrid: false,
       showLabels: exportSettings.showLabels,
       mirrored,
+      punchGuide,
     });
     const widthPx = Math.round(safeDimensions.widthCm * 40);
     const heightPx = Math.round(safeDimensions.heightCm * 40);
@@ -159,16 +167,15 @@ export function ExportPanel({
   // Built once here (not per-tile) so every print page reuses the same
   // rendered pattern image via a CSS "clip window" instead of re-rendering
   // the SVG per tile.
-  const { url: printImageUrl } = usePatternSvgUrl(
-    regionMap,
-    legend,
-    safeDimensions.widthCm,
-    safeDimensions.heightCm,
-    exportSettings.view,
-    false,
-    exportSettings.showLabels,
+  const { url: printImageUrl } = usePatternSvgUrl(regionMap, legend, {
+    widthCm: safeDimensions.widthCm,
+    heightCm: safeDimensions.heightCm,
+    view: exportSettings.view,
+    showGrid: false,
+    showLabels: exportSettings.showLabels,
     mirrored,
-  );
+    punchGuide,
+  });
   const fullWidthPx = cmToCssPx(safeDimensions.widthCm);
   const fullHeightPx = cmToCssPx(safeDimensions.heightCm);
 

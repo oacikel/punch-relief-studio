@@ -3,13 +3,25 @@ import type { RegionMap } from '@/domain/types';
 import type { HeightLevel } from '@/domain/types';
 import type { CalibrationProfile } from '@/domain/calibration';
 import type { LegendEntry } from '@/domain/pattern/legend';
-import type { RenderSettings, PatternDimensions, ExportSettings } from '@/state/appState';
+import type {
+  RenderSettings,
+  PatternDimensions,
+  ExportSettings,
+  PatternViewSettings,
+  PunchGuideSettings,
+} from '@/state/appState';
 import { PatternCanvas } from '@/components/PatternCanvas';
 import { SimulationView } from '@/components/SimulationView';
 import { Legend } from '@/components/Legend';
 import { ExportPanel } from '@/components/ExportPanel';
 import type { PatternView } from '@/export/svgPattern';
 import type { ProjectFile } from '@/domain/projectSchema';
+import {
+  MIN_PUNCH_GUIDE_SPACING_CM,
+  MAX_PUNCH_GUIDE_SPACING_CM,
+  clampPunchGuideSpacingCm,
+  type PunchGuideMode,
+} from '@/domain/pattern/punchGuide';
 
 interface Props {
   regionMap: RegionMap;
@@ -33,6 +45,14 @@ interface Props {
    * stage's "Calibrate needle settings" link. */
   focusCalibration?: boolean;
   onCalibrationFocused?: () => void;
+  /** Iteration 02 Stage C: on-screen label toggle + punch-guide selector
+   * state, shared with the export/print panel below (see
+   * docs/DECISIONS.md). */
+  patternViewSettings: PatternViewSettings;
+  onPatternViewSettingsChange: (patch: {
+    showOnScreenLabels?: boolean;
+    punchGuide?: Partial<PunchGuideSettings>;
+  }) => void;
 }
 
 const VIEWS: PatternView[] = ['combined', 'color-only', 'height-only', 'contour'];
@@ -71,10 +91,13 @@ export function PreviewStage({
   onLoadProjectJson,
   focusCalibration = false,
   onCalibrationFocused = () => {},
+  patternViewSettings,
+  onPatternViewSettingsChange,
 }: Props): JSX.Element {
   const [view, setView] = useState<PatternView>('combined');
   const [showGrid, setShowGrid] = useState(false);
   const [mirrored, setMirrored] = useState(false);
+  const { showOnScreenLabels, punchGuide } = patternViewSettings;
 
   return (
     <section className="stage-panel" aria-labelledby="preview-heading">
@@ -106,7 +129,55 @@ export function PreviewStage({
                 onChange={(e) => setMirrored(e.target.checked)}
               />{' '}
               Mirrored (back side)
+            </label>{' '}
+            <label>
+              <input
+                type="checkbox"
+                checked={showOnScreenLabels}
+                onChange={(e) =>
+                  onPatternViewSettingsChange({ showOnScreenLabels: e.target.checked })
+                }
+              />{' '}
+              Region labels (C1-H1 etc.)
             </label>
+            <div className="field" style={{ marginTop: 8 }}>
+              <label htmlFor="punch-guide-mode">Punch guide</label>
+              <select
+                id="punch-guide-mode"
+                value={punchGuide.mode}
+                onChange={(e) =>
+                  onPatternViewSettingsChange({
+                    punchGuide: { mode: e.target.value as PunchGuideMode },
+                  })
+                }
+              >
+                <option value="none">None</option>
+                <option value="dots">Dots</option>
+              </select>
+            </div>
+            {punchGuide.mode === 'dots' && (
+              <div className="field">
+                <label htmlFor="punch-guide-spacing">Dot spacing (cm)</label>
+                <input
+                  id="punch-guide-spacing"
+                  type="number"
+                  min={MIN_PUNCH_GUIDE_SPACING_CM}
+                  max={MAX_PUNCH_GUIDE_SPACING_CM}
+                  step={0.1}
+                  value={punchGuide.spacingCm}
+                  onChange={(e) =>
+                    onPatternViewSettingsChange({
+                      punchGuide: { spacingCm: clampPunchGuideSpacingCm(Number(e.target.value)) },
+                    })
+                  }
+                />
+              </div>
+            )}
+            <p className="helper-text">
+              Adds evenly spaced dots across the pattern as a rough placement guide. This is the
+              spacing you set here, not a measurement of your printer&apos;s actual output -- always
+              check the printed scale-check square with a ruler before punching.
+            </p>
             <PatternCanvas
               regionMap={regionMap}
               legend={legend}
@@ -114,8 +185,9 @@ export function PreviewStage({
               widthCm={dimensions.widthCm}
               heightCm={dimensions.heightCm}
               showGrid={showGrid}
-              showLabels
+              showLabels={showOnScreenLabels}
               mirrored={mirrored}
+              punchGuide={punchGuide}
             />
           </div>
           <div>
@@ -179,6 +251,7 @@ export function PreviewStage({
         onLoadProjectJson={onLoadProjectJson}
         focusCalibration={focusCalibration}
         onCalibrationFocused={onCalibrationFocused}
+        punchGuide={punchGuide}
       />
     </section>
   );

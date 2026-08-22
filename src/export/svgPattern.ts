@@ -11,6 +11,7 @@ import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
 import { regionId, symbolForHeight } from '@/domain/regionId';
 import { findConnectedComponents } from '@/domain/regionCleanup';
+import { computePunchGuideDots, type PunchGuideSettings } from '@/domain/pattern/punchGuide';
 
 export type PatternView = 'combined' | 'color-only' | 'height-only' | 'contour';
 
@@ -22,6 +23,10 @@ export interface SvgPatternOptions {
   showLabels: boolean;
   mirrored: boolean;
   pxPerCm?: number;
+  /** Iteration 02 Stage C: optional dot-grid placement guide, spaced at a
+   * real physical distance the user set. `undefined` or `{ mode: 'none' }`
+   * renders no guide layer at all. See docs/DECISIONS.md. */
+  punchGuide?: PunchGuideSettings;
 }
 
 export interface SvgPatternResult {
@@ -64,12 +69,22 @@ export function buildSvgPattern(
   }
 
   const grid = options.showGrid ? buildGrid(widthPx, heightPx, pxPerCm) : '';
+  const punchGuide = buildPunchGuideLayer(
+    options.widthCm,
+    options.heightCm,
+    pxPerCm,
+    options.punchGuide,
+  );
   const registration = buildRegistrationMarks(widthPx, heightPx);
   const scaleBar = buildScaleBar(heightPx, pxPerCm);
   const contour =
     options.view === 'contour' ? buildContourLines(regionMap, cellW, cellH, options.mirrored) : '';
   const labels = options.showLabels ? buildLabels(regionMap, cellW, cellH, options.mirrored) : '';
 
+  // Paint order: regions -> contour -> labels -> grid -> punch guide ->
+  // registration -> scale bar. The punch guide sits above the pattern fill
+  // and grid lines (so its dots are visible against either) but below the
+  // registration marks and scale bar, which must stay legible on top.
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPx}" height="${heightPx}"
     viewBox="0 0 ${widthPx} ${heightPx}" data-view="${options.view}">
     <rect width="${widthPx}" height="${heightPx}" fill="#f7f3ec" />
@@ -77,6 +92,7 @@ export function buildSvgPattern(
     ${contour}
     ${labels}
     ${grid}
+    ${punchGuide}
     ${registration}
     ${scaleBar}
   </svg>`;
@@ -111,6 +127,34 @@ function buildGrid(widthPx: number, heightPx: number, pxPerCm: number): string {
     );
   }
   return `<g data-layer="grid">${lines.join('')}</g>`;
+}
+
+const PUNCH_GUIDE_DOT_RADIUS_PX = 1.5;
+
+/**
+ * Renders the punch-guide dot overlay (Iteration 02 Stage C) -- a rough
+ * physical placement guide, not a claim about actual printer/stitch
+ * precision (see docs/DECISIONS.md). Geometry comes entirely from the
+ * pure `computePunchGuideDots` domain function; this is presentation only
+ * (SVG markup), matching the same split every other layer here already
+ * uses.
+ */
+function buildPunchGuideLayer(
+  widthCm: number,
+  heightCm: number,
+  pxPerCm: number,
+  guide: PunchGuideSettings | undefined,
+): string {
+  if (!guide || guide.mode === 'none') return '';
+  const dots = computePunchGuideDots(widthCm, heightCm, guide.spacingCm, pxPerCm);
+  if (dots.length === 0) return '';
+  const circles = dots
+    .map(
+      (d) =>
+        `<circle cx="${d.x}" cy="${d.y}" r="${PUNCH_GUIDE_DOT_RADIUS_PX}" fill="#000" fill-opacity="0.55" />`,
+    )
+    .join('');
+  return `<g data-layer="punch-guide">${circles}</g>`;
 }
 
 function buildRegistrationMarks(widthPx: number, heightPx: number): string {

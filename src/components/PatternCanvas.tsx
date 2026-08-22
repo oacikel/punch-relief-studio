@@ -1,6 +1,7 @@
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
 import type { PatternView } from '@/export/svgPattern';
+import type { PunchGuideSettings } from '@/domain/pattern/punchGuide';
 import { usePatternSvgUrl } from '@/hooks/usePatternSvgUrl';
 
 interface Props {
@@ -12,6 +13,9 @@ interface Props {
   showGrid: boolean;
   showLabels: boolean;
   mirrored: boolean;
+  /** Iteration 02 Stage C: optional dot-grid placement guide, shared with
+   * whatever export/print path renders the same pattern. */
+  punchGuide?: PunchGuideSettings;
 }
 
 /**
@@ -30,17 +34,21 @@ export function PatternCanvas({
   showGrid,
   showLabels,
   mirrored,
+  punchGuide,
 }: Props): JSX.Element {
-  const { url } = usePatternSvgUrl(
-    regionMap,
-    legend,
+  // exactOptionalPropertyTypes forbids assigning `undefined` to an
+  // optional field -- omit `punchGuide` entirely when this component
+  // wasn't given one, rather than setting it to undefined (see the same
+  // pattern in App.tsx's handleSaveProjectJson).
+  const { url } = usePatternSvgUrl(regionMap, legend, {
     widthCm,
     heightCm,
     view,
     showGrid,
     showLabels,
     mirrored,
-  );
+    ...(punchGuide ? { punchGuide } : {}),
+  });
 
   return (
     <img

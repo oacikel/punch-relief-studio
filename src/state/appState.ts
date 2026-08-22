@@ -9,6 +9,12 @@ import { DEFAULT_RELIEF_SETTINGS } from '@/domain/types';
 import type { ColorMode, ColorSwatch, HeightLevel, ReliefSettings, RgbColor } from '@/domain/types';
 import type { PageSize } from '@/export/printTiling';
 import type { PatternView } from '@/export/svgPattern';
+import {
+  DEFAULT_PUNCH_GUIDE_SPACING_CM,
+  type PunchGuideSettings,
+} from '@/domain/pattern/punchGuide';
+
+export type { PunchGuideMode, PunchGuideSettings } from '@/domain/pattern/punchGuide';
 
 export interface PatternDimensions {
   widthCm: number;
@@ -40,6 +46,26 @@ export interface ExportSettings {
   showLabels: boolean;
 }
 
+/**
+ * Iteration 02 Stage C: on-screen Preview pattern display preferences,
+ * separate from `ExportSettings`. `showOnScreenLabels` controls the
+ * interactive Preview pattern's own C{n}-H{n} labels independently of
+ * `ExportSettings.showLabels` (which only ever affected SVG/PNG/print
+ * output) -- previously the on-screen pattern had no label toggle at all,
+ * it was hardcoded on. `punchGuide` is shared between the on-screen
+ * pattern and every export/print path (what you preview is what prints),
+ * so it lives here rather than duplicated per surface. See
+ * docs/DECISIONS.md for why `punchGuide` is persisted in `ProjectFile`
+ * (Stage D needs to reprint it) while `showOnScreenLabels` is not (a pure
+ * display preference, not project data -- matching how
+ * `ExportSettings.view`/`showLabels` are already AppState-only and never
+ * round-tripped through the persisted schema).
+ */
+export interface PatternViewSettings {
+  showOnScreenLabels: boolean;
+  punchGuide: PunchGuideSettings;
+}
+
 export interface ProcessedResult {
   width: number;
   height: number;
@@ -64,6 +90,7 @@ export interface AppState {
   patternDimensions: PatternDimensions;
   renderSettings: RenderSettings;
   exportSettings: ExportSettings;
+  patternViewSettings: PatternViewSettings;
 }
 
 export type AppAction =
@@ -79,7 +106,12 @@ export type AppAction =
   | { type: 'SET_SAVED_PROFILES'; profiles: CalibrationProfile[] }
   | { type: 'SET_PATTERN_DIMENSIONS'; dimensions: Partial<PatternDimensions> }
   | { type: 'SET_RENDER_SETTINGS'; settings: Partial<RenderSettings> }
-  | { type: 'SET_EXPORT_SETTINGS'; settings: Partial<ExportSettings> };
+  | { type: 'SET_EXPORT_SETTINGS'; settings: Partial<ExportSettings> }
+  | {
+      type: 'SET_PATTERN_VIEW_SETTINGS';
+      showOnScreenLabels?: boolean;
+      punchGuide?: Partial<PunchGuideSettings>;
+    };
 
 export const DEFAULT_SINGLE_COLOR: RgbColor = { r: 139, g: 90, b: 60 };
 
@@ -161,6 +193,12 @@ export function initialAppState(): AppState {
       view: 'combined',
       showLabels: true,
     },
+    patternViewSettings: {
+      // Preserves the pre-Stage-C behavior exactly (labels were always on,
+      // with no toggle) as the default.
+      showOnScreenLabels: true,
+      punchGuide: { mode: 'none', spacingCm: DEFAULT_PUNCH_GUIDE_SPACING_CM },
+    },
   };
 }
 
@@ -221,6 +259,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, renderSettings: { ...state.renderSettings, ...action.settings } };
     case 'SET_EXPORT_SETTINGS':
       return { ...state, exportSettings: { ...state.exportSettings, ...action.settings } };
+    case 'SET_PATTERN_VIEW_SETTINGS':
+      return {
+        ...state,
+        patternViewSettings: {
+          showOnScreenLabels:
+            action.showOnScreenLabels ?? state.patternViewSettings.showOnScreenLabels,
+          punchGuide: { ...state.patternViewSettings.punchGuide, ...action.punchGuide },
+        },
+      };
     default:
       return state;
   }
