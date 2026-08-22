@@ -1,18 +1,18 @@
 # Iteration 02 — Craft-Tool UX Pass
 
 Status: **Stage A merged and deployed to `main`** (commit `73f0868`).
-**Stage B (Relief workspace redesign) implemented on branch
-`feat/ux-iteration-02-stage-b`, locally verified (full `npm run verify` plus
-`npm run test:e2e` on both the `chromium` and `mobile-narrow`/webkit
-projects), PR opened against `main`, not yet merged** — per this
-iteration's deployment-checkpoint rule (§13), a session implementing Stage
-B stops at "PR open, CI green" and does not merge or start Stage C, since
-Stage B involves real product/design decisions (§14) a human should review
-first. See §15 below for what was actually built vs. planned, and how the
-§14 decisions were resolved. Stage C/D/E are unstarted. See
+**Stage B (Relief workspace redesign) merged and deployed to `main`**
+(commit `7e550202c45dc2d16aa05930ed28f7f44af5d249`), confirmed live on
+GitHub Pages. **Stage C (Preview controls: label toggle, punch-guide
+selector, physical dot spacing/density) is now being implemented on branch
+`feat/ux-iteration-02-stage-c`**, off `main` @
+`7e550202c45dc2d16aa05930ed28f7f44af5d249`. See §15 below for what was
+actually built for Stage B vs. planned, and how the §14 decisions were
+resolved; see the new Stage C section (added as this stage's work
+progresses) for its own decisions and outcome. Stage D/E are unstarted. See
 `docs/COWORK_HANDOFF.md` for the Stage-A-era cross-session continuation
-state — it predates Stage A's actual merge and Stage B's implementation, so
-trust this document and the repository over it where they disagree.
+state — it predates Stage A's actual merge and Stage B/C's implementation,
+so trust this document and the repository over it where they disagree.
 
 ## 0. Why this iteration
 
