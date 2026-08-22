@@ -481,6 +481,23 @@ main.workspace-layout > .workspace-preview-col {
     max-width: none;
     padding: 0;
   }
+  /* Iteration 03's combined-workspace change: Export & print now lives
+     inside `main.workspace-layout` (a CSS grid with a 2nd column reserved
+     via `minmax(280px, 420px)` for the sticky preview -- see
+     docs/DECISIONS.md), unlike the old Preview stage, which was never a
+     grid page and let `.print-pages` flow at the page's full width.
+     Grid column tracks are still allocated by `grid-template-columns`
+     even when the item occupying them is `display:none` (its sibling
+     `.workspace-preview-col` is hidden by `.screen-only` above), so
+     without this reset, `.print-pages` -- a normal-flow child of the
+     grid's first column -- was squeezed into a too-narrow (in one found
+     case, zero-width) column instead of the full page width. Resetting
+     to plain block layout for print, the same way the `.stage-panel`
+     rule above already resets on-screen width/padding constraints. */
+  main.workspace-layout {
+    display: block;
+    padding: 0;
+  }
   .print-pages {
     display: block;
   }

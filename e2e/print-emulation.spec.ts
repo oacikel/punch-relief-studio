@@ -4,30 +4,26 @@ import { expect, test } from '@playwright/test';
  * Iteration 02 Stage D coverage: print/PDF reliability. §2 item 1 of
  * docs/ITERATION_02_PLAN.md notes that no e2e test previously exercised
  * actual print-media emulation -- every prior spec only checked on-screen
- * state. This spec drives the app to Preview, sets up a scenario that
- * requires multi-page tiling with an active punch-guide overlay (the
- * exact 60cm x 60cm.../A4/0.5cm-spacing combination this session's manual
- * investigation reproduced and pixel-verified in a real headless Chromium
- * PDF render -- see docs/ITERATION_02_PLAN.md's Stage D section), then
- * emulates print media and inspects the actual print output: the print
- * stylesheet correctly hides app chrome, the punch-guide dot grid and the
- * "5cm scale check" square both actually appear in the printed SVG, and
- * (Chromium only, since Playwright only supports `page.pdf()` on headless
- * Chromium) a real rendered PDF has the expected page count.
+ * state. This spec drives the app to the combined Workspace (formerly a
+ * separate "Preview" stage -- see docs/ITERATION_03_PLAN.md #13), sets up
+ * a scenario that requires multi-page tiling with an active punch-guide
+ * overlay (the exact 60cm x 60cm.../A4/0.5cm-spacing combination this
+ * session's manual investigation reproduced and pixel-verified in a real
+ * headless Chromium PDF render -- see docs/ITERATION_02_PLAN.md's Stage D
+ * section), then emulates print media and inspects the actual print
+ * output: the print stylesheet correctly hides app chrome, the
+ * punch-guide dot grid and the "5cm scale check" square both actually
+ * appear in the printed SVG, and (Chromium only, since Playwright only
+ * supports `page.pdf()` on headless Chromium) a real rendered PDF has the
+ * expected page count.
  */
 test.describe('Print/PDF output (Iteration 02 Stage D)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: '2. Create relief' }).click();
-    await page.getByRole('button', { name: 'Generate relief' }).click();
-    await expect(page.getByRole('heading', { name: 'Height levels' })).toBeVisible({
-      timeout: 15_000,
-    });
-    await page.getByRole('button', { name: '4. Yarn colors' }).click();
+    await page.getByRole('button', { name: '2. Workspace' }).click();
+    await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
     await page.getByLabel('Color by height').check();
-    await page.getByRole('button', { name: '5. Preview' }).click();
-    await expect(page.getByRole('heading', { name: 'Preview the finished piece' })).toBeVisible();
 
     // Punch guide: Dots at a small spacing, so a realistic-density dot
     // grid actually reaches the print output.
@@ -39,7 +35,7 @@ test.describe('Print/PDF output (Iteration 02 Stage D)', () => {
     // src/export/__tests__/printTiling.test.ts (60cm x 40cm, a4, 1cm
     // overlap -> 4 cols x 2 rows = 8 pages) so the e2e and unit coverage
     // are provably exercising the same scenario.
-    await page.getByText('Export & print').click();
+    await page.getByText('Export & print', { exact: true }).click();
     await page.getByLabel('Width (cm)').fill('60');
     await page.getByLabel('Height (cm)').fill('40');
   });
@@ -54,7 +50,12 @@ test.describe('Print/PDF output (Iteration 02 Stage D)', () => {
 
     await expect(page.locator('.app-header')).toBeHidden();
     await expect(page.locator('.stage-nav')).toBeHidden();
-    await expect(page.locator('.screen-only')).toBeHidden();
+    // As of Iteration 03's combined-workspace change, `.screen-only` wraps
+    // two separate elements on Workspace (the rail's controls and the
+    // sticky preview column -- see docs/DECISIONS.md), so a single-element
+    // `toBeHidden()` would be a strict-mode violation. Assert none of the
+    // matched elements are visible instead.
+    await expect(page.locator('.screen-only:visible')).toHaveCount(0);
     await expect(page.locator('.print-pages')).toBeVisible();
   });
 

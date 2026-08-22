@@ -2,20 +2,18 @@ import { expect, test } from '@playwright/test';
 
 /**
  * Iteration 03 Round 1 (docs/ITERATION_03_PLAN.md #7): a small, bundled
- * "color story" palette gallery on the Yarn Colors stage, applicable to
- * color-by-height swatches in one click, with individual swatches still
- * hand-editable afterward.
+ * "color story" palette gallery on the "Yarn colors" control group,
+ * applicable to color-by-height swatches in one click, with individual
+ * swatches still hand-editable afterward. "Yarn colors" is one of the
+ * rail groups on the combined Workspace stage (docs/ITERATION_03_PLAN.md
+ * #13), not a separate page.
  */
 test.describe('Color story palettes', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: '2. Create relief' }).click();
-    await page.getByRole('button', { name: 'Generate relief' }).click();
-    await expect(page.getByRole('heading', { name: 'Height levels' })).toBeVisible({
-      timeout: 15_000,
-    });
-    await page.getByRole('button', { name: '4. Yarn colors' }).click();
+    await page.getByRole('button', { name: '2. Workspace' }).click();
+    await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
     await page.getByLabel('Color by height').check();
   });
 

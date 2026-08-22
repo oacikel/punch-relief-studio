@@ -132,43 +132,54 @@ export function Workspace({
   return (
     <Fragment>
       <div className="workspace-controls-col">
-        <div className="workspace-rail-heading">
-          <h2>Workspace</h2>
-          <span
-            className={
-              processing ? 'live-status-pill live-status-pill--processing' : 'live-status-pill'
-            }
-            aria-live="polite"
-          >
-            {processing ? '● Processing…' : '● Live — updates as you adjust'}
-          </span>
+        {/* `.screen-only` wraps everything in the rail *except* `ExportPanel`
+            (see docs/DECISIONS.md) -- `ExportPanel` renders its own
+            `.print-pages` block as a sibling of its `<details>`, which the
+            print stylesheet deliberately leaves visible; nesting it inside
+            `.screen-only` would hide it too, since a `display:none`
+            ancestor can't be overridden by a descendant. `ExportPanel`'s
+            own `<details>` is separately hidden in print via the
+            `.export-panel` selector in styles.css's `@media print` block,
+            same as before this change. */}
+        <div className="screen-only">
+          <div className="workspace-rail-heading">
+            <h2>Workspace</h2>
+            <span
+              className={
+                processing ? 'live-status-pill live-status-pill--processing' : 'live-status-pill'
+              }
+              aria-live="polite"
+            >
+              {processing ? '● Processing…' : '● Live — updates as you adjust'}
+            </span>
+          </div>
+          {processingError && (
+            <p role="alert" className="warning-banner">
+              {processingError}
+            </p>
+          )}
+
+          <ReliefControls
+            settings={reliefSettings}
+            onChange={onReliefSettingsChange}
+            levels={processed?.levels ?? null}
+            heightIndex={processed?.heightIndex ?? null}
+            width={processed?.width ?? 0}
+            height={processed?.height ?? 0}
+          />
+
+          <YarnColorsGroup
+            mode={colorMode}
+            swatches={swatches}
+            paletteSize={paletteSize}
+            levelCount={processed?.levels.length ?? 0}
+            hasSourceColor={hasSourceColor}
+            onModeChange={onColorModeChange}
+            onSwatchesChange={onSwatchesChange}
+            onPaletteSizeChange={onPaletteSizeChange}
+            onApplyPalette={onApplyPalette}
+          />
         </div>
-        {processingError && (
-          <p role="alert" className="warning-banner">
-            {processingError}
-          </p>
-        )}
-
-        <ReliefControls
-          settings={reliefSettings}
-          onChange={onReliefSettingsChange}
-          levels={processed?.levels ?? null}
-          heightIndex={processed?.heightIndex ?? null}
-          width={processed?.width ?? 0}
-          height={processed?.height ?? 0}
-        />
-
-        <YarnColorsGroup
-          mode={colorMode}
-          swatches={swatches}
-          paletteSize={paletteSize}
-          levelCount={processed?.levels.length ?? 0}
-          hasSourceColor={hasSourceColor}
-          onModeChange={onColorModeChange}
-          onSwatchesChange={onSwatchesChange}
-          onPaletteSizeChange={onPaletteSizeChange}
-          onApplyPalette={onApplyPalette}
-        />
 
         {regionMap && processed ? (
           <ExportPanel
@@ -187,7 +198,7 @@ export function Workspace({
             screenShowLabels={showOnScreenLabels}
           />
         ) : (
-          <div className="control-group">
+          <div className="control-group screen-only">
             <h3>Export &amp; print</h3>
             <p className="helper-text">
               Export &amp; print will be available once the first relief has generated.
@@ -196,7 +207,9 @@ export function Workspace({
         )}
       </div>
 
-      <div className="workspace-preview-col">
+      {/* Entirely screen-only -- no `.print-pages` lives in this column,
+          unlike the rail (see the comment above `ExportPanel`). */}
+      <div className="workspace-preview-col screen-only">
         {regionMap && processed ? (
           <>
             <PatternPanel
