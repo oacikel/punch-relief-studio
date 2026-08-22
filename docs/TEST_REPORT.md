@@ -274,11 +274,20 @@ All matched files use Prettier code style!
 
 > vitest run
  Test Files  33 passed (33)
-      Tests  232 passed (232)
+      Tests  235 passed (235)
 
 > tsc -b && vite build
 ✓ built in 1.23s
 ```
+
+(**Correction, caught by the second independent review pass below**: an
+earlier draft of this exact block pasted a `232`-test count, from a
+`verify` run captured before the `bounds` fix commit's own 3 new
+`labelPlacement.test.ts` cases were added — a smaller recurrence of the
+same "report a check without having actually run it last" mistake this
+document exists to prevent. The number above is from a `verify` run
+against the final commit on this branch, re-confirmed via a standalone
+`npm run test` immediately before this correction was made.)
 
 One `fitOrthographicCameraToExtent` unit test needed correcting during this
 pass — the first draft compared frame height at aspect=1 (a square canvas)
