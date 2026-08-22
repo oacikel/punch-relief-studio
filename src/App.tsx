@@ -243,7 +243,25 @@ export default function App(): JSX.Element {
     dispatch({ type: 'SET_CALIBRATION_PROFILE', profile: project.calibrationProfile });
     dispatch({ type: 'SET_PATTERN_DIMENSIONS', dimensions: project.patternDimensions });
     dispatch({ type: 'SET_RENDER_SETTINGS', settings: project.renderSettings });
-    dispatch({ type: 'SET_EXPORT_SETTINGS', settings: project.exportSettings });
+    // `ExportSettings` (AppState) has no `punchGuide` field -- it lives
+    // separately on `patternViewSettings` (see below) -- so pick only the
+    // fields `ExportSettings` actually declares, rather than spreading the
+    // whole `project.exportSettings` object (which now types an optional
+    // `punchGuide`) wholesale into a `Partial<ExportSettings>` action.
+    // Passing the raw object still type-checked (excess-property checking
+    // doesn't apply to values, only literals) but would have left an
+    // untyped, unused `punchGuide` key sitting on `state.exportSettings`
+    // alongside the real one on `state.patternViewSettings.punchGuide` --
+    // two sources of truth for the same setting, found in independent
+    // review.
+    dispatch({
+      type: 'SET_EXPORT_SETTINGS',
+      settings: {
+        pageSize: project.exportSettings.pageSize,
+        overlapCm: project.exportSettings.overlapCm,
+        orientation: project.exportSettings.orientation,
+      },
+    });
     // Iteration 02 Stage C schema decision (a): old (pre-Stage-C) project
     // files never have `exportSettings.punchGuide` -- default explicitly
     // to "no guide" rather than trusting `??` alone to "just work" without

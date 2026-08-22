@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cm, cmToPx } from '@/domain/units';
 import {
   DEFAULT_PUNCH_GUIDE_SPACING_CM,
+  MAX_PUNCH_GUIDE_DOTS,
   MAX_PUNCH_GUIDE_SPACING_CM,
   MIN_PUNCH_GUIDE_SPACING_CM,
   clampPunchGuideSpacingCm,
@@ -73,6 +74,24 @@ describe('computePunchGuideDots', () => {
     const wide = computePunchGuideDots(20, 20, 1, 20);
     const sparse = computePunchGuideDots(20, 20, 4, 20);
     expect(wide.length).toBeGreaterThan(sparse.length);
+  });
+
+  it('never exceeds MAX_PUNCH_GUIDE_DOTS, even for a large pattern at the minimum spacing', () => {
+    // A realistic large punch-needle rug (150cm x 150cm) at the smallest
+    // allowed spacing would naively produce well over a million dots --
+    // this must stay bounded instead of stalling the UI or crashing.
+    const dots = computePunchGuideDots(150, 150, MIN_PUNCH_GUIDE_SPACING_CM, 20);
+    expect(dots.length).toBeLessThanOrEqual(MAX_PUNCH_GUIDE_DOTS);
+    // And it should still actually produce a real, useful guide, not
+    // collapse to nothing.
+    expect(dots.length).toBeGreaterThan(0);
+  });
+
+  it('does not alter dot spacing at all for patterns well under the safety cap', () => {
+    // Sanity check that the safety valve is genuinely a no-op in the
+    // common case -- same result with and without headroom to spare.
+    const dots = computePunchGuideDots(10, 10, 1, 20);
+    expect(dots).toHaveLength(10 * 10);
   });
 });
 
