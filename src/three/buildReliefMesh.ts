@@ -42,6 +42,11 @@ export function buildReliefGeometry(
 
   const position = geometry.getAttribute('position') as THREE.BufferAttribute;
   const step = options.fallbackHeightPerLevelCm ?? DEFAULT_FALLBACK_STEP_CM;
+  // Per-vertex foreground flag -- background (heightIndex === -1) vertices
+  // get y=0 same as before, but see below: any triangle touching one of
+  // them is dropped from the index, so they end up unreferenced/unrendered
+  // rather than forming a solid zero-height slab under the model.
+  const isForeground = new Uint8Array(position.count);
 
   for (let i = 0; i < position.count; i++) {
     const col = i % width;
@@ -49,10 +54,35 @@ export function buildReliefGeometry(
     const flippedRow = height - 1 - row; // PlaneGeometry rows run bottom-to-top
     const idx = flippedRow * width + col;
     const h = regionMap.heightIndex[idx] as number;
-    const y = h === -1 ? 0 : heightForLevel(h, options.levels, options.profile, step);
-    position.setY(i, y);
+    if (h === -1) {
+      isForeground[i] = 0;
+      position.setY(i, 0);
+    } else {
+      isForeground[i] = 1;
+      position.setY(i, heightForLevel(h, options.levels, options.profile, step));
+    }
   }
   position.needsUpdate = true;
+
+  // Exclude background from the mesh entirely (a real gap, not a filled
+  // slab) -- see docs/ITERATION_03_PLAN.md #9. PlaneGeometry's index
+  // buffer connects every adjacent quad regardless of foreground/
+  // background, so drop any triangle that references a background vertex.
+  // Passing a plain JS array back into setIndex() lets Three.js pick the
+  // correctly-sized typed array (Uint16 vs Uint32) for the resulting
+  // vertex count, same as it does for the original auto-generated index.
+  const index = geometry.getIndex();
+  if (index) {
+    const kept: number[] = [];
+    for (let f = 0; f < index.count; f += 3) {
+      const a = index.getX(f);
+      const b = index.getX(f + 1);
+      const c = index.getX(f + 2);
+      if (isForeground[a] && isForeground[b] && isForeground[c]) kept.push(a, b, c);
+    }
+    geometry.setIndex(kept);
+  }
+
   geometry.computeVertexNormals();
   return geometry;
 }
