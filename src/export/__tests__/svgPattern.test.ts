@@ -305,4 +305,34 @@ describe('buildSvgPattern punch guide (Iteration 02 Stage C)', () => {
     });
     expect(result.svg).toContain('data-layer="punch-guide"');
   });
+
+  /**
+   * Iteration 02 Stage D: pins the exact SVG paint-order invariant that
+   * keeps the "5cm scale check" square (and the corner registration
+   * marks) legible on top of the dot grid, rather than potentially hidden
+   * underneath it -- verified visually in Stage D's manual print/PDF
+   * investigation (see docs/ITERATION_02_PLAN.md), now pinned here so a
+   * future reordering of the layers in buildSvgPattern can't silently
+   * regress it.
+   */
+  it('paints the punch-guide layer before the registration marks and the scale bar, so both stay legible on top of the dots', () => {
+    const result = buildSvgPattern(makeRegionMap(), makeLegend(), {
+      widthCm: 10,
+      heightCm: 10,
+      view: 'combined',
+      showGrid: true,
+      showLabels: true,
+      mirrored: false,
+      punchGuide: { mode: 'dots', spacingCm: 2 },
+    });
+    const guideIndex = result.svg.indexOf('data-layer="punch-guide"');
+    const registrationIndex = result.svg.indexOf('data-layer="registration"');
+    const scaleIndex = result.svg.indexOf('data-layer="scale"');
+
+    expect(guideIndex).toBeGreaterThan(-1);
+    expect(registrationIndex).toBeGreaterThan(-1);
+    expect(scaleIndex).toBeGreaterThan(-1);
+    expect(guideIndex).toBeLessThan(registrationIndex);
+    expect(guideIndex).toBeLessThan(scaleIndex);
+  });
 });

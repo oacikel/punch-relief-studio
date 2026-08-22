@@ -67,6 +67,40 @@ export function computeTiling(
   }
   if (overlapCm < 0) throw new RangeError('overlapCm must not be negative');
 
+  // "Actual project size" always produces exactly one page, sized to the
+  // pattern itself -- margin and overlap are physical *print-page*
+  // concepts (how much of a fixed-size sheet of paper is usable, and how
+  // much adjacent sheets need to share to align after cutting) that don't
+  // apply when there is no page smaller than the pattern to tile across.
+  // Must short-circuit here, before the margin/overlap validation below,
+  // not just in the "single-page fast path" further down -- that
+  // validation ran unconditionally for every pageSize, including
+  // 'actual-size', and incorrectly rejected small actual-size patterns
+  // (e.g. a 1cm x 1cm swatch, well below the default 1cm margin x2 + 1cm
+  // overlap) with "overlap is too large for the printable page area," a
+  // real crash found in Iteration 02 Stage D verification (reproduced
+  // live: Width=1cm, Height=1cm, page size "Actual project size" crashed
+  // the whole app past the top-level ErrorBoundary).
+  if (pageSize === 'actual-size') {
+    return {
+      pages: [
+        {
+          row: 0,
+          col: 0,
+          x0Cm: 0,
+          y0Cm: 0,
+          x1Cm: patternWidthCm,
+          y1Cm: patternHeightCm,
+          pageNumber: 1,
+        },
+      ],
+      rows: 1,
+      cols: 1,
+      printableWidthCm: patternWidthCm,
+      printableHeightCm: patternHeightCm,
+    };
+  }
+
   const page = getPageDimensionsCm(pageSize, actualSizeCm);
   const printableWidthCm = page.widthCm - marginCm * 2;
   const printableHeightCm = page.heightCm - marginCm * 2;
@@ -75,10 +109,7 @@ export function computeTiling(
   }
 
   // Single-page fast path: fits with no tiling needed.
-  if (
-    pageSize === 'actual-size' ||
-    (patternWidthCm <= printableWidthCm && patternHeightCm <= printableHeightCm)
-  ) {
+  if (patternWidthCm <= printableWidthCm && patternHeightCm <= printableHeightCm) {
     return {
       pages: [
         {

@@ -15,6 +15,20 @@
   guarantees -- see the documented assumptions returned alongside every
   estimate (`docs/ALGORITHMS.md` "Yarn-usage estimate").
 - **Punching order is a suggested default**, not a manufacturing rule.
+- **Printed physical scale depends on your printer/OS honoring "100%" /
+  "actual size" printing.** The app renders a true-scale SVG and relies on
+  the native browser print pipeline (see docs/DECISIONS.md); it cannot
+  detect or correct a printer/driver that silently applies "fit to page" or
+  its own scaling. This is why every print/PDF output includes a "5cm scale
+  check" square (`src/export/svgPattern.ts`) and every relevant helper text
+  says to measure it with a ruler before cutting fabric or punching -- this
+  is a one-time real-world check no automated test can perform on your
+  actual printer. Iteration 02 Stage D verified (headless Chromium,
+  print-media emulation, an actual PDF render, and pixel measurement of the
+  rasterized output) that the square itself renders at the correct 5cm size
+  and is never obscured by the punch-guide dot overlay -- but that only
+  proves the _app's output_ is correct, not that any given printer will
+  reproduce it at true scale.
 
 ## Implementation-level (this MVP build)
 
