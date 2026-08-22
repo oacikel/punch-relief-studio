@@ -119,7 +119,7 @@ export function ImportOrientSection({ onContinue }: OrientSectionProps): JSX.Ele
         bas-relief interpretation, not a full 3D reconstruction.
       </p>
       <button type="button" onClick={onContinue}>
-        Continue to Create Relief &rarr;
+        Continue to Workspace &rarr;
       </button>
     </section>
   );

@@ -71,6 +71,26 @@ export interface PatternViewSettings {
   punchGuide: PunchGuideSettings;
 }
 
+/** Model-straightening rotation, in degrees (docs/ITERATION_03_PLAN.md #5,
+ * relocated here from `Viewport3D.tsx`'s local state as part of Iteration
+ * 03's combined-workspace change -- see docs/DECISIONS.md). Lifted to
+ * `AppState` so two independent components -- `Viewport3D` (Import, and
+ * the hidden-but-still-capturing instance shared with Workspace) and the
+ * Workspace's own `SimulationPanel` -- can read and write the same value
+ * rather than one owning a copy the other can't see. This is a narrower
+ * change than it sounds: the lifecycle/persistence semantics are
+ * unchanged from the original local-state design -- still per-import
+ * (reset to zero on `SET_SOURCE`), still deliberately excluded from
+ * `ProjectFile` (straightening is a one-off adjustment for this import
+ * session, not a property of the mesh data). */
+export interface RotationDeg {
+  roll: number;
+  pitch: number;
+  yaw: number;
+}
+
+export const ZERO_ROTATION: RotationDeg = { roll: 0, pitch: 0, yaw: 0 };
+
 export interface ProcessedResult {
   width: number;
   height: number;
@@ -96,6 +116,7 @@ export interface AppState {
   renderSettings: RenderSettings;
   exportSettings: ExportSettings;
   patternViewSettings: PatternViewSettings;
+  modelRotationDeg: RotationDeg;
 }
 
 export type AppAction =
@@ -116,7 +137,8 @@ export type AppAction =
       type: 'SET_PATTERN_VIEW_SETTINGS';
       showOnScreenLabels?: boolean;
       punchGuide?: Partial<PunchGuideSettings>;
-    };
+    }
+  | { type: 'SET_MODEL_ROTATION'; rotation: Partial<RotationDeg> };
 
 export const DEFAULT_SINGLE_COLOR: RgbColor = { r: 139, g: 90, b: 60 };
 
@@ -204,6 +226,7 @@ export function initialAppState(): AppState {
       showOnScreenLabels: true,
       punchGuide: { mode: 'none', spacingCm: DEFAULT_PUNCH_GUIDE_SPACING_CM },
     },
+    modelRotationDeg: { ...ZERO_ROTATION },
   };
 }
 
@@ -217,6 +240,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         sourceFilename: action.filename ?? null,
         processed: null,
         processingError: null,
+        // A newly loaded model always starts unrotated -- straightening is
+        // per-import, not a property of the mesh data itself (matches
+        // Viewport3D's own former local-state reset-on-new-geometry
+        // behavior, now expressed here since the state lives in AppState).
+        modelRotationDeg: { ...ZERO_ROTATION },
       };
     case 'SET_RELIEF_SETTINGS':
       return { ...state, reliefSettings: { ...state.reliefSettings, ...action.settings } };
@@ -273,6 +301,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           punchGuide: { ...state.patternViewSettings.punchGuide, ...action.punchGuide },
         },
       };
+    case 'SET_MODEL_ROTATION':
+      return { ...state, modelRotationDeg: { ...state.modelRotationDeg, ...action.rotation } };
     default:
       return state;
   }

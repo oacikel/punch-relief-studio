@@ -10,15 +10,15 @@ describe('workflowReducer', () => {
 
   it('gates non-import stages until a model is loaded', () => {
     const state = initialWorkflowState();
-    const next = workflowReducer(state, { type: 'GO_TO_STAGE', stage: 'relief' });
+    const next = workflowReducer(state, { type: 'GO_TO_STAGE', stage: 'workspace' });
     expect(next.currentStage).toBe('import'); // unchanged, gated
   });
 
-  it('allows navigating to any stage once a model is loaded', () => {
+  it('allows navigating to workspace once a model is loaded', () => {
     let state = initialWorkflowState();
     state = workflowReducer(state, { type: 'MODEL_LOADED' });
-    state = workflowReducer(state, { type: 'GO_TO_STAGE', stage: 'preview' });
-    expect(state.currentStage).toBe('preview');
+    state = workflowReducer(state, { type: 'GO_TO_STAGE', stage: 'workspace' });
+    expect(state.currentStage).toBe('workspace');
   });
 
   it('NEXT/BACK move one stage at a time and clamp at the ends', () => {
@@ -27,25 +27,25 @@ describe('workflowReducer', () => {
     state = workflowReducer(state, { type: 'BACK' }); // already at first stage
     expect(state.currentStage).toBe('import');
     state = workflowReducer(state, { type: 'NEXT' });
-    expect(state.currentStage).toBe('relief');
+    expect(state.currentStage).toBe('workspace');
   });
 
-  it('has exactly the five Iteration-02 stages, in order (no separate orient/export stage)', () => {
+  it('has exactly the two Iteration-03 stages, in order (no separate relief/height/color/preview stage)', () => {
     let state = initialWorkflowState();
     state = workflowReducer(state, { type: 'MODEL_LOADED' });
-    state = workflowReducer(state, { type: 'GO_TO_STAGE', stage: 'preview' });
-    // clamps at the last stage -- if 'preview' weren't the final stage,
+    state = workflowReducer(state, { type: 'GO_TO_STAGE', stage: 'workspace' });
+    // clamps at the last stage -- if 'workspace' weren't the final stage,
     // NEXT would move past it.
     state = workflowReducer(state, { type: 'NEXT' });
-    expect(state.currentStage).toBe('preview');
+    expect(state.currentStage).toBe('workspace');
   });
 
   it('does not lose reachedStages when moving backward and forward again', () => {
     let state = initialWorkflowState();
     state = workflowReducer(state, { type: 'MODEL_LOADED' });
-    state = workflowReducer(state, { type: 'GO_TO_STAGE', stage: 'color' });
+    state = workflowReducer(state, { type: 'GO_TO_STAGE', stage: 'workspace' });
     state = workflowReducer(state, { type: 'GO_TO_STAGE', stage: 'import' });
-    expect(state.reachedStages.has('color')).toBe(true);
+    expect(state.reachedStages.has('workspace')).toBe(true);
   });
 
   it('RESET returns to the initial state', () => {

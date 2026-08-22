@@ -131,6 +131,22 @@ select:focus-visible {
   cursor: not-allowed;
 }
 
+/* "Done" visual state (Iteration 03's combined-workspace change -- see
+   docs/DECISIONS.md): a decorative checkmark via ::after generated
+   content, not real text, so it never becomes part of the button's
+   accessible name ("1. Import" stays exactly that to assistive tech). */
+.stage-nav button.done::after {
+  content: ' ✓';
+  color: var(--color-accent);
+}
+
+.stage-nav__caption {
+  margin: 2px 0 var(--space-2);
+  padding: 0 var(--space-3);
+  font-size: 0.78rem;
+  color: var(--color-ink-muted);
+}
+
 .stage-panel {
   padding: var(--space-4);
   max-width: 960px;
@@ -164,27 +180,6 @@ select:focus-visible {
   border-radius: var(--radius);
   padding: var(--space-3);
   margin-bottom: var(--space-3);
-}
-
-/* Preview stage's pattern/simulation two-column layout (Iteration 03 Round
-   2 #2). Was previously an inline `display: grid, gridTemplateColumns:
-   '1fr 1fr'` style with no responsive fallback, unlike every other
-   two-column layout in the app (`.app-shell`, `main.relief-layout`), which
-   both already collapse to one column under this same 720px breakpoint --
-   at the project's own mobile-narrow width (390px) this caused real
-   horizontal overflow, which could push the Export & print `<summary>`
-   toggle below it far enough to become unclickable. See
-   docs/DECISIONS.md. */
-.preview-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-}
-
-@media (max-width: 720px) {
-  .preview-columns {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Wraps `.legend-table` so a wide table (more columns than a narrow screen
@@ -297,18 +292,17 @@ select:focus-visible {
   margin-bottom: var(--space-3);
 }
 
-/* Sticky preview on the Relief stage (Iteration 02 Stage B) -- controls in
-   a scrollable left column, the shared 3D viewport pinned in a right
-   column so adjusting a control further down the page doesn't lose sight
-   of its effect. See docs/DECISIONS.md for the interpretation this
-   implements (the source spec only mentioned "sticky preview" once, with
-   no further detail) and for why this is done via a className toggle on
-   the existing `<main>`/viewport-wrapper elements rather than new
-   conditional wrappers, to avoid remounting the shared Viewport3D
-   instance. Falls back to normal stacking at the same width where
-   `.app-shell` already collapses to one column, since a sticky side-by-side
-   layout doesn't make sense on a phone-width screen. */
-main.relief-layout {
+/* Sticky preview column (Iteration 02 Stage B, renamed from
+   `.relief-layout`/`.relief-controls-col`/`.relief-preview-col` in
+   Iteration 03's combined-workspace change now that "relief" is no longer
+   a distinct stage -- the mechanism itself is reused verbatim, see
+   docs/DECISIONS.md). A scrollable control rail on the left, a sticky
+   preview column pinned on the right so adjusting a control further down
+   the rail doesn't lose sight of its effect. Falls back to normal stacking
+   at the same width where `.app-shell` already collapses to one column,
+   since a sticky side-by-side layout doesn't make sense on a phone-width
+   screen. */
+main.workspace-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
   gap: var(--space-4);
@@ -316,32 +310,81 @@ main.relief-layout {
   padding: var(--space-4) var(--space-4) 0;
 }
 
-main.relief-layout > .relief-controls-col {
+main.workspace-layout > .workspace-controls-col {
   grid-column: 1;
   min-width: 0;
 }
 
-main.relief-layout > .relief-controls-col .stage-panel {
-  padding: 0;
-  max-width: none;
-}
-
-main.relief-layout > .relief-preview-col {
+main.workspace-layout > .workspace-preview-col {
   grid-column: 2;
   position: sticky;
   top: var(--space-3);
   align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 @media (max-width: 720px) {
-  main.relief-layout {
+  main.workspace-layout {
     display: block;
     padding: 0;
   }
 
-  main.relief-layout > .relief-preview-col {
+  main.workspace-layout > .workspace-preview-col {
     position: static;
   }
+}
+
+.workspace-rail-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.workspace-rail-heading h2 {
+  margin: 0;
+}
+
+/* Live-status pill (Iteration 03's combined-workspace change), replacing
+   the former manual "Generate relief" button -- reflects
+   `useLiveRelief`'s real in-flight state via `AppState.processing`, not a
+   static label. */
+.live-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  background: #e7f3ea;
+  color: #2c6b3f;
+  white-space: nowrap;
+}
+
+.live-status-pill--processing {
+  background: #fbe9dd;
+  color: var(--color-accent);
+}
+
+/* Visual separation between the Pattern and Finished-piece-simulation
+   panels stacked in the sticky preview column. */
+.workspace-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.workspace-panel h3 {
+  margin-top: 0;
+}
+
+.level-chip {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 2px 8px;
+  font-size: 0.8rem;
 }
 
 .visually-hidden {
