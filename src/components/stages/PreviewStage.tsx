@@ -227,6 +227,7 @@ export function PreviewStage({
               widthCm={dimensions.widthCm}
               heightCm={dimensions.heightCm}
               renderSettings={renderSettings}
+              legend={legend}
             />
           </div>
         </div>

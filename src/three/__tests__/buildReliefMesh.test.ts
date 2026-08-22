@@ -1,7 +1,10 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { buildReliefGeometry } from '../buildReliefMesh';
 import { createDefaultProfile } from '@/domain/calibration';
 import { normalizedDepth } from '@/domain/units';
+import { regionId } from '@/domain/regionId';
+import type { LegendEntry } from '@/domain/pattern/legend';
 import type { HeightLevel, RegionMap } from '@/domain/types';
 
 const LEVELS: HeightLevel[] = [
@@ -103,5 +106,73 @@ describe('buildReliefGeometry -- background exclusion', () => {
     const index = geometry.getIndex();
     // (width-1) * (height-1) cells, 2 triangles (6 indices) each.
     expect(index?.count).toBe((width - 1) * (height - 1) * 6);
+  });
+});
+
+/**
+ * Yarn color in the simulation (docs/ITERATION_03_PLAN.md #10): the mesh
+ * must carry the same region -> color mapping the 2D pattern/Legend use,
+ * as a per-vertex color attribute, not a flat material color.
+ */
+describe('buildReliefGeometry -- legend-driven vertex color', () => {
+  it('colors every foreground vertex from the matching legend entry', () => {
+    const width = 2;
+    const height = 2;
+    // All 4 pixels foreground, height 0, color 0.
+    const heightIndex = Int16Array.from([0, 0, 0, 0]);
+    const colorIndex = Int16Array.from([0, 0, 0, 0]);
+    const regionMap: RegionMap = { width, height, heightIndex, colorIndex };
+    const legend: LegendEntry[] = [
+      {
+        id: regionId(0, 0),
+        colorIndex: 0,
+        heightIndex: 0,
+        symbol: 'circle',
+        color: '#336699',
+        yarnName: 'Test yarn',
+        needleSettingLabel: 'low',
+        needleSettingNumber: 1,
+        measuredHeightCm: null,
+      },
+    ];
+
+    const geometry = buildReliefGeometry(regionMap, {
+      widthCm: 10,
+      heightCm: 10,
+      levels: LEVELS,
+      profile: PROFILE,
+      legend,
+    });
+
+    const colorAttr = geometry.getAttribute('color') as THREE.BufferAttribute;
+    expect(colorAttr).toBeDefined();
+    const expected = new THREE.Color('#336699');
+    for (let i = 0; i < colorAttr.count; i++) {
+      expect(colorAttr.getX(i)).toBeCloseTo(expected.r, 4);
+      expect(colorAttr.getY(i)).toBeCloseTo(expected.g, 4);
+      expect(colorAttr.getZ(i)).toBeCloseTo(expected.b, 4);
+    }
+  });
+
+  it('falls back to a neutral gray when no legend entry matches (or no legend given)', () => {
+    const width = 2;
+    const height = 2;
+    const heightIndex = Int16Array.from([0, 0, 0, 0]);
+    const colorIndex = Int16Array.from([0, 0, 0, 0]);
+    const regionMap: RegionMap = { width, height, heightIndex, colorIndex };
+
+    const geometry = buildReliefGeometry(regionMap, {
+      widthCm: 10,
+      heightCm: 10,
+      levels: LEVELS,
+      profile: PROFILE,
+      // no legend
+    });
+
+    const colorAttr = geometry.getAttribute('color') as THREE.BufferAttribute;
+    const expected = new THREE.Color('#cccccc');
+    expect(colorAttr.getX(0)).toBeCloseTo(expected.r, 4);
+    expect(colorAttr.getY(0)).toBeCloseTo(expected.g, 4);
+    expect(colorAttr.getZ(0)).toBeCloseTo(expected.b, 4);
   });
 });

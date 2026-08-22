@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { CalibrationProfile } from '@/domain/calibration';
+import type { LegendEntry } from '@/domain/pattern/legend';
 import type { HeightLevel, RegionMap } from '@/domain/types';
 import { buildReliefGeometry } from '@/three/buildReliefMesh';
 import type { RenderSettings } from '@/state/appState';
@@ -13,7 +14,10 @@ interface Props {
   widthCm: number;
   heightCm: number;
   renderSettings: RenderSettings;
-  swatchColorsByHeight?: string[]; // for color-by-height fallback shading
+  /** The same region legend the 2D pattern and on-screen Legend table
+   * render from -- drives real per-region yarn color in the simulation
+   * mesh (docs/ITERATION_03_PLAN.md #10) instead of a flat placeholder. */
+  legend: LegendEntry[];
 }
 
 /**
@@ -30,6 +34,7 @@ export function SimulationView({
   widthCm,
   heightCm,
   renderSettings,
+  legend,
 }: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -64,9 +69,16 @@ export function SimulationView({
     scene.add(light);
     scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
-    const geometry = buildReliefGeometry(regionMap, { widthCm, heightCm, levels, profile });
+    const geometry = buildReliefGeometry(regionMap, {
+      widthCm,
+      heightCm,
+      levels,
+      profile,
+      legend,
+    });
     const material = new THREE.MeshStandardMaterial({
-      color: 0xb5563c,
+      color: 0xffffff,
+      vertexColors: true,
       roughness: renderSettings.pileStyle === 'loop' ? 0.95 : 0.75,
       flatShading: renderSettings.pileStyle === 'cut',
     });
@@ -98,7 +110,7 @@ export function SimulationView({
       renderer.dispose();
       container.removeChild(renderer.domElement);
     };
-  }, [regionMap, levels, profile, widthCm, heightCm, renderSettings]);
+  }, [regionMap, levels, profile, widthCm, heightCm, renderSettings, legend]);
 
   return (
     <div style={{ position: 'relative' }}>
