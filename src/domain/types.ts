@@ -66,7 +66,17 @@ export interface ReliefSettings {
    * rather than a raw pixel count -- see
    * src/domain/pattern/minRegionPreset.ts and docs/ITERATION_03_PLAN.md
    * #1 for why (a physical-cm control has no scale to convert against at
-   * the point in the pipeline where this is actually applied). */
+   * the point in the pipeline where this is actually applied).
+   *
+   * Backward compatibility note (unlike `outputResolutionPx` below, which
+   * keeps its old field on purpose): this field replaced a raw
+   * `minRegionPx: number` field of the same shape (Iteration 03 Round 1).
+   * A pre-Round-1 project JSON's stray `minRegionPx` key is harmlessly
+   * ignored -- `SET_RELIEF_SETTINGS`'s reducer shallow-merges
+   * `Partial<ReliefSettings>`, so a missing `minRegionPreset` key simply
+   * leaves whatever preset was already in state (the 'balanced' default
+   * on a fresh session), rather than crashing or producing `undefined`.
+   * See docs/DECISIONS.md. */
   minRegionPreset: MinRegionPreset;
   quantizationMode: QuantizationMode;
   seed: number;

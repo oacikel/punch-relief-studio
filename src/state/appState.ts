@@ -34,15 +34,20 @@ export interface RenderSettings {
 export interface ExportSettings {
   pageSize: PageSize;
   overlapCm: number;
+  /** As of Iteration 03 Round 1, `orientation`/`view`/`showLabels` below
+   * are inert: no UI control writes them anymore (ExportPanel's own view
+   * selector, label checkbox, and the app's never-wired orientation
+   * toggle were all removed -- export/print now reads Preview's on-screen
+   * state directly instead, see ExportPanel.tsx's screenView/
+   * screenShowGrid/screenMirrored/screenShowLabels props and
+   * docs/DECISIONS.md). Kept here (rather than removed) only because
+   * they're still part of `ProjectFile`'s persisted schema and old
+   * project JSON round-trips through them -- removing the fields would
+   * mean a schema-shape change for no functional gain. Do not add a new
+   * UI control that writes these; add the setting to `PatternViewSettings`
+   * instead, matching `showOnScreenLabels`/`punchGuide`. */
   orientation: 'front' | 'mirrored';
-  /** Which pattern view (combined/color-only/height-only/contour) gets
-   * used for SVG/PNG/print export -- previously every export path was
-   * hardcoded to 'combined' regardless of what the user might want. */
   view: PatternView;
-  /** Whether SVG/PNG/print export prints each region's C{n}-H{n} id.
-   * Defaults on (see CLAUDE.md: never rely on color alone), but some
-   * users punching from color/height alone via the on-screen legend want
-   * an uncluttered print. */
   showLabels: boolean;
 }
 
