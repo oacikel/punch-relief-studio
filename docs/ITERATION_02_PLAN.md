@@ -17,7 +17,7 @@ verified (full `npm run verify` plus `npm run test:e2e` on both the
 not yet merged — per this iteration's deployment-checkpoint rule (§13), a
 session implementing Stage D stops at "PR open, CI green" so a human can
 review before it ships. See §17 for Stage D's own "what was actually
-built," including the one real bug it found and fixed. Stage E remains
+built," including the two real bugs it found and fixed. Stage E remains
 unstarted. See `docs/COWORK_HANDOFF.md` for the Stage-A-era cross-session
 continuation state — it predates Stage A's actual merge and Stage B/C/D's
 implementation, so trust this document and the repository over it where
@@ -656,24 +656,41 @@ punch-guide overlay and refreshing multi-page tiling regression coverage
   -> grid -> punch guide -> registration -> scale bar) already paints them
   on top; and region labels stay legible over the dots via their existing
   white stroke halo.
-- **One real bug found and fixed, outside the punch-guide question this
-  stage was primarily scoped to investigate.** Selecting "Actual project
-  size" from the print page-size dropdown crashed the entire app past the
-  top-level `ErrorBoundary`. `ExportPanel.tsx`'s `computeTiling(...)` call
-  never passed the 6th `actualSizeCm` parameter; `computeTiling` calls
-  `getPageDimensionsCm(pageSize, actualSizeCm)` unconditionally before its
-  own single-page fast path, and that throws
-  `actualSizeCm is required when pageSize is "actual-size"` whenever
-  `pageSize` is `'actual-size'` and `actualSizeCm` is `undefined` — which
-  it always was at this call site. Reproduced live in headless Chromium
-  (the app rendered "Something went wrong... actualSizeCm is required
-  when pageSize is 'actual-size'") before being fixed by always passing
-  the pattern's own current dimensions as `actualSizeCm` (a no-op for the
-  `'a4'`/`'letter'` branches, which never read it). Found by an
-  independent, fresh-context `general-purpose` subagent during this
-  session's plan-review pass (see below) — the original draft plan, based
-  only on this session's own manual repro (which only ever exercised
-  `pageSize: 'a4'`), had concluded "no bug, tests only."
+- **Two real bugs found and fixed, outside the punch-guide question this
+  stage was primarily scoped to investigate** — both in "Actual project
+  size" printing, both crashing the entire app past the top-level
+  `ErrorBoundary`, both found by independent review rather than this
+  session's own initial manual repro (which only ever exercised
+  `pageSize: 'a4'` at typical dimensions):
+  1. `ExportPanel.tsx`'s `computeTiling(...)` call never passed the 6th
+     `actualSizeCm` parameter; `computeTiling` called
+     `getPageDimensionsCm(pageSize, actualSizeCm)` unconditionally before
+     its own single-page fast path, throwing
+     `actualSizeCm is required when pageSize is "actual-size"` whenever
+     `pageSize` was `'actual-size'` (always true at this call site).
+     Reproduced live in headless Chromium (the app rendered "Something
+     went wrong... actualSizeCm is required when pageSize is
+     'actual-size'"). Found by the first independent, fresh-context
+     `general-purpose` plan-review subagent (see below). Fixed by always
+     passing the pattern's own current dimensions as `actualSizeCm` (a
+     no-op for the `'a4'`/`'letter'` branches, which never read it).
+  2. A second, deeper bug the same page-size option masked from the first
+     fix: `computeTiling` computed `printableWidthCm`/`printableHeightCm`
+     from `marginCm` and validated them against `overlapCm`
+     unconditionally, even for `pageSize === 'actual-size'`, where margin
+     and overlap are print-page concepts that don't apply at all (there is
+     no physical page smaller than the pattern to tile across — the
+     function's own single-page fast path already special-cased
+     `'actual-size'`, but only _after_ this validation had already run). A
+     small actual-size pattern (e.g. 1cm x 1cm, below the default 1cm
+     margin x2 + 1cm overlap) still crashed the app with "overlap is too
+     large for the printable page area." Found by the second independent,
+     fresh-context review of the finished diff (see below), which
+     reproduced it live with a tiny pattern rather than the typical-size
+     patterns every other test in this stage used. Fixed by
+     short-circuiting on `pageSize === 'actual-size'` before the
+     margin/overlap validation runs, returning a single page sized to the
+     pattern's own dimensions directly.
 - **No dot-guide-in-print bug was found.** `ExportPanel.tsx`'s print path
   (`usePatternSvgUrl`, feeding the hidden `.print-pages` block) already
   received the same `punchGuide` prop as the on-screen `PatternCanvas` —
@@ -695,42 +712,47 @@ punch-guide overlay and refreshing multi-page tiling regression coverage
     stays legible.
   - `src/export/__tests__/printTiling.test.ts` — anchors the exact
     60x40cm/A4/1cm-overlap case this session verified manually (4 cols x
-    2 rows = 8 pages), plus a row-major page-numbering ordering test and
-    a zero-overlap abutting-tiles test.
+    2 rows = 8 pages), a row-major page-numbering ordering test, a
+    zero-overlap abutting-tiles test, and (added after the second bug
+    above was found) a tiny-actual-size-pattern test plus a test asserting
+    `actualSizeCm`/margin are ignored entirely for the returned page
+    geometry in the `'actual-size'` case.
   - `src/components/__tests__/ExportPanel.test.tsx` — a test spying on
     the real `usePatternSvgUrl` implementation to prove the _print_ image
     path (not just the on-click SVG/PNG export button handlers) actually
-    receives the `punchGuide` prop, plus a regression test for the
-    "Actual project size" crash above.
+    receives the `punchGuide` prop, plus regression tests for both
+    "Actual project size" crashes above (typical-size and tiny pattern).
   - New `e2e/print-emulation.spec.ts` — the first e2e spec in this repo to
     actually emulate print media. Covers: multi-page tile count matching
     the panel's own helper text; the print stylesheet still hiding app
     chrome and showing only `.print-pages` after Stage A/B/C's layout
     changes; the printed SVG containing both the punch-guide dot grid and
     the scale-check square together (with the paint-order assertion
-    mirrored from the unit test); a punch-guide-"None" regression; the
-    "Actual project size" fix confirmed end-to-end in a real browser
-    session; and a Chromium-only real PDF render checked for the expected
-    page count via the PDF's own `/Type /Page` object count (a coarse,
-    dependency-free heuristic — verified against the known-8-page case
-    from this session's manual investigation). Playwright only supports
-    `page.pdf()` on headless Chromium, so that one block is skipped
-    (`test.skip`) on the `mobile-narrow`/WebKit project; every other
-    assertion in the file runs on both projects.
+    mirrored from the unit test); a punch-guide-"None" regression; both
+    "Actual project size" fixes confirmed end-to-end in a real browser
+    session (typical-size and tiny pattern); and a Chromium-only real PDF
+    render checked for the expected page count via the PDF's own
+    `/Type /Page` object count (a coarse, dependency-free heuristic —
+    verified against the known-8-page case from this session's manual
+    investigation). Playwright only supports `page.pdf()` on headless
+    Chromium, so that one block is skipped (`test.skip`) on the
+    `mobile-narrow`/WebKit project; every other assertion in the file runs
+    on both projects.
   - Every new/changed test was confirmed to actually fail against a
     deliberately-reverted version of the corresponding production code
     before being left in its passing state, per this project's
     verification discipline (CLAUDE.md).
-- **Process followed per this iteration's own convention**: a draft plan
-  (including the investigation findings above, before the bug was found)
-  was reviewed by an independent, fresh-context `general-purpose`
-  subagent, which read the actual source itself rather than trusting the
-  draft's summary and found the "Actual project size" crash — a real,
-  currently-reachable bug squarely in Stage D's own stated scope, missed
-  because the manual repro only ever tested `pageSize: 'a4'`. The plan was
-  revised to fix it (as its own small, atomic commit, separate from the
-  test-only commits) before the rest of the originally-planned test
-  coverage was implemented. The reviewer's other findings (the
+- **Process followed per this iteration's own convention, and it caught
+  real bugs both times**: a draft plan (including the investigation
+  findings above, before either bug was found) was reviewed by an
+  independent, fresh-context `general-purpose` subagent, which read the
+  actual source itself rather than trusting the draft's summary and found
+  the first "Actual project size" crash — a real, currently-reachable bug
+  squarely in Stage D's own stated scope, missed because the manual repro
+  only ever tested `pageSize: 'a4'`. The plan was revised to fix it (as
+  its own small, atomic commit, separate from the test-only commits)
+  before the rest of the originally-planned test coverage was
+  implemented. That reviewer's other findings (the
   `vi.spyOn(usePatternSvgUrl, ...)` technique's build-tool risk, and a
   preference for the DOM-level `.print-page` count as the primary
   multi-page assertion over the PDF-byte regex) were both incorporated:
@@ -738,9 +760,17 @@ punch-guide overlay and refreshing multi-page tiling regression coverage
   against a deliberately-broken wiring, then restored) rather than trusted
   on faith, and the e2e PDF page-count check is explicitly framed as a
   secondary confirmation alongside the primary DOM-level assertion. A
-  second independent, fresh-context review of the finished diff is
-  recorded in the PR description alongside its findings and how they were
-  addressed.
+  second independent, fresh-context `general-purpose` subagent then
+  reviewed the finished diff (all commits up to that point, plus a live
+  `npm run verify` and e2e run it performed itself rather than trusting
+  the docs) and found the second, deeper "Actual project size" crash —
+  every prior test in this stage, including the first reviewer's fix and
+  its regression test, used typical-size patterns (30x20cm, 60x40cm,
+  80x60cm), so the tiny-pattern margin/overlap path went unexercised.
+  This was independently re-verified live (not just trusted) before being
+  fixed as its own atomic commit with its own regression tests at the
+  unit, component, and e2e levels — all confirmed to fail against the
+  pre-fix code first.
 - **`docs/LIMITATIONS.md` updated**: a new product-level entry states
   plainly that the app cannot verify a real printer/driver honors
   "actual size" printing — the "5cm scale check" square and its ruler
@@ -754,10 +784,11 @@ punch-guide overlay and refreshing multi-page tiling regression coverage
   "Actual project size" fix is a straightforward bug fix (an omitted
   function argument), not a design call.
 - **Verification**: `npm run verify` (format + lint + typecheck + test +
-  build) green, 193/193 unit/component tests passing (28 files, up from
-  187/28 at the Stage C baseline — 6 new tests across
+  build) green, 196/196 unit/component tests passing (28 files, up from
+  187/28 at the Stage C baseline — 9 new tests across
   `svgPattern.test.ts`, `printTiling.test.ts`, and `ExportPanel.test.tsx`).
   `npm run test:e2e` green on both the `chromium` and `mobile-narrow`
-  (WebKit) projects, 22/22 tests (16 pre-existing + 6 new in
-  `e2e/print-emulation.spec.ts`; the WebKit project runs 21 of those 22,
-  correctly skipping the Chromium-only PDF-render test).
+  (WebKit) projects, 17/17 tests total (10 pre-existing across the rest of
+  the suite + 7 new in the net-new `e2e/print-emulation.spec.ts`; the
+  WebKit project runs 16 of those 17, correctly skipping the
+  Chromium-only PDF-render test).
