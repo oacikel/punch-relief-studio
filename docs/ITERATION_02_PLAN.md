@@ -10,9 +10,14 @@ GitHub Pages. See §15 below for what was actually built for Stage B vs.
 planned and how the §14 decisions were resolved; see §16 for Stage C's own
 "what was actually built," including its schema and design decisions
 (also recorded in full in `docs/DECISIONS.md`). **Stage D (print/PDF
-reliability) is now being implemented on branch
-`feat/ux-iteration-02-stage-d`**, off `main` @
-`9e132cc191c0d97ae7476d984b2ea712cc0f0fcd` (Stage A+B+C). Stage E remains
+reliability) implemented on branch `feat/ux-iteration-02-stage-d`**, off
+`main` @ `9e132cc191c0d97ae7476d984b2ea712cc0f0fcd` (Stage A+B+C), locally
+verified (full `npm run verify` plus `npm run test:e2e` on both the
+`chromium` and `mobile-narrow`/webkit projects), PR opened against `main`,
+not yet merged — per this iteration's deployment-checkpoint rule (§13), a
+session implementing Stage D stops at "PR open, CI green" so a human can
+review before it ships. See §17 for Stage D's own "what was actually
+built," including the one real bug it found and fixed. Stage E remains
 unstarted. See `docs/COWORK_HANDOFF.md` for the Stage-A-era cross-session
 continuation state — it predates Stage A's actual merge and Stage B/C/D's
 implementation, so trust this document and the repository over it where
@@ -619,3 +624,140 @@ test:e2e` green on both the `chromium` and `mobile-narrow` (WebKit)
   punch-guide selector revealing/hiding the spacing input, the spacing
   input holding a user-entered value, and the export panel having no
   duplicate punch-guide control of its own.
+
+## 17. Stage D — what was actually built
+
+Implemented on branch `feat/ux-iteration-02-stage-d` (off `main` @
+`9e132cc191c0d97ae7476d984b2ea712cc0f0fcd`, Stage A+B+C). Scope was
+verifying and hardening the print/PDF pipeline's handling of Stage C's
+punch-guide overlay and refreshing multi-page tiling regression coverage
+— Stage E untouched.
+
+- **Investigation before implementation** reproduced the print pipeline
+  directly: built the app, drove a real headless Chromium instance
+  (Playwright) to Preview with the punch guide set to "Dots" at 0.5cm
+  spacing and pattern dimensions (60cm x 40cm on A4, 1cm overlap) chosen
+  to force multi-page tiling, called `page.emulateMedia({ media: 'print'
+})`, fetched the actual blob-URL SVG behind the print `<img>`, and
+  rendered a real PDF via `page.pdf({ format: 'A4', printBackground: true
+})` — rasterized with `pdftoppm` at 100dpi for pixel measurement (not
+  committed to the repo; a throwaway script, per this iteration's own
+  established verification method from §2 item 1). Confirmed: the
+  punch-guide dot grid appears in the printed SVG (9600 circles at the
+  configured density, matching a 120x80 grid — the `MAX_PUNCH_GUIDE_DOTS`
+  safety cap correctly did not trigger); the pattern tiles across exactly
+  8 pages (4 cols x 2 rows), each page edge-to-edge with correct crop
+  marks/page numbers and no gaps; the physical page size, tile width, and
+  the "5cm scale check" square all measured within antialiasing tolerance
+  of their true physical dimensions (the scale bar's contiguous black run
+  measured 196px at 100dpi = 4.98cm against an expected 5cm); the scale
+  bar and registration marks are never obscured by the dot grid, because
+  `buildSvgPattern`'s existing paint order (regions -> contour -> labels
+  -> grid -> punch guide -> registration -> scale bar) already paints them
+  on top; and region labels stay legible over the dots via their existing
+  white stroke halo.
+- **One real bug found and fixed, outside the punch-guide question this
+  stage was primarily scoped to investigate.** Selecting "Actual project
+  size" from the print page-size dropdown crashed the entire app past the
+  top-level `ErrorBoundary`. `ExportPanel.tsx`'s `computeTiling(...)` call
+  never passed the 6th `actualSizeCm` parameter; `computeTiling` calls
+  `getPageDimensionsCm(pageSize, actualSizeCm)` unconditionally before its
+  own single-page fast path, and that throws
+  `actualSizeCm is required when pageSize is "actual-size"` whenever
+  `pageSize` is `'actual-size'` and `actualSizeCm` is `undefined` — which
+  it always was at this call site. Reproduced live in headless Chromium
+  (the app rendered "Something went wrong... actualSizeCm is required
+  when pageSize is 'actual-size'") before being fixed by always passing
+  the pattern's own current dimensions as `actualSizeCm` (a no-op for the
+  `'a4'`/`'letter'` branches, which never read it). Found by an
+  independent, fresh-context `general-purpose` subagent during this
+  session's plan-review pass (see below) — the original draft plan, based
+  only on this session's own manual repro (which only ever exercised
+  `pageSize: 'a4'`), had concluded "no bug, tests only."
+- **No dot-guide-in-print bug was found.** `ExportPanel.tsx`'s print path
+  (`usePatternSvgUrl`, feeding the hidden `.print-pages` block) already
+  received the same `punchGuide` prop as the on-screen `PatternCanvas` —
+  both call the same `buildSvgPattern` function, so "what you preview is
+  what prints" is structurally guaranteed by shared code, not duplicated
+  logic that could drift out of sync. Multi-page tiling clips one
+  full-canvas SVG per tile via a CSS negative margin
+  (`.print-page-crop`), so the punch-guide dot grid — computed once
+  against the whole pattern, never per-tile — tiles automatically and
+  correctly with no separate per-tile geometry recomputation. There was
+  no dot-on-tile-boundary design decision to make: a dot that falls in a
+  tile's overlap zone appears on both tiles' printed image, the same as
+  the pattern content itself already does — established, intentional
+  overlap behavior, not a new question the punch guide introduced.
+- **Regression tests added** (no other production code changes):
+  - `src/export/__tests__/svgPattern.test.ts` — pins the SVG paint-order
+    invariant (punch-guide layer painted before the registration marks
+    and the scale bar) that is the actual reason the scale-check square
+    stays legible.
+  - `src/export/__tests__/printTiling.test.ts` — anchors the exact
+    60x40cm/A4/1cm-overlap case this session verified manually (4 cols x
+    2 rows = 8 pages), plus a row-major page-numbering ordering test and
+    a zero-overlap abutting-tiles test.
+  - `src/components/__tests__/ExportPanel.test.tsx` — a test spying on
+    the real `usePatternSvgUrl` implementation to prove the _print_ image
+    path (not just the on-click SVG/PNG export button handlers) actually
+    receives the `punchGuide` prop, plus a regression test for the
+    "Actual project size" crash above.
+  - New `e2e/print-emulation.spec.ts` — the first e2e spec in this repo to
+    actually emulate print media. Covers: multi-page tile count matching
+    the panel's own helper text; the print stylesheet still hiding app
+    chrome and showing only `.print-pages` after Stage A/B/C's layout
+    changes; the printed SVG containing both the punch-guide dot grid and
+    the scale-check square together (with the paint-order assertion
+    mirrored from the unit test); a punch-guide-"None" regression; the
+    "Actual project size" fix confirmed end-to-end in a real browser
+    session; and a Chromium-only real PDF render checked for the expected
+    page count via the PDF's own `/Type /Page` object count (a coarse,
+    dependency-free heuristic — verified against the known-8-page case
+    from this session's manual investigation). Playwright only supports
+    `page.pdf()` on headless Chromium, so that one block is skipped
+    (`test.skip`) on the `mobile-narrow`/WebKit project; every other
+    assertion in the file runs on both projects.
+  - Every new/changed test was confirmed to actually fail against a
+    deliberately-reverted version of the corresponding production code
+    before being left in its passing state, per this project's
+    verification discipline (CLAUDE.md).
+- **Process followed per this iteration's own convention**: a draft plan
+  (including the investigation findings above, before the bug was found)
+  was reviewed by an independent, fresh-context `general-purpose`
+  subagent, which read the actual source itself rather than trusting the
+  draft's summary and found the "Actual project size" crash — a real,
+  currently-reachable bug squarely in Stage D's own stated scope, missed
+  because the manual repro only ever tested `pageSize: 'a4'`. The plan was
+  revised to fix it (as its own small, atomic commit, separate from the
+  test-only commits) before the rest of the originally-planned test
+  coverage was implemented. The reviewer's other findings (the
+  `vi.spyOn(usePatternSvgUrl, ...)` technique's build-tool risk, and a
+  preference for the DOM-level `.print-page` count as the primary
+  multi-page assertion over the PDF-byte regex) were both incorporated:
+  the spy technique was verified directly (written, then proven to fail
+  against a deliberately-broken wiring, then restored) rather than trusted
+  on faith, and the e2e PDF page-count check is explicitly framed as a
+  secondary confirmation alongside the primary DOM-level assertion. A
+  second independent, fresh-context review of the finished diff is
+  recorded in the PR description alongside its findings and how they were
+  addressed.
+- **`docs/LIMITATIONS.md` updated**: a new product-level entry states
+  plainly that the app cannot verify a real printer/driver honors
+  "actual size" printing — the "5cm scale check" square and its ruler
+  guidance (item 21) are exactly this stage's answer to a limitation that
+  cannot be automated away, and this session's manual PDF verification
+  confirms the _app's own output_ is correct at true scale, which is as
+  far as an automated check can ever go.
+- **No `docs/DECISIONS.md` entry was added.** This stage made no new
+  product/design decision — the punch-guide-in-print behavior was already
+  decided in Stage C and found to already work correctly, and the
+  "Actual project size" fix is a straightforward bug fix (an omitted
+  function argument), not a design call.
+- **Verification**: `npm run verify` (format + lint + typecheck + test +
+  build) green, 193/193 unit/component tests passing (28 files, up from
+  187/28 at the Stage C baseline — 6 new tests across
+  `svgPattern.test.ts`, `printTiling.test.ts`, and `ExportPanel.test.tsx`).
+  `npm run test:e2e` green on both the `chromium` and `mobile-narrow`
+  (WebKit) projects, 22/22 tests (16 pre-existing + 6 new in
+  `e2e/print-emulation.spec.ts`; the WebKit project runs 21 of those 22,
+  correctly skipping the Chromium-only PDF-render test).
