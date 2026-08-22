@@ -166,6 +166,34 @@ select:focus-visible {
   margin-bottom: var(--space-3);
 }
 
+/* Preview stage's pattern/simulation two-column layout (Iteration 03 Round
+   2 #2). Was previously an inline `display: grid, gridTemplateColumns:
+   '1fr 1fr'` style with no responsive fallback, unlike every other
+   two-column layout in the app (`.app-shell`, `main.relief-layout`), which
+   both already collapse to one column under this same 720px breakpoint --
+   at the project's own mobile-narrow width (390px) this caused real
+   horizontal overflow, which could push the Export & print `<summary>`
+   toggle below it far enough to become unclickable. See
+   docs/DECISIONS.md. */
+.preview-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+@media (max-width: 720px) {
+  .preview-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Wraps `.legend-table` so a wide table (more columns than a narrow screen
+   can show at readable font size) scrolls horizontally inside its own box
+   instead of forcing the whole page wider (Iteration 03 Round 2 #3). */
+.legend-table-wrap {
+  overflow-x: auto;
+}
+
 .legend-table {
   border-collapse: collapse;
   width: 100%;

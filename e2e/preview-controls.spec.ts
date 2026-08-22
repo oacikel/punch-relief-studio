@@ -93,3 +93,48 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
     await expect(exportPanel.getByLabel('Dot spacing (cm)')).toHaveCount(0);
   });
 });
+
+/**
+ * Iteration 03 Round 2 #2: Preview's pattern/simulation two-column layout
+ * used to be an inline `display: grid, gridTemplateColumns: '1fr 1fr'`
+ * style with no responsive fallback (unlike `.app-shell`/`main.relief-
+ * layout`, which both collapse under the same 720px breakpoint). At the
+ * project's own mobile-narrow width this produced real horizontal
+ * overflow, and Playwright's own pointer-interception check found the
+ * Export & print `<summary>` toggle genuinely unclickable in that state.
+ * `toBeVisible()` alone does not catch overflow -- an element can be
+ * "visible" while sitting off-screen to the side -- so this asserts the
+ * document's actual scrollWidth/clientWidth relationship, per
+ * docs/ITERATION_03_PLAN.md's explicit guidance, and separately exercises
+ * a real click on the summary to catch the pointer-interception failure
+ * mode directly.
+ */
+test.describe('Preview mobile-narrow layout (Iteration 03 Round 2 #2)', () => {
+  test('Preview has no horizontal overflow at 390px width, and the Export & print toggle is clickable', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await page.getByText('Concentric Ripple').click();
+    await page.getByRole('button', { name: '2. Create relief' }).click();
+    await page.getByRole('button', { name: 'Generate relief' }).click();
+    await expect(page.getByRole('heading', { name: 'Height levels' })).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByRole('button', { name: '5. Preview' }).click();
+    await expect(page.getByRole('heading', { name: 'Preview the finished piece' })).toBeVisible();
+
+    const hasHorizontalOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    );
+    expect(hasHorizontalOverflow).toBe(false);
+
+    // A real click, not just a visibility check -- this is exactly the
+    // interaction the original bug broke (the toggle was "visible" per
+    // Playwright's own definition, but off-screen/overlapped enough that a
+    // real click was intercepted by another element).
+    const summary = page.getByText('Export & print');
+    await summary.click();
+    await expect(page.locator('.export-panel[open]')).toBeVisible();
+  });
+});
