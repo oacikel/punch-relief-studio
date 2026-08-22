@@ -86,6 +86,18 @@ now supports adding and removing needle settings (1-12 per profile,
 matching the widened 2-12 height-level range), not just editing a fixed
 set.
 
+As of Iteration 02 Stage C, Preview's on-screen pattern gained an
+independent "Region labels" toggle (separate from the pre-existing "Print
+region labels" export checkbox -- the on-screen pattern previously had no
+toggle at all, labels were always on) and an optional punch-guide overlay:
+a "Punch guide" selector (None/Dots) plus a "Dot spacing (cm)" control that
+adds an evenly spaced grid of placement-guide dots, spaced at a real
+physical distance the user sets. The same guide setting drives both the
+on-screen pattern and every SVG/PNG/print export -- see
+`docs/DECISIONS.md` for the full design rationale and the honesty framing
+(the dots are the spacing the user chose, not a measurement of anything
+the app detected).
+
 ## 7. Non-Functional Requirements
 
 Entirely client-side (static site, no backend), deterministic given the same

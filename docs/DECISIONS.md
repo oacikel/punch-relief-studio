@@ -221,6 +221,115 @@ changed, in Stage A) and by a new e2e assertion in
 `.relief-preview-col` is `sticky` at desktop width and `static` at
 mobile-narrow width.
 
+## Punch-guide/physical-spacing schema fields: optional field, no version bump (Iteration 02 Stage C)
+
+**Decision:** `ProjectFile.exportSettings` (`src/domain/projectSchema.ts`)
+gains a new, **optional** field, `punchGuide?: { mode: 'none' | 'dots';
+spacingCm: number }`. `PROJECT_SCHEMA_VERSION` stays `1` -- no version bump,
+no `migrateV1ToV2` function. `parseProjectFile`'s hand-written structural
+validation is left completely unchanged: it already only checks _top-level_
+key presence (`'exportSettings' in obj`, etc.) and has never deep-validated
+`exportSettings`'s own shape, so an old (pre-Stage-C) project file simply
+parses with `exportSettings.punchGuide` coming back `undefined`.
+`App.tsx`'s `handleLoadProjectJson` supplies an explicit default at load
+time (`project.exportSettings.punchGuide ?? { mode: 'none', spacingCm:
+DEFAULT_PUNCH_GUIDE_SPACING_CM }`), covered by a unit test
+(`projectSchema.test.ts`) that loads a fixture with no `punchGuide` key at
+all and asserts it still parses.
+**Alternatives considered:** bumping `PROJECT_SCHEMA_VERSION` to `2` and
+writing a real `migrateV1ToV2` function that injects a default
+`punchGuide` into any v1 file on load, per option (b) in
+`docs/ITERATION_02_PLAN.md` §10.
+**Why option (a), not (b):** `docs/ITERATION_02_PLAN.md` §10 explicitly
+frames this as a live decision for Stage C to make on its own merits, not
+by copying a precedent (the plan's own independent-review correction
+notes that `ExportSettings.view`/`showLabels` were wrongly cited as
+"additive, no version bump" precedent in an earlier draft, since those two
+fields were never part of the persisted schema at all). Judged on its own
+merits: a version bump plus migration function is the right tool for a
+breaking or semantically ambiguous change -- neither is true here. The new
+field is a single optional overlay setting with an obviously safe default
+("no guide," never a fabricated spacing value), nested inside an object
+`parseProjectFile` was already only shallow-validating. Writing migration
+machinery, and updating every existing schema-version-`1` test fixture to
+either carry the new field or exercise a migration path, would be real,
+unrewarded complexity for a field that already degrades gracefully to
+"absent means off." Reserve the version-bump mechanism (already built and
+tested via `UnsupportedSchemaVersionError`) for a future change that
+actually breaks old data or needs a genuine one-time transformation -- e.g.
+a unit change, or restructuring an existing required field.
+**Left open, deliberately:** `showOnScreenLabels` (the new independent
+on-screen label toggle, see the design-interpretation entry below) is
+**not** persisted in `ProjectFile` at all -- it lives only on
+`AppState.patternViewSettings`, matching the existing precedent that
+`ExportSettings.view`/`showLabels` are AppState-only display preferences,
+never round-tripped through the schema. `punchGuide` is the one field of
+`patternViewSettings` that _is_ persisted, specifically because
+`docs/ITERATION_02_PLAN.md` §8 says Stage D (print/PDF reliability)
+depends on the punch-guide setting existing and surviving a project
+reload so a saved project can be reprinted correctly -- a pure display
+preference like on-screen label visibility has no such downstream
+dependency.
+
+## Punch-guide design: a minimal, honestly-labeled dot-grid overlay (Iteration 02 Stage C)
+
+**Decision:** the punch guide is a single overlay mode, "Dots" (plus
+"None"), controlled by two Preview-stage controls -- a "Punch guide"
+`<select>` (None/Dots) and a "Dot spacing (cm)" number input (0.2-5cm,
+default 1cm, shown only when Dots is selected). The geometry is a plain
+square grid of dots, spaced `spacingCm` real-world centimetres apart
+across the _entire_ pattern canvas -- not clipped to the region
+silhouette, not hex-packed, no separate "density" control distinct from
+spacing. The same setting (`AppState.patternViewSettings.punchGuide`,
+`src/state/appState.ts`) drives both the on-screen Preview pattern
+(`PatternCanvas.tsx`) and every SVG/PNG/print export (`ExportPanel.tsx`)
+-- one control, not duplicated per surface, so what a crafter sees in
+Preview is exactly what prints.
+**Why not more (region-clipping, hex packing, a separate density
+divisor):** `docs/ITERATION_02_PLAN.md` describes this feature in exactly
+one paraphrased line -- "punch-guide selector, physical dot spacing/
+density" (§8/§9) -- with no source product-owner message in this
+repository to check it against. Read literally: "selector" implies a
+small enum (None/Dots satisfies it), and "spacing/density" are the same
+quantity stated two ways (a smaller spacing _is_ a denser grid; a second,
+independent "density" control would be redundant with spacing, not
+additive). Region-silhouette clipping (only drawing dots inside actual
+pattern pixels, via a flood-fill against `RegionMap.heightIndex === -1`
+cells) was considered and explicitly rejected as unrequested scope --
+the existing `showGrid` grid layer in `src/export/svgPattern.ts`
+(`buildGrid`) already draws a full-canvas grid regardless of pattern
+shape, so a full-canvas punch guide is consistent with that established
+precedent, not a new inconsistency.
+**Honesty framing:** CLAUDE.md requires never labeling an uncalibrated
+height level with a fabricated millimetre value; the same standard is
+extended here even though this is a different kind of physical
+measurement (a value the _user_ chooses, not one the app infers). The
+helper text under the controls states plainly: "This is the spacing you
+set here, not a measurement of your printer's actual output -- always
+check the printed scale-check square with a ruler before punching." No
+claim is made that the dots correspond to any detected stitch density,
+printer DPI, or needle tip size.
+**Safety valve found in independent implementation review:** a large
+physical pattern (e.g. 150cm x 150cm, a realistic punch-needle rug size)
+at the minimum 0.2cm spacing would naively generate well over a million
+`<circle>` elements, computed synchronously in the on-screen Preview's
+render path -- a real UI-stall risk, not a hypothetical one. Rather than
+crashing (throwing past a hard cap) or silently drawing a truncated,
+misleading partial grid, `computePunchGuideDots`
+(`src/domain/pattern/punchGuide.ts`) widens the _effective_ spacing just
+enough to keep the total dot count at or under `MAX_PUNCH_GUIDE_DOTS`
+(20,000) when the naive grid would exceed it -- spacing only ever widens,
+never narrows, in this fallback, so an enforced dot is never closer to
+its neighbors than the user actually asked for. Covered by a dedicated
+unit test asserting the cap holds for a 150x150cm pattern at minimum
+spacing, and a companion test asserting the cap is a complete no-op well
+under the threshold.
+**Left open, deliberately:** if user testing surfaces a real need for
+region-aware clipping, denser placement near small/fiddly regions, or a
+second guide mode (e.g. a triangular/hex grid), those remain open for a
+later stage -- this is the smallest version that's honestly labeled and
+actually useful, not a foreclosure of richer guides later.
+
 ## Sandbox network constraint's effect on this build
 
 **Decision:** this MVP was built in a sandboxed session with no outbound

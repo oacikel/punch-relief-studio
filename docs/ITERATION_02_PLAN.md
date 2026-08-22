@@ -4,15 +4,25 @@ Status: **Stage A merged and deployed to `main`** (commit `73f0868`).
 **Stage B (Relief workspace redesign) merged and deployed to `main`**
 (commit `7e550202c45dc2d16aa05930ed28f7f44af5d249`), confirmed live on
 GitHub Pages. **Stage C (Preview controls: label toggle, punch-guide
-selector, physical dot spacing/density) is now being implemented on branch
+selector, physical dot spacing/density) implemented on branch
 `feat/ux-iteration-02-stage-c`**, off `main` @
-`7e550202c45dc2d16aa05930ed28f7f44af5d249`. See §15 below for what was
-actually built for Stage B vs. planned, and how the §14 decisions were
-resolved; see the new Stage C section (added as this stage's work
-progresses) for its own decisions and outcome. Stage D/E are unstarted. See
-`docs/COWORK_HANDOFF.md` for the Stage-A-era cross-session continuation
-state — it predates Stage A's actual merge and Stage B/C's implementation,
-so trust this document and the repository over it where they disagree.
+`7e550202c45dc2d16aa05930ed28f7f44af5d249`, locally verified (full
+`npm run verify` plus `npm run test:e2e` on both the `chromium` and
+`mobile-narrow`/webkit projects), PR opened against `main`, not yet
+merged — per this iteration's deployment-checkpoint rule (§13), a session
+implementing Stage C stops at "PR open, CI green" and does not merge or
+start Stage D, since Stage C involves two real product/design decisions
+(the schema-versioning approach and the punch-guide's design
+interpretation) a human should review first. See §15 below for what was
+actually built for Stage B vs. planned and how the §14 decisions were
+resolved; see §16 for Stage C's own "what was actually built," including
+its schema and design decisions (also recorded in full in
+`docs/DECISIONS.md`). Stage D/E are unstarted — Stage D (print/PDF
+reliability) can now start once Stage C is user-tested, per the
+dependency noted in §8. See `docs/COWORK_HANDOFF.md` for the Stage-A-era
+cross-session continuation state — it predates Stage A's actual merge and
+Stage B/C's implementation, so trust this document and the repository
+over it where they disagree.
 
 ## 0. Why this iteration
 
@@ -526,3 +536,92 @@ CalibrationEditor.tsx`, `src/domain/calibration.ts`): "Add needle
   disclosures, the sticky/static CSS position at desktop vs. narrow
   viewports, and the Height Levels → Preview calibration-focus flow
   end-to-end.
+
+## 16. Stage C — what was actually built
+
+Implemented on branch `feat/ux-iteration-02-stage-c` (off `main` @
+`7e550202c45dc2d16aa05930ed28f7f44af5d249`, Stage A+B). Scope was the
+on-screen label toggle, the punch-guide selector/spacing overlay (screen
+and export/print), and the schema decision for persisting it — Stage D/E
+untouched.
+
+- **Investigation before implementation** confirmed (not assumed) the two
+  facts the plan flagged as open: (1) `PreviewStage.tsx`'s on-screen
+  pattern hardcoded `showLabels` to `true` with no toggle at all,
+  completely independent of the pre-existing "Print region labels"
+  export checkbox (`ExportSettings.showLabels`, `src/state/appState.ts`),
+  which only ever affected SVG/PNG/print output; (2)
+  `parseProjectFile` (`src/domain/projectSchema.ts`) only checks
+  top-level key presence, never nested shape, so a new optional field on
+  `ProjectFile.exportSettings` is safe to add without a version bump.
+- **On-screen label toggle** (`src/components/stages/PreviewStage.tsx`):
+  a "Region labels (C1-H1 etc.)" checkbox, independent of the export
+  panel's own toggle, wired to a new `AppState.patternViewSettings.
+showOnScreenLabels` field (`src/state/appState.ts`), defaulting `true`
+  to preserve the pre-Stage-C always-on behavior exactly.
+- **Punch-guide overlay** (`src/domain/pattern/punchGuide.ts` — new pure
+  domain module; `src/export/svgPattern.ts`; `src/hooks/
+usePatternSvgUrl.ts`; `src/components/PatternCanvas.tsx`;
+  `src/components/ExportPanel.tsx`; `src/components/stages/
+PreviewStage.tsx`): a "Punch guide" selector (None/Dots) plus a "Dot
+  spacing (cm)" input (0.2–5cm, default 1cm), producing an evenly-spaced
+  square dot grid across the full pattern canvas. Geometry lives entirely
+  in the new pure domain module, using the named `cm`/`cmToPx` functions
+  from `src/domain/units.ts` for every physical-to-pixel conversion — the
+  first place in the app a genuinely user-set physical measurement
+  (as opposed to a computation knob like output resolution) crosses that
+  boundary. One shared `punchGuide` setting drives both the on-screen
+  pattern and every SVG/PNG/print export, rather than a duplicated
+  per-surface control. `usePatternSvgUrl` was refactored from six
+  positional primitive arguments to a single `SvgPatternOptions` object
+  as part of this change, to avoid making an already-long positional call
+  signature worse.
+- **Schema decision (a): optional field, no version bump.**
+  `ProjectFile.exportSettings` gained an optional `punchGuide` field;
+  `PROJECT_SCHEMA_VERSION` stayed `1`; old (pre-Stage-C) project files
+  load unmodified, with `App.tsx`'s `handleLoadProjectJson` supplying an
+  explicit `{ mode: 'none', spacingCm: 1 }` default when the field is
+  absent. Full rationale in `docs/DECISIONS.md`
+  ("Punch-guide/physical-spacing schema fields: optional field, no
+  version bump"), including why this was decided on the field's own
+  merits rather than by analogy to Stage B's schema note or the
+  (corrected) `view`/`showLabels` non-precedent, per the plan's own §10
+  instruction not to treat it as a continuation of an established
+  pattern.
+- **Design decision: a minimal, honestly-labeled dot-grid overlay.** No
+  region-silhouette clipping, no hex packing, no separate "density"
+  control distinct from spacing — full rationale, including why each was
+  rejected as unrequested scope, in `docs/DECISIONS.md` ("Punch-guide
+  design: a minimal, honestly-labeled dot-grid overlay").
+- **Safety cap added during implementation review** (not in the original
+  plan): `computePunchGuideDots` caps total dot count at 20,000,
+  widening the effective spacing (never narrowing it) when a large
+  pattern at minimum spacing would otherwise generate hundreds of
+  thousands of `<circle>` elements synchronously in the on-screen
+  Preview's render path. Covered by dedicated unit tests. See
+  `docs/DECISIONS.md` for the full writeup.
+- **Process followed per this iteration's own convention**: a draft
+  implementation plan (including the investigation findings above and
+  both design/schema decisions) was reviewed by an independent,
+  fresh-context `general-purpose` subagent before implementation began —
+  found no blocking issues, and several non-blocking refinements (dot
+  rounding-drift avoidance, explicit paint-order callout, noting
+  `showOnScreenLabels`'s non-persistence as a deliberate choice) all
+  folded into the plan before coding started. A second independent,
+  fresh-context review ran against the finished diff — found no blocking
+  issues, and two real non-blocking gaps: a stray, unused `punchGuide`
+  key that would have leaked into `AppState.exportSettings` on project
+  load (two sources of truth for the same setting), and the missing dot-
+  count safety cap described above. Both fixed before opening the PR.
+- **Verification**: `npm run verify` (format + lint + typecheck + test +
+  build) green, 187/187 unit/component tests passing (28 files, up from
+  157/26 at the Stage B baseline — a new `punchGuide.test.ts` with 13
+  cases for the domain module, plus additions to `svgPattern.test.ts`,
+  `appState.test.ts`, `projectSchema.test.ts`, and `ExportPanel.test.tsx`,
+  none of which existed for this feature before Stage C). `npm run
+test:e2e` green on both the `chromium` and `mobile-narrow` (WebKit)
+  projects, covering a new `e2e/preview-controls.spec.ts`: the on-screen
+  label toggle's independence from the export label checkbox, the
+  punch-guide selector revealing/hiding the spacing input, the spacing
+  input holding a user-entered value, and the export panel having no
+  duplicate punch-guide control of its own.
