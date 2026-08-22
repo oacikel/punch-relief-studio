@@ -4,25 +4,19 @@ Status: **Stage A merged and deployed to `main`** (commit `73f0868`).
 **Stage B (Relief workspace redesign) merged and deployed to `main`**
 (commit `7e550202c45dc2d16aa05930ed28f7f44af5d249`), confirmed live on
 GitHub Pages. **Stage C (Preview controls: label toggle, punch-guide
-selector, physical dot spacing/density) implemented on branch
-`feat/ux-iteration-02-stage-c`**, off `main` @
-`7e550202c45dc2d16aa05930ed28f7f44af5d249`, locally verified (full
-`npm run verify` plus `npm run test:e2e` on both the `chromium` and
-`mobile-narrow`/webkit projects), PR opened against `main`, not yet
-merged — per this iteration's deployment-checkpoint rule (§13), a session
-implementing Stage C stops at "PR open, CI green" and does not merge or
-start Stage D, since Stage C involves two real product/design decisions
-(the schema-versioning approach and the punch-guide's design
-interpretation) a human should review first. See §15 below for what was
-actually built for Stage B vs. planned and how the §14 decisions were
-resolved; see §16 for Stage C's own "what was actually built," including
-its schema and design decisions (also recorded in full in
-`docs/DECISIONS.md`). Stage D/E are unstarted — Stage D (print/PDF
-reliability) can now start once Stage C is user-tested, per the
-dependency noted in §8. See `docs/COWORK_HANDOFF.md` for the Stage-A-era
-cross-session continuation state — it predates Stage A's actual merge and
-Stage B/C's implementation, so trust this document and the repository
-over it where they disagree.
+selector, physical dot spacing/density) merged and deployed to `main`**
+(commit `9e132cc191c0d97ae7476d984b2ea712cc0f0fcd`), confirmed live on
+GitHub Pages. See §15 below for what was actually built for Stage B vs.
+planned and how the §14 decisions were resolved; see §16 for Stage C's own
+"what was actually built," including its schema and design decisions
+(also recorded in full in `docs/DECISIONS.md`). **Stage D (print/PDF
+reliability) is now being implemented on branch
+`feat/ux-iteration-02-stage-d`**, off `main` @
+`9e132cc191c0d97ae7476d984b2ea712cc0f0fcd` (Stage A+B+C). Stage E remains
+unstarted. See `docs/COWORK_HANDOFF.md` for the Stage-A-era cross-session
+continuation state — it predates Stage A's actual merge and Stage B/C/D's
+implementation, so trust this document and the repository over it where
+they disagree.
 
 ## 0. Why this iteration
 
