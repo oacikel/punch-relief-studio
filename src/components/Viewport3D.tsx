@@ -165,13 +165,17 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
         // target silently stretches the captured depth/color, which then
         // propagates into the actual relief geometry -- not just a display
         // artifact. Refit to a square aspect just for the capture, then
-        // restore the on-screen framing immediately after so the live
-        // viewport's own view is unaffected by generating a relief.
+        // restore the on-screen framing (including near/far -- `refit`
+        // mutates those too via `fitOrthographicCameraToExtent`) immediately
+        // after, so the live viewport's own view is unaffected by
+        // generating a relief.
         const saved = {
           left: camera.left,
           right: camera.right,
           top: camera.top,
           bottom: camera.bottom,
+          near: camera.near,
+          far: camera.far,
         };
         refit(1);
         const result = captureDepth(renderer, scene, camera, {
@@ -183,6 +187,8 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
         camera.right = saved.right;
         camera.top = saved.top;
         camera.bottom = saved.bottom;
+        camera.near = saved.near;
+        camera.far = saved.far;
         camera.updateProjectionMatrix();
         return result;
       },

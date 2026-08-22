@@ -94,6 +94,40 @@ describe('placeLabels', () => {
     expect(second).toEqual(first);
   });
 
+  it('never places a label box outside the given canvas bounds', () => {
+    // Anchored right at the top-left corner -- the unmoved centroid position
+    // would put roughly half the label box off-canvas (negative x/y).
+    const candidates: LabelCandidate[] = [{ id: 'C1-H1', x: 1, y: 1, areaPx: 500 }];
+    const bounds = { width: 200, height: 200 };
+    const placed = placeLabels(candidates, {
+      labelWidth,
+      labelHeight: LABEL_HEIGHT,
+      bounds,
+    });
+    expect(placed).toHaveLength(1);
+    const p = placed[0] as { id: string; x: number; y: number };
+    const w = labelWidth('C1-H1');
+    expect(p.x - w / 2).toBeGreaterThanOrEqual(0);
+    expect(p.y - LABEL_HEIGHT / 2).toBeGreaterThanOrEqual(0);
+  });
+
+  it('drops a label rather than placing it out of bounds when no in-bounds spot exists nearby', () => {
+    // A 1x1 canvas can never fit even the smallest label box anywhere.
+    const candidates: LabelCandidate[] = [{ id: 'C1-H1', x: 0.5, y: 0.5, areaPx: 500 }];
+    const placed = placeLabels(candidates, {
+      labelWidth,
+      labelHeight: LABEL_HEIGHT,
+      bounds: { width: 1, height: 1 },
+    });
+    expect(placed).toEqual([]);
+  });
+
+  it('places without any bounds check when bounds is omitted (unchanged prior behavior)', () => {
+    const candidates: LabelCandidate[] = [{ id: 'C1-H1', x: 0, y: 0, areaPx: 500 }];
+    const placed = placeLabels(candidates, { labelWidth, labelHeight: LABEL_HEIGHT });
+    expect(placed).toEqual([{ id: 'C1-H1', x: 0, y: 0 }]);
+  });
+
   it('prioritizes the larger region when two equal-priority candidates tie, using id as a stable tiebreaker', () => {
     const candidates: LabelCandidate[] = [
       { id: 'C2-H1', x: 100, y: 100, areaPx: 500 },

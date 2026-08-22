@@ -80,7 +80,9 @@ export function buildSvgPattern(
   const scaleBar = buildScaleBar(heightPx, pxPerCm);
   const contour =
     options.view === 'contour' ? buildContourLines(regionMap, cellW, cellH, options.mirrored) : '';
-  const labels = options.showLabels ? buildLabels(regionMap, cellW, cellH, options.mirrored) : '';
+  const labels = options.showLabels
+    ? buildLabels(regionMap, cellW, cellH, options.mirrored, widthPx, heightPx)
+    : '';
 
   // Paint order: regions -> contour -> labels -> grid -> punch guide ->
   // registration -> scale bar. The punch guide sits above the pattern fill
@@ -239,6 +241,8 @@ function buildLabels(
   cellW: number,
   cellH: number,
   mirrored: boolean,
+  widthPx: number,
+  heightPx: number,
 ): string {
   const { width, height, heightIndex, colorIndex } = regionMap;
   const combined = new Int16Array(width * height).fill(-1);
@@ -290,6 +294,7 @@ function buildLabels(
   const placed = placeLabels(candidates, {
     labelWidth: estimateLabelWidth,
     labelHeight: LABEL_HEIGHT,
+    bounds: { width: widthPx, height: heightPx },
   });
   if (placed.length === 0) return '';
   const labels = placed.map(

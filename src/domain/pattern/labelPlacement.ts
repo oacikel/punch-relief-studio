@@ -18,6 +18,12 @@
  * technically drawn. See docs/DECISIONS.md for the chosen strategy
  * (deterministic nudge search, drop-if-still-crowded) versus the
  * alternatives considered (leader lines, a stricter size-only gate).
+ *
+ * `LabelPlacementOptions.bounds`, when given, keeps every placed label's
+ * full box inside the canvas -- a nudge that would push a label partway
+ * off-canvas is treated as a collision, not accepted, since an SVG's
+ * default overflow clipping would otherwise silently truncate it (a label
+ * a viewer can't see is no better than one that was dropped outright).
  */
 
 export interface LabelCandidate {
@@ -55,6 +61,16 @@ export interface LabelPlacementOptions {
    * solver -- a label that can't find room nearby is dropped, not chased
    * arbitrarily far from the region it identifies. */
   searchRingMultiples?: number[];
+  /** The renderable canvas extent, in the same units as candidate x/y. When
+   * given, a candidate position is only accepted if its full label box
+   * (including gap) fits entirely within `[0, width] x [0, height]` --
+   * otherwise it's treated exactly like an overlap and the search moves on
+   * to the next offset (or drops the label if none are in-bounds). Without
+   * this, a region anchored near the canvas edge could nudge its label
+   * partway off-canvas, where an SVG's default overflow clipping would
+   * silently truncate it -- a label a caller can't see is no better than
+   * one it dropped outright. Omit to place without any bounds check. */
+  bounds?: { width: number; height: number };
 }
 
 const DEFAULT_GAP = 2;
@@ -99,6 +115,10 @@ function boxesOverlap(a: Box, b: Box): boolean {
   return a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
 }
 
+function boxWithinBounds(box: Box, bounds: { width: number; height: number }): boolean {
+  return box.x0 >= 0 && box.y0 >= 0 && box.x1 <= bounds.width && box.y1 <= bounds.height;
+}
+
 /**
  * Resolves label overlaps deterministically: bigger regions place first (a
  * stable sort, tie-broken by id so results never depend on input order
@@ -135,6 +155,7 @@ export function placeLabels(
       const x = candidate.x + dx;
       const y = candidate.y + dy;
       const box = boxFor(x, y, w, h, gap);
+      if (options.bounds && !boxWithinBounds(box, options.bounds)) continue;
       if (!placedBoxes.some((existing) => boxesOverlap(existing, box))) {
         placed = { x, y };
         placedBoxes.push(box);
