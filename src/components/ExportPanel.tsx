@@ -105,11 +105,25 @@ export function ExportPanel({
     dimensions.heightCm > 0
       ? dimensions
       : { ...dimensions, widthCm: 1, heightCm: 1 };
+  // `actualSizeCm` must always be supplied here (not just when
+  // pageSize === 'actual-size') -- `computeTiling` calls
+  // `getPageDimensionsCm` unconditionally before its own single-page fast
+  // path check, and that throws when pageSize is "actual-size" and
+  // actualSizeCm is omitted. Found in Stage D verification: selecting
+  // "Actual project size" from the page-size dropdown crashed the whole
+  // app (uncaught past the top-level ErrorBoundary) because this call site
+  // never passed it. Passing `undefined` for `marginCm` keeps its own
+  // default; passing the pattern's own dimensions as `actualSizeCm` is a
+  // no-op for the 'a4'/'letter' cases (that branch never reads it) and is
+  // exactly the right value for 'actual-size' (a single page sized to the
+  // pattern itself).
   const tiling = computeTiling(
     safeDimensions.widthCm,
     safeDimensions.heightCm,
     exportSettings.pageSize,
     exportSettings.overlapCm,
+    undefined,
+    { widthCm: safeDimensions.widthCm, heightCm: safeDimensions.heightCm },
   );
 
   const handleLoadProject = async (file: File): Promise<void> => {

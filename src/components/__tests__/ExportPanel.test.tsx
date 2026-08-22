@@ -77,6 +77,39 @@ describe('ExportPanel print pages', () => {
     expect(pages.length).toBeGreaterThan(1);
   });
 
+  it('renders exactly one print page for "actual-size" without crashing (Iteration 02 Stage D regression)', () => {
+    // Stage D verification found that selecting "Actual project size"
+    // crashed the whole app: `computeTiling` calls `getPageDimensionsCm`
+    // unconditionally before its own single-page fast path, and that
+    // throws for pageSize "actual-size" unless `actualSizeCm` is supplied
+    // -- this call site never passed it. Reproduced live via a headless
+    // Chromium session (selecting the option surfaced the top-level
+    // ErrorBoundary's "Something went wrong" with the exact thrown
+    // message), fixed in ExportPanel.tsx by always passing the pattern's
+    // own dimensions as `actualSizeCm`.
+    render(
+      <ExportPanel
+        regionMap={makeRegionMap()}
+        legend={makeLegend()}
+        dimensions={{ ...baseDimensions, widthCm: 30, heightCm: 20 }}
+        onDimensionsChange={vi.fn()}
+        exportSettings={baseExportSettings({ pageSize: 'actual-size' })}
+        onExportSettingsChange={vi.fn()}
+        calibrationProfile={createDefaultProfile()}
+        savedProfiles={[]}
+        onCalibrationChange={vi.fn()}
+        onCalibrationSave={vi.fn()}
+        onCalibrationSelect={vi.fn()}
+        onSaveProjectJson={vi.fn()}
+        onLoadProjectJson={vi.fn()}
+        punchGuide={basePunchGuide()}
+      />,
+    );
+
+    const pages = document.querySelectorAll('.print-page');
+    expect(pages).toHaveLength(1);
+  });
+
   it('lets the user choose the pattern view used for export and print', async () => {
     const onExportSettingsChange = vi.fn();
     render(
