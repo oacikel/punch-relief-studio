@@ -1,6 +1,48 @@
 import { expect, test } from '@playwright/test';
 
 /**
+ * Usability fix #2 (docs/DECISIONS.md): on Import, the 3D orient viewport
+ * used to render (in DOM/visual order) *after* the "Orient the model"
+ * heading/explanation/"Continue to Workspace" button, so at a realistic
+ * window size the button was reachable long before the viewport ever
+ * scrolled into view -- a user could click through without ever seeing or
+ * rotating the model they were meant to orient. Fixed by moving
+ * `ImportOrientSection` to a new JSX slot rendered *after* the (otherwise
+ * untouched) `Viewport3D` block in `App.tsx`, a real DOM reorder rather
+ * than a CSS `order` trick, chosen specifically because it keeps DOM/
+ * visual/tab order all in agreement (CSS `order` would have left tab
+ * order at the old position, a real keyboard-user mismatch). This does
+ * not touch Viewport3D's own JSX slot, so it doesn't affect the no-remount
+ * guarantee the rest of this file exercises.
+ *
+ * Verified at a realistic window size (1440x900, not an artificially tall
+ * test window, which would trivially "fix" this by having room for
+ * everything regardless of order).
+ */
+test('the 3D orient viewport is visible near the fold on Import, not pushed below it', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await page.getByText('Concentric Ripple').click();
+  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+
+  const viewportTop = await page
+    .locator('.viewport-container')
+    .evaluate((el) => el.getBoundingClientRect().top);
+  const continueTop = await page
+    .getByRole('button', { name: 'Continue to Workspace' })
+    .evaluate((el) => el.getBoundingClientRect().top);
+
+  // The viewport must be visible without scrolling (or very close to the
+  // fold) -- and, just as importantly, must appear *before* the Continue
+  // button in visual order, so a user can't reach "Continue" without the
+  // viewport having already scrolled into view first.
+  expect(viewportTop).toBeLessThan(900);
+  expect(viewportTop).toBeLessThan(continueTop);
+});
+
+/**
  * Regression test for a bug found via manual testing: App.tsx used to
  * render two separate <Viewport3D> instances -- one inside OrientStage,
  * one inside ReliefStage -- so navigating from "Orient" to "Create relief"

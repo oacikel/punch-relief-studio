@@ -317,11 +317,6 @@ export default function App(): JSX.Element {
                   {importWarning}
                 </p>
               )}
-              {workflow.hasModel && (
-                <ImportOrientSection
-                  onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
-                />
-              )}
             </>
           )}
 
@@ -363,6 +358,23 @@ export default function App(): JSX.Element {
                 />
               </div>
             )}
+
+          {/* Usability fix #2 (docs/DECISIONS.md): rendered in a new slot
+              positioned after the (otherwise untouched) Viewport3D block
+              above, instead of before it, so the 3D viewport a user is
+              meant to orient is visible near the fold instead of being
+              pushed below it by this section's own heading/text/button.
+              This is a real DOM reorder, not a CSS `order` trick -- it
+              does not move Viewport3D's own conditional block at all
+              (still the same array position among <main>'s children on
+              every render), so the "never remount across Import <->
+              Workspace" guarantee (e2e/orient-persistence.spec.ts) is
+              unaffected; only ImportOrientSection's position moved. */}
+          {workflow.currentStage === 'import' && workflow.hasModel && (
+            <ImportOrientSection
+              onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
+            />
+          )}
 
           {workflow.currentStage === 'workspace' && (
             <Workspace
