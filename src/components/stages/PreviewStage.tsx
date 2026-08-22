@@ -233,7 +233,7 @@ export function PreviewStage({
         </div>
 
         <h3>Legend</h3>
-        <Legend entries={legend} calibrated={profile.calibrated} />
+        <Legend entries={legend} />
       </div>
 
       <ExportPanel

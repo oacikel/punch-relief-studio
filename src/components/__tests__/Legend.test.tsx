@@ -17,20 +17,27 @@ const entries: LegendEntry[] = [
   },
 ];
 
+/**
+ * Iteration 03 Round 1 (docs/ITERATION_03_PLAN.md #6): needle-setting/
+ * measured-height columns (and the "uncalibrated" banner referencing the
+ * now-unreachable Calibration step) are removed. Region/Symbol/Yarn
+ * color/Yarn name stay -- the Symbol column satisfies CLAUDE.md's "never
+ * rely on color alone" rule, which is unrelated to calibration.
+ */
 describe('Legend', () => {
-  it('shows an uncalibrated warning when the profile is not calibrated', () => {
-    render(<Legend entries={entries} calibrated={false} />);
-    expect(screen.getByRole('status')).toHaveTextContent(/uncalibrated/i);
-  });
-
-  it('does not show the warning when calibrated', () => {
-    render(<Legend entries={entries} calibrated={true} />);
-    expect(screen.queryByRole('status')).toBeNull();
-  });
-
-  it('renders one row per legend entry with its region ID', () => {
-    render(<Legend entries={entries} calibrated={true} />);
+  it('renders one row per legend entry with its region ID, symbol, color, and yarn name', () => {
+    render(<Legend entries={entries} />);
     expect(screen.getByText('C1-H1')).toBeInTheDocument();
+    expect(screen.getByText('circle')).toBeInTheDocument();
     expect(screen.getByText('Sky')).toBeInTheDocument();
+  });
+
+  it('has no needle-setting or measured-height columns', () => {
+    render(<Legend entries={entries} />);
+    expect(screen.queryByRole('columnheader', { name: /Needle setting/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('columnheader', { name: /Measured height/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });

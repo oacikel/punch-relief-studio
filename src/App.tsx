@@ -140,15 +140,6 @@ export default function App(): JSX.Element {
     }
   };
 
-  /** Iteration 02 Stage B: the Height Levels stage's contextual "Calibrate
-   * needle settings" link -- jumps to Preview and flags its ExportPanel to
-   * force-open and scroll to the Calibration section (see
-   * docs/ITERATION_02_PLAN.md §14 decision #1). */
-  const handleCalibrate = (): void => {
-    dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'preview' });
-    setFocusCalibration(true);
-  };
-
   const regionMap: RegionMap | null = useMemo(() => {
     if (!state.processed) return null;
     return {
@@ -358,8 +349,6 @@ export default function App(): JSX.Element {
               width={state.processed.width}
               height={state.processed.height}
               minRegionPreset={state.reliefSettings.minRegionPreset}
-              profile={state.calibrationProfile}
-              onCalibrate={handleCalibrate}
             />
           )}
 
