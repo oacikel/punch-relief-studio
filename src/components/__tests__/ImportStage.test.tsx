@@ -36,7 +36,7 @@ describe('ImportOrientSection', () => {
   it('calls onContinue when the user is done orienting', async () => {
     const onContinue = vi.fn();
     render(<ImportOrientSection onContinue={onContinue} />);
-    await userEvent.click(screen.getByRole('button', { name: /Continue to Create Relief/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Continue to Workspace/i }));
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
 });

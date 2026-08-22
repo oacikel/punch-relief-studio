@@ -4,19 +4,21 @@
  * navigation rules inline. Settings are preserved across stage changes --
  * navigation never resets prior work.
  *
- * Five visible stages (down from seven as of Iteration 02 Stage A -- see
- * docs/ITERATION_02_PLAN.md). 'orient' and 'export' are no longer distinct
- * stages: orientation now happens on 'import' (the 3D viewport and its
- * standard-view controls render there once a model is loaded, sharing the
- * same persistent Viewport3D instance 'relief' also uses -- see App.tsx),
- * and export/print/calibration actions live in a compact panel on
- * 'preview'. No alias/migration is needed for the old stage names: stage is
- * plain in-memory state, never persisted to localStorage, the project JSON
+ * Two visible stages (down from five as of Iteration 03's combined-
+ * workspace change -- see docs/ITERATION_03_PLAN.md #13). 'relief',
+ * 'height', 'color', and 'preview' are no longer distinct stages: their
+ * content is now one persistent 'workspace' stage (a control rail +
+ * live-updating preview, modeled on 3D-print slicer software) rendered by
+ * `src/components/workspace/Workspace.tsx`, replacing the old
+ * page-by-page wizard. 'import' is unchanged -- a model is a real
+ * prerequisite for everything else, so it stays a separate first step. No
+ * alias/migration is needed for the old stage names: stage is plain
+ * in-memory state, never persisted to localStorage, the project JSON
  * schema, or a URL (verified in docs/ITERATION_02_PLAN.md §2.2), so no real
  * data path can ever produce the old values.
  */
 
-export const WORKFLOW_STAGES = ['import', 'relief', 'height', 'color', 'preview'] as const;
+export const WORKFLOW_STAGES = ['import', 'workspace'] as const;
 
 export type WorkflowStage = (typeof WORKFLOW_STAGES)[number];
 

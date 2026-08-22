@@ -1,14 +1,11 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { APP_NAME, APP_TAGLINE, APP_VERSION } from '@/config/branding';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StageNav } from '@/components/StageNav';
 import { Viewport3D, type Viewport3DHandle } from '@/components/Viewport3D';
 import { ImportStage, ImportOrientSection } from '@/components/stages/ImportStage';
-import { ReliefStage } from '@/components/stages/ReliefStage';
-import { HeightStage } from '@/components/stages/HeightStage';
-import { ColorStage } from '@/components/stages/ColorStage';
-import { PreviewStage } from '@/components/stages/PreviewStage';
+import { Workspace } from '@/components/workspace/Workspace';
 import { getSampleById } from '@/domain/samples';
 import { meshDataToGeometry } from '@/three/sampleAdapter';
 import { parseStlFile } from '@/domain/import/stlLoader';
@@ -16,7 +13,8 @@ import { parseObjWithAssets } from '@/domain/import/objLoader';
 import { assignSingleColor, assignColorByHeight } from '@/domain/color/colorMode';
 import { applyPaletteToSwatches, getPaletteById } from '@/domain/color/palettes';
 import { buildLegend } from '@/domain/pattern/legend';
-import { useProcessingWorker } from '@/hooks/useProcessingWorker';
+import { useProcessingWorker, type ProcessArgs } from '@/hooks/useProcessingWorker';
+import { useLiveRelief } from '@/hooks/useLiveRelief';
 import { appReducer, initialAppState, DEFAULT_SINGLE_COLOR } from '@/state/appState';
 import { DEFAULT_PUNCH_GUIDE_SPACING_CM } from '@/domain/pattern/punchGuide';
 import { workflowReducer, initialWorkflowState } from '@/state/workflow';
@@ -24,6 +22,7 @@ import { loadProfiles } from '@/persistence/calibrationStore';
 import { serializeProject, projectFilename } from '@/persistence/projectStore';
 import { downloadText } from '@/export/download';
 import { PROJECT_SCHEMA_VERSION, type ProjectFile } from '@/domain/projectSchema';
+import type { DepthCaptureResult } from '@/three/depthCapture';
 import type { ColorSwatch, RegionMap, RgbColor } from '@/domain/types';
 
 export default function App(): JSX.Element {
@@ -93,53 +92,64 @@ export default function App(): JSX.Element {
     }
   };
 
-  const handleGenerateRelief = async (): Promise<void> => {
-    const handle = viewportHandle.current;
-    if (!handle) return;
-    dispatch({ type: 'PROCESSING_STARTED' });
-    try {
-      const captured = handle.capture(
-        state.reliefSettings.outputResolutionPx,
-        state.colorMode === 'source-material',
-      );
-      if (!captured) throw new Error('Nothing to capture yet -- load a model first.');
+  // Live regeneration (Iteration 03's combined-workspace change -- see
+  // docs/ITERATION_03_PLAN.md #13 and docs/DECISIONS.md), replacing the
+  // former manual "Generate relief" button. `useLiveRelief` owns the
+  // debounce + generation-counter orchestration; this component supplies
+  // the three injected primitives (capture/buildProcessArgs/process) and
+  // is where the actual ProcessArgs shape is assembled, matching the old
+  // handleGenerateRelief's payload construction verbatim.
+  const captureFromViewport = useCallback(
+    (resolutionPx: number, captureColor: boolean): DepthCaptureResult | null =>
+      viewportHandle.current?.capture(resolutionPx, captureColor) ?? null,
+    [],
+  );
+
+  const buildProcessArgs = useCallback(
+    (captured: DepthCaptureResult): ProcessArgs => ({
+      depth: captured.depth,
+      width: captured.width,
+      height: captured.height,
+      emptyValue: captured.emptyValue,
+      settings: state.reliefSettings,
       // exactOptionalPropertyTypes forbids `color: undefined` -- omit the
       // key entirely rather than assigning an undefined value to it.
-      const result = await process({
-        depth: captured.depth,
-        width: captured.width,
-        height: captured.height,
-        emptyValue: captured.emptyValue,
-        settings: state.reliefSettings,
-        ...(captured.color && state.colorMode === 'source-material'
-          ? {
-              color: {
-                data: captured.color,
-                channels: 4 as const,
-                paletteSize: state.paletteSize,
-                seed: state.reliefSettings.seed,
-              },
-            }
-          : {}),
-      });
+      ...(captured.color && state.colorMode === 'source-material'
+        ? {
+            color: {
+              data: captured.color,
+              channels: 4 as const,
+              paletteSize: state.paletteSize,
+              seed: state.reliefSettings.seed,
+            },
+          }
+        : {}),
+    }),
+    [state.reliefSettings, state.colorMode, state.paletteSize],
+  );
+
+  useLiveRelief({
+    hasModel: workflow.hasModel,
+    reliefSettings: state.reliefSettings,
+    rotationDeg: state.modelRotationDeg,
+    captureColor: state.colorMode === 'source-material',
+    capture: captureFromViewport,
+    buildProcessArgs,
+    process,
+    onStart: () => dispatch({ type: 'PROCESSING_STARTED' }),
+    onSuccess: (result, capturedWidth, capturedHeight) =>
       dispatch({
         type: 'PROCESSING_SUCCEEDED',
         result: {
-          width: captured.width,
-          height: captured.height,
+          width: capturedWidth,
+          height: capturedHeight,
           heightIndex: result.heightIndex,
           colorIndex: result.colorIndex ?? new Int16Array(result.heightIndex.length).fill(0),
           levels: result.levels,
         },
-      });
-      dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'height' });
-    } catch (err) {
-      dispatch({
-        type: 'PROCESSING_FAILED',
-        message: err instanceof Error ? err.message : String(err),
-      });
-    }
-  };
+      }),
+    onError: (message) => dispatch({ type: 'PROCESSING_FAILED', message }),
+  });
 
   const regionMap: RegionMap | null = useMemo(() => {
     if (!state.processed) return null;
@@ -214,6 +224,9 @@ export default function App(): JSX.Element {
       // `showOnScreenLabels` deliberately stays AppState-only (see
       // docs/DECISIONS.md), matching the existing view/showLabels
       // precedent already on this same `exportSettings` object.
+      // `modelRotationDeg` is deliberately NOT included here either --
+      // straightening is a per-import adjustment, not project data (see
+      // docs/DECISIONS.md).
       exportSettings: { ...state.exportSettings, punchGuide: state.patternViewSettings.punchGuide },
     };
     downloadText(serializeProject(project), projectFilename('punch-relief'), 'application/json');
@@ -282,15 +295,17 @@ export default function App(): JSX.Element {
           hasModel={workflow.hasModel}
           onSelect={(stage) => dispatchWorkflow({ type: 'GO_TO_STAGE', stage })}
         />
-        {/* Iteration 02 Stage B: on 'relief', this becomes a sticky two-column
-            layout (controls left, 3D preview right) via the `relief-layout`
-            class alone -- see docs/DECISIONS.md for why a class toggle on
-            this same, always-present `<main>` element (rather than a new
-            conditional wrapper) was chosen: it cannot affect reconciliation
-            of the shared Viewport3D instance below, which must never remount
-            when navigating between Import and Relief (see
-            e2e/orient-persistence.spec.ts). */}
-        <main className={workflow.currentStage === 'relief' ? 'relief-layout' : undefined}>
+        {/* Iteration 03's combined-workspace change: on 'workspace', this
+            becomes a sticky two-column layout (control rail left, preview
+            column right) via the `workspace-layout` class alone -- renamed
+            from `relief-layout` (see docs/DECISIONS.md), same mechanism.
+            A class toggle on this same, always-present <main> element
+            (rather than a new conditional wrapper) is used so it cannot
+            affect reconciliation of the shared Viewport3D instance below,
+            which must never remount when navigating between Import and
+            Workspace (see e2e/orient-persistence.spec.ts) -- capture()
+            depends on that same live WebGL scene staying alive. */}
+        <main className={workflow.currentStage === 'workspace' ? 'workspace-layout' : undefined}>
           {workflow.currentStage === 'import' && (
             <>
               <ImportStage
@@ -304,63 +319,67 @@ export default function App(): JSX.Element {
               )}
               {workflow.hasModel && (
                 <ImportOrientSection
-                  onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'relief' })}
+                  onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
                 />
               )}
             </>
           )}
 
-          {workflow.currentStage === 'relief' && (
-            <div className="relief-controls-col">
-              <ReliefStage
-                settings={state.reliefSettings}
-                onChange={(patch) => dispatch({ type: 'SET_RELIEF_SETTINGS', settings: patch })}
-                onGenerate={() => void handleGenerateRelief()}
-                processing={state.processing}
-                error={state.processingError}
-              />
-            </div>
-          )}
-
-          {/* Rendered once, unconditionally, for both stages that need it, so the
-              orientation chosen on Import survives navigating on to "Create
-              relief" instead of resetting to the default camera on remount.
-              Guarded by hasModel now that Import is reachable before a model
-              is loaded (it wasn't, when this was the separate Orient stage).
-              Only its className changes based on stage (sticky preview on
-              Relief, plain stage panel on Import) -- same element, same
-              position in the tree either way, so this cannot remount it. */}
-          {(workflow.currentStage === 'import' || workflow.currentStage === 'relief') &&
+          {/* Rendered once, unconditionally, for both stages that need it, so
+              the orientation/rotation chosen on Import survives navigating on
+              to Workspace instead of resetting to the default camera on
+              remount, and so `capture()` keeps working from wherever
+              Workspace's live-regeneration hook calls it. Guarded by
+              hasModel. On 'workspace', the wrapper is visually hidden (the
+              mockup's right column shows Pattern + Simulation panels, not
+              the raw-model viewport) via `.visually-hidden` -- deliberately
+              NOT `display:none`, since the WebGL render loop and
+              `ResizeObserver` stay attached to a real (if 1x1) element --
+              and `aria-hidden` so the otherwise-still-announced
+              `role="img"` landmark doesn't linger as a phantom for screen
+              reader users while off-screen. `showControls={false}` there
+              also un-mounts (not just hides) the standard-view buttons and
+              rotation sliders, so there is never a second, duplicate set of
+              interactive rotation controls in the DOM alongside Workspace's
+              own `SimulationPanel` copy -- see docs/DECISIONS.md. */}
+          {(workflow.currentStage === 'import' || workflow.currentStage === 'workspace') &&
             workflow.hasModel && (
               <div
                 className={
-                  workflow.currentStage === 'relief'
-                    ? 'stage-panel relief-preview-col'
+                  workflow.currentStage === 'workspace'
+                    ? 'stage-panel visually-hidden'
                     : 'stage-panel'
                 }
+                aria-hidden={workflow.currentStage === 'workspace' ? true : undefined}
               >
-                <Viewport3D geometry={geometry} onReady={(h) => (viewportHandle.current = h)} />
+                <Viewport3D
+                  geometry={geometry}
+                  onReady={(h) => (viewportHandle.current = h)}
+                  rotationDeg={state.modelRotationDeg}
+                  onRotationChange={(patch) =>
+                    dispatch({ type: 'SET_MODEL_ROTATION', rotation: patch })
+                  }
+                  showControls={workflow.currentStage === 'import'}
+                />
               </div>
             )}
 
-          {workflow.currentStage === 'height' && state.processed && (
-            <HeightStage
-              levels={state.processed.levels}
-              heightIndex={state.processed.heightIndex}
-              width={state.processed.width}
-              height={state.processed.height}
-              minRegionPreset={state.reliefSettings.minRegionPreset}
-            />
-          )}
-
-          {workflow.currentStage === 'color' && state.processed && (
-            <ColorStage
-              mode={state.colorMode}
+          {workflow.currentStage === 'workspace' && (
+            <Workspace
+              reliefSettings={state.reliefSettings}
+              onReliefSettingsChange={(patch) =>
+                dispatch({ type: 'SET_RELIEF_SETTINGS', settings: patch })
+              }
+              processed={state.processed}
+              regionMap={regionMap}
+              legend={legend}
+              colorMode={state.colorMode}
               swatches={state.swatches}
               paletteSize={state.paletteSize}
-              levelCount={state.processed.levels.length}
-              hasSourceColor={state.processed.colorIndex.some((v) => v >= 0)}
-              onModeChange={(mode) => dispatch({ type: 'SET_COLOR_MODE', mode })}
+              hasSourceColor={
+                state.processed ? state.processed.colorIndex.some((v) => v >= 0) : false
+              }
+              onColorModeChange={(mode) => dispatch({ type: 'SET_COLOR_MODE', mode })}
               onSwatchesChange={(swatches) => dispatch({ type: 'SET_SWATCHES', swatches })}
               onPaletteSizeChange={(size) => dispatch({ type: 'SET_PALETTE_SIZE', size })}
               onApplyPalette={(paletteId) => {
@@ -371,14 +390,6 @@ export default function App(): JSX.Element {
                   swatches: applyPaletteToSwatches(state.swatches, palette),
                 });
               }}
-            />
-          )}
-
-          {workflow.currentStage === 'preview' && state.processed && regionMap && (
-            <PreviewStage
-              regionMap={regionMap}
-              levels={state.processed.levels}
-              legend={legend}
               profile={state.calibrationProfile}
               dimensions={state.patternDimensions}
               onDimensionsChange={(patch) =>
@@ -398,6 +409,12 @@ export default function App(): JSX.Element {
               onPatternViewSettingsChange={(patch) =>
                 dispatch({ type: 'SET_PATTERN_VIEW_SETTINGS', ...patch })
               }
+              rotationDeg={state.modelRotationDeg}
+              onRotationChange={(patch) =>
+                dispatch({ type: 'SET_MODEL_ROTATION', rotation: patch })
+              }
+              processing={state.processing}
+              processingError={state.processingError}
             />
           )}
         </main>

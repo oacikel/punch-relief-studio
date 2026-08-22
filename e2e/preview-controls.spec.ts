@@ -12,25 +12,25 @@ import { expect, test } from '@playwright/test';
  * deleted, and export/print now reads Preview's on-screen state directly.
  * The first test below is updated accordingly (see docs/DECISIONS.md).
  *
+ * Iteration 03's combined-workspace change (docs/ITERATION_03_PLAN.md #13)
+ * moved this entire surface off a separate "Preview" stage onto the single
+ * "Workspace" stage -- the pattern/export controls covered here are
+ * unchanged in behavior, only the navigation to reach them changed (no
+ * more "Generate relief" click, no more "5. Preview" navigation).
+ *
  * Deep SVG-content assertions (whether the rendered pattern actually
  * contains a `data-layer="punch-guide"` group, correct dot counts, etc.)
  * are covered by unit tests in `src/export/__tests__/svgPattern.test.ts`
  * and `src/domain/pattern/__tests__/punchGuide.test.ts` -- this spec
- * follows the established e2e style (see `e2e/relief-workspace.spec.ts`)
- * of asserting on-screen UI state/visibility rather than parsing exported
- * SVG markup.
+ * follows the established e2e style of asserting on-screen UI
+ * state/visibility rather than parsing exported SVG markup.
  */
 test.describe('Preview controls (Iteration 02 Stage C)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: '2. Create relief' }).click();
-    await page.getByRole('button', { name: 'Generate relief' }).click();
-    await expect(page.getByRole('heading', { name: 'Height levels' })).toBeVisible({
-      timeout: 15_000,
-    });
-    await page.getByRole('button', { name: '5. Preview' }).click();
-    await expect(page.getByRole('heading', { name: 'Preview the finished piece' })).toBeVisible();
+    await page.getByRole('button', { name: '2. Workspace' }).click();
+    await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
   });
 
   /**
@@ -38,7 +38,7 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
    * the Stage C decision the old test name described -- the export
    * panel's own, independent "Print region labels" checkbox is deleted
    * entirely. There is exactly one "Region labels" control now, on
-   * Preview, and export/print reads it directly.
+   * Workspace's Pattern panel, and export/print reads it directly.
    */
   test('the export panel has no "Print region labels" checkbox of its own -- the on-screen toggle is the only one', async ({
     page,
@@ -46,12 +46,12 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
     const onScreenLabels = page.getByRole('checkbox', { name: 'Region labels (C1-H1 etc.)' });
     await expect(onScreenLabels).toBeChecked(); // on by default
 
-    await page.getByText('Export & print').click();
+    await page.getByText('Export & print', { exact: true }).click();
     await expect(page.getByRole('checkbox', { name: /Print region labels/i })).toHaveCount(0);
   });
 
   test('the export panel has no "Export pattern view" selector of its own', async ({ page }) => {
-    await page.getByText('Export & print').click();
+    await page.getByText('Export & print', { exact: true }).click();
     const exportPanel = page.locator('.export-panel');
     await expect(exportPanel.getByText('Export pattern view')).toHaveCount(0);
     await expect(exportPanel.getByRole('button', { name: 'contour' })).toHaveCount(0);
@@ -87,7 +87,7 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
 
     // Export panel reuses whatever was set on Preview rather than exposing
     // a second, separate "Punch guide" selector of its own.
-    await page.getByText('Export & print').click();
+    await page.getByText('Export & print', { exact: true }).click();
     const exportPanel = page.locator('.export-panel');
     await expect(exportPanel.getByLabel('Punch guide')).toHaveCount(0);
     await expect(exportPanel.getByLabel('Dot spacing (cm)')).toHaveCount(0);
@@ -95,8 +95,8 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
 });
 
 /**
- * Iteration 03 Round 2 #2: Preview's pattern/simulation two-column layout
- * used to be an inline `display: grid, gridTemplateColumns: '1fr 1fr'`
+ * Iteration 03 Round 2 #2/#3: Preview's pattern/simulation two-column
+ * layout used an inline `display: grid, gridTemplateColumns: '1fr 1fr'`
  * style with no responsive fallback (unlike `.app-shell`/`main.relief-
  * layout`, which both collapse under the same 720px breakpoint). At the
  * project's own mobile-narrow width this produced real horizontal
@@ -108,21 +108,24 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
  * docs/ITERATION_03_PLAN.md's explicit guidance, and separately exercises
  * a real click on the summary to catch the pointer-interception failure
  * mode directly.
+ *
+ * Iteration 03's combined-workspace change replaced the old side-by-side
+ * `.preview-columns` grid with two vertically-stacked panels in the sticky
+ * `.workspace-preview-col` (no 2-column grid to overflow at all for the
+ * pattern/simulation pairing itself), but the rail + sticky-column layout
+ * as a whole still needs the same no-overflow guarantee at mobile-narrow
+ * width -- this test now exercises that against the new layout.
  */
-test.describe('Preview mobile-narrow layout (Iteration 03 Round 2 #2)', () => {
-  test('Preview has no horizontal overflow at 390px width, and the Export & print toggle is clickable', async ({
+test.describe('Workspace mobile-narrow layout (Iteration 03 Round 2 #2)', () => {
+  test('Workspace has no horizontal overflow at 390px width, and the Export & print toggle is clickable', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: '2. Create relief' }).click();
-    await page.getByRole('button', { name: 'Generate relief' }).click();
-    await expect(page.getByRole('heading', { name: 'Height levels' })).toBeVisible({
-      timeout: 15_000,
-    });
-    await page.getByRole('button', { name: '5. Preview' }).click();
-    await expect(page.getByRole('heading', { name: 'Preview the finished piece' })).toBeVisible();
+    await page.getByRole('button', { name: '2. Workspace' }).click();
+    await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+    await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
 
     const hasHorizontalOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -133,7 +136,7 @@ test.describe('Preview mobile-narrow layout (Iteration 03 Round 2 #2)', () => {
     // interaction the original bug broke (the toggle was "visible" per
     // Playwright's own definition, but off-screen/overlapped enough that a
     // real click was intercepted by another element).
-    const summary = page.getByText('Export & print');
+    const summary = page.getByText('Export & print', { exact: true });
     await summary.click();
     await expect(page.locator('.export-panel[open]')).toBeVisible();
   });

@@ -11,6 +11,8 @@ import {
   projectedHalfExtent,
   type StandardView,
 } from '@/three/viewport';
+import { RotationControls } from '@/components/RotationControls';
+import { ZERO_ROTATION, type RotationDeg } from '@/state/appState';
 
 export interface Viewport3DHandle {
   capture: (resolution: number, captureColor: boolean) => DepthCaptureResult | null;
@@ -18,27 +20,35 @@ export interface Viewport3DHandle {
 
 interface Props {
   geometry: THREE.BufferGeometry | null;
-  invertNearFar?: boolean;
   onReady?: (handle: Viewport3DHandle) => void;
+  /** Model-straightening rotation (docs/ITERATION_03_PLAN.md #5). As of
+   * Iteration 03's combined-workspace change, this is a *controlled*
+   * value -- lifted to `AppState` so Workspace's `SimulationPanel` can
+   * also read/write it (see docs/DECISIONS.md) -- rather than local
+   * component state. `OrbitControls` orbits the *camera* around the model
+   * while deliberately preserving world-up, so it can never compensate
+   * for a model that's tilted/rotated around its own axis on import;
+   * these three values (applied to the mesh's own transform below)
+   * exist for that reason. Named by convention (roll = around the
+   * forward/view axis, pitch = around the lateral axis, yaw = around the
+   * vertical axis) under this app's Y-up, front-is-+Z world convention
+   * (see `VIEW_DIRECTIONS` in src/three/viewport.ts): roll -> object-space
+   * Z, pitch -> object-space X, yaw -> object-space Y. */
+  rotationDeg: RotationDeg;
+  onRotationChange: (patch: Partial<RotationDeg>) => void;
+  /** When false (Workspace stage, where this same instance stays mounted
+   * only to keep `capture()` working -- see docs/DECISIONS.md), the
+   * standard-view buttons and rotation sliders are not rendered at all
+   * (a real unmount of just that JSX, not CSS-hidden) so there is never a
+   * second, duplicate set of interactive controls in the DOM alongside
+   * Workspace's own copy. The canvas container itself always renders
+   * regardless -- it must never conditionally mount/unmount, since that
+   * would tear down the live WebGL scene `capture()` depends on. Defaults
+   * to true (Import's own usage). */
+  showControls?: boolean;
 }
 
 const STANDARD_VIEWS: StandardView[] = ['front', 'back', 'left', 'right', 'top', 'bottom'];
-
-/** Model-straightening rotation, in degrees (docs/ITERATION_03_PLAN.md #5).
- * `OrbitControls` orbits the *camera* around the model while deliberately
- * preserving world-up, so it can never compensate for a model that's
- * tilted/rotated around its own axis on import -- these three sliders
- * rotate the model itself instead. Named by convention (roll = around the
- * forward/view axis, pitch = around the lateral axis, yaw = around the
- * vertical axis) under this app's Y-up, front-is-+Z world convention (see
- * `VIEW_DIRECTIONS` in src/three/viewport.ts): roll -> object-space Z,
- * pitch -> object-space X, yaw -> object-space Y. */
-interface RotationDeg {
-  roll: number;
-  pitch: number;
-  yaw: number;
-}
-const ZERO_ROTATION: RotationDeg = { roll: 0, pitch: 0, yaw: 0 };
 
 /**
  * Interactive 3D viewport: orbit/pan/zoom, standard-view buttons, reset,
@@ -49,7 +59,13 @@ const ZERO_ROTATION: RotationDeg = { roll: 0, pitch: 0, yaw: 0 };
  * down -- caught failures bubble to <ErrorBoundary> only if truly
  * unrecoverable.
  */
-export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
+export function Viewport3D({
+  geometry,
+  onReady,
+  rotationDeg,
+  onRotationChange,
+  showControls = true,
+}: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
@@ -64,13 +80,6 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
   // model has ever loaded.
   const contentBoxRef = useRef<THREE.Box3 | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
-  // Local component state, deliberately not lifted to AppState -- mirrors
-  // how the existing camera-view state already persists across Import <->
-  // Relief navigation today: this Viewport3D instance is never remounted
-  // between those two stages (see e2e/orient-persistence.spec.ts), so
-  // local state survives the same way, with no schema/persistence changes
-  // needed.
-  const [rotationDeg, setRotationDeg] = useState<RotationDeg>(ZERO_ROTATION);
 
   /**
    * Re-fits the camera's orthographic frustum to the model's real 2D
@@ -239,17 +248,22 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
     // A newly loaded model always starts unrotated -- straightening is
     // per-import, not a property of the mesh data itself. Reset the new
     // mesh's rotation directly rather than applying whatever the previous
-    // model's rotationDeg happened to be first (that would apply stale
-    // rotation for one frame before the state-reset effect below
-    // overwrote it back to zero).
+    // model's rotationDeg prop happened to be first (that would apply
+    // stale rotation for one frame before AppState's own SET_SOURCE reset
+    // -- see appState.ts -- caught up via the rotationDeg prop).
     mesh.rotation.set(0, 0, 0);
-    setRotationDeg(ZERO_ROTATION);
+    onRotationChange(ZERO_ROTATION);
 
     // Position the camera first (sets its orientation/basis), then fit the
     // frustum to the model's real projected extent for that orientation --
     // `refit` needs the camera's basis vectors to already be correct.
     applyStandardView(camera, 'front', radiusRef.current * 3);
     refit();
+    // onRotationChange is a fresh function identity from App.tsx on every
+    // render (a thin dispatch wrapper) -- listing it here would re-run
+    // this whole geometry-rebuild effect on every unrelated App.tsx
+    // re-render, not just on a real new-geometry load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geometry, refit]);
 
   // Apply the model-straightening rotation to the mesh in place -- no
@@ -278,7 +292,7 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
   };
 
   const setRotationAxis = (axis: keyof RotationDeg, value: number): void => {
-    setRotationDeg((prev) => ({ ...prev, [axis]: value }));
+    onRotationChange({ [axis]: value });
   };
 
   if (initError) {
@@ -297,55 +311,31 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
         aria-label="3D model viewport"
         role="img"
       />
-      <div
-        role="group"
-        aria-label="Standard views"
-        style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}
-      >
-        {STANDARD_VIEWS.map((view) => (
-          <button key={view} type="button" onClick={() => goToView(view)}>
-            {view}
-          </button>
-        ))}
-        <button type="button" onClick={() => goToView('front')}>
-          Reset view
-        </button>
-      </div>
-      {geometry && (
-        <div
-          role="group"
-          aria-label="Straighten model"
-          style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}
-        >
-          <p className="helper-text" style={{ margin: 0 }}>
-            Not every import lands upright. Rotate the model itself (not just the view) to
-            straighten it before generating a relief.
-          </p>
-          {(['roll', 'pitch', 'yaw'] as const).map((axis) => (
-            <div key={axis} className="field" style={{ marginBottom: 0 }}>
-              <label htmlFor={`rotate-${axis}`}>
-                {axis[0]?.toUpperCase()}
-                {axis.slice(1)} ({rotationDeg[axis]}°)
-              </label>
-              <input
-                id={`rotate-${axis}`}
-                type="range"
-                min={-180}
-                max={180}
-                step={1}
-                value={rotationDeg[axis]}
-                onChange={(e) => setRotationAxis(axis, Number(e.target.value))}
-              />
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={() => setRotationDeg(ZERO_ROTATION)}
-            style={{ alignSelf: 'flex-start' }}
+      {showControls && (
+        <>
+          <div
+            role="group"
+            aria-label="Standard views"
+            style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}
           >
-            Reset rotation
-          </button>
-        </div>
+            {STANDARD_VIEWS.map((view) => (
+              <button key={view} type="button" onClick={() => goToView(view)}>
+                {view}
+              </button>
+            ))}
+            <button type="button" onClick={() => goToView('front')}>
+              Reset view
+            </button>
+          </div>
+          {geometry && (
+            <RotationControls
+              rotationDeg={rotationDeg}
+              onAxisChange={setRotationAxis}
+              onReset={() => onRotationChange(ZERO_ROTATION)}
+              idPrefix="import"
+            />
+          )}
+        </>
       )}
     </div>
   );

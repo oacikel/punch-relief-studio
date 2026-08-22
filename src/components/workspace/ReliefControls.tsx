@@ -1,44 +1,69 @@
-import type { ReliefSettings } from '@/domain/types';
+import { useMemo } from 'react';
+import type { HeightLevel, ReliefSettings } from '@/domain/types';
+import { findSmallRegions } from '@/domain/regionCleanup';
 import {
   MIN_REGION_PRESET_ORDER,
   MIN_REGION_PRESET_LABELS,
   MIN_REGION_PRESET_DESCRIPTIONS,
+  minRegionPxForPreset,
   type MinRegionPreset,
 } from '@/domain/pattern/minRegionPreset';
 
 interface Props {
   settings: ReliefSettings;
   onChange: (patch: Partial<ReliefSettings>) => void;
-  onGenerate: () => void;
-  processing: boolean;
-  error: string | null;
+  /** Live per-level coverage readout, folded in from the former
+   * HeightStage.tsx (Iteration 03's combined-workspace change -- see
+   * docs/ITERATION_03_PLAN.md #13) -- `null` before the first relief has
+   * generated. */
+  levels: HeightLevel[] | null;
+  heightIndex: Int16Array | null;
+  width: number;
+  height: number;
 }
 
-/** Relief stage: all the depth-processing controls from product spec §8,
- * reorganized in Iteration 02 Stage B around real punch-needle concepts
- * instead of engineering vocabulary -- see docs/ITERATION_02_PLAN.md §5 for
- * the control-by-control audit this layout implements verbatim (label,
- * helper text, Basic/Advanced tier, and grouping all come from that table).
- * The 3D viewport is rendered by the parent (App) as the same persistent
- * instance shared with the Import stage's orientation section (formerly a
- * separate "Orient" stage), so re-orienting there doesn't lose these
- * settings and the orientation chosen there isn't lost either. As of Stage
- * B, App.tsx also renders that viewport in a sticky right-hand column next
- * to this stage's controls (see the `.relief-preview-col` styling in
- * styles.css and the Stage B decision note in docs/DECISIONS.md) -- this
- * component itself has no layout opinion about that, it only owns the
- * control markup. */
-export function ReliefStage({
+/**
+ * "Needle & pile" / "Punch detail" / "Shape interpretation" control groups
+ * -- the former `ReliefStage.tsx` content verbatim, now rendered inline in
+ * the Workspace rail instead of on its own page, with the manual "Generate
+ * relief" button removed (live regeneration replaces it -- see
+ * `src/hooks/useLiveRelief.ts`) and the former `HeightStage.tsx`'s
+ * per-level coverage table folded into a small live chip readout directly
+ * under the pile-heights slider, since it's really just live feedback for
+ * that one control rather than its own destination. The small-region
+ * warning (also from HeightStage.tsx) moves into "Punch detail" instead,
+ * directly under the min-region preset that drives it -- keeping cause and
+ * effect visually adjacent (a judgment call, see docs/DECISIONS.md).
+ */
+export function ReliefControls({
   settings,
   onChange,
-  onGenerate,
-  processing,
-  error,
+  levels,
+  heightIndex,
+  width,
+  height,
 }: Props): JSX.Element {
-  return (
-    <section className="stage-panel" aria-labelledby="relief-heading">
-      <h2 id="relief-heading">Create the relief</h2>
+  const counts = useMemo(() => {
+    if (!levels || !heightIndex) return null;
+    const c = new Array(levels.length).fill(0) as number[];
+    for (const v of heightIndex) if (v >= 0) c[v] = (c[v] ?? 0) + 1;
+    return c;
+  }, [levels, heightIndex]);
 
+  const minRegionPx = useMemo(
+    () => minRegionPxForPreset(settings.minRegionPreset, width, height),
+    [settings.minRegionPreset, width, height],
+  );
+
+  const smallRegions = useMemo(
+    () => (heightIndex ? findSmallRegions(heightIndex, width, height, minRegionPx) : []),
+    [heightIndex, width, height, minRegionPx],
+  );
+
+  const totalForeground = counts ? counts.reduce((a, b) => a + b, 0) || 1 : 1;
+
+  return (
+    <>
       <div className="control-group">
         <h3>Needle &amp; pile</h3>
         <div className="field">
@@ -56,10 +81,28 @@ export function ReliefStage({
             this, some heights will share a setting.
           </p>
         </div>
-        <p className="helper-text">
-          See exactly how these heights map to your needle&apos;s settings -- and calibrate them --
-          on the Height Levels step, once you&apos;ve generated a relief below.
-        </p>
+        {levels && counts && (
+          <ul
+            aria-label="Pile height coverage"
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 8,
+              margin: '8px 0 0',
+              padding: 0,
+              listStyle: 'none',
+            }}
+          >
+            {levels.map((level) => {
+              const share = ((counts[level.index] ?? 0) / totalForeground) * 100;
+              return (
+                <li key={level.index} className="level-chip">
+                  H{level.index + 1} {share.toFixed(1)}%
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
       <div className="control-group">
@@ -79,6 +122,13 @@ export function ReliefStage({
           </select>
           <p className="helper-text">{MIN_REGION_PRESET_DESCRIPTIONS[settings.minRegionPreset]}</p>
         </div>
+        {heightIndex && smallRegions.length > 0 && (
+          <p role="alert" className="warning-banner">
+            {smallRegions.length} region{smallRegions.length === 1 ? '' : 's'} are smaller than the
+            minimum punchable size ({minRegionPx}px) and may be difficult to punch reliably.
+            Consider raising the minimum region size or lowering the level count.
+          </p>
+        )}
       </div>
 
       <div className="control-group">
@@ -167,23 +217,6 @@ export function ReliefStage({
           </div>
         </details>
       </div>
-
-      <div style={{ marginTop: 16 }}>
-        <button type="button" onClick={onGenerate} disabled={processing}>
-          {processing ? 'Processing…' : 'Generate relief'}
-        </button>
-        <p className="helper-text" aria-live="polite">
-          {processing
-            ? 'Processing the relief -- this runs in the background and keeps the app responsive.'
-            : ''}
-        </p>
-      </div>
-
-      {error && (
-        <p role="alert" className="warning-banner">
-          {error}
-        </p>
-      )}
-    </section>
+    </>
   );
 }

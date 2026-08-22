@@ -25,9 +25,16 @@ function fromHex(hex: string): RgbColor {
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
-/** Color stage: single / by-height / source-material modes per product
- * spec §10, with swatch editing and yarn naming. */
-export function ColorStage({
+/**
+ * "Yarn colors" control group -- the former `ColorStage.tsx` content
+ * verbatim (mode radios, the color-story palette gallery, the swatches
+ * table), now rendered as one more group in the Workspace rail instead of
+ * its own page (Iteration 03's combined-workspace change -- see
+ * docs/ITERATION_03_PLAN.md #13). Only the outer wrapper changed, from a
+ * top-level `<section>`/`<h2>` stage page to a `<div className=
+ * "control-group">`/`<h3>` group matching the rail's other sections.
+ */
+export function YarnColorsGroup({
   mode,
   swatches,
   paletteSize,
@@ -39,8 +46,8 @@ export function ColorStage({
   onApplyPalette,
 }: Props): JSX.Element {
   return (
-    <section className="stage-panel" aria-labelledby="color-heading">
-      <h2 id="color-heading">Yarn colors</h2>
+    <div className="control-group" aria-labelledby="color-heading">
+      <h3 id="color-heading">Yarn colors</h3>
 
       <fieldset className="field">
         <legend>Color mode</legend>
@@ -137,57 +144,60 @@ export function ColorStage({
         </div>
       )}
 
-      <h3>Swatches</h3>
-      <table className="legend-table">
-        <thead>
-          <tr>
-            <th scope="col">Swatch</th>
-            <th scope="col">Color</th>
-            <th scope="col">Yarn name</th>
-          </tr>
-        </thead>
-        <tbody>
-          {swatches.map((s, i) => (
-            <tr key={s.index}>
-              <th scope="row">C{s.index + 1}</th>
-              <td>
-                <label className="visually-hidden" htmlFor={`swatch-color-${s.index}`}>
-                  Color for swatch {s.index + 1}
-                </label>
-                <input
-                  id={`swatch-color-${s.index}`}
-                  type="color"
-                  value={toHex(s.color)}
-                  onChange={(e) => {
-                    const next = [...swatches];
-                    next[i] = { ...s, color: fromHex(e.target.value) };
-                    onSwatchesChange(next);
-                  }}
-                />
-              </td>
-              <td>
-                <label className="visually-hidden" htmlFor={`swatch-name-${s.index}`}>
-                  Yarn name for swatch {s.index + 1}
-                </label>
-                <input
-                  id={`swatch-name-${s.index}`}
-                  value={s.yarnName}
-                  onChange={(e) => {
-                    const next = [...swatches];
-                    next[i] = { ...s, yarnName: e.target.value };
-                    onSwatchesChange(next);
-                  }}
-                />
-              </td>
+      <h4>Swatches</h4>
+      <div className="legend-table-wrap">
+        <table className="legend-table">
+          <thead>
+            <tr>
+              <th scope="col">Swatch</th>
+              <th scope="col">Color</th>
+              <th scope="col">Yarn name</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {swatches.map((s, i) => (
+              <tr key={s.index}>
+                <th scope="row">C{s.index + 1}</th>
+                <td>
+                  <label className="visually-hidden" htmlFor={`swatch-color-${s.index}`}>
+                    Color for swatch {s.index + 1}
+                  </label>
+                  <input
+                    id={`swatch-color-${s.index}`}
+                    type="color"
+                    value={toHex(s.color)}
+                    onChange={(e) => {
+                      const next = [...swatches];
+                      next[i] = { ...s, color: fromHex(e.target.value) };
+                      onSwatchesChange(next);
+                    }}
+                  />
+                </td>
+                <td>
+                  <label className="visually-hidden" htmlFor={`swatch-name-${s.index}`}>
+                    Yarn name for swatch {s.index + 1}
+                  </label>
+                  <input
+                    id={`swatch-name-${s.index}`}
+                    value={s.yarnName}
+                    onChange={(e) => {
+                      const next = [...swatches];
+                      next[i] = { ...s, yarnName: e.target.value };
+                      onSwatchesChange(next);
+                    }}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {mode === 'by-height' && swatches.length !== levelCount && (
         <p className="helper-text">
-          Generate the relief first so there is one swatch per height level ({levelCount} needed).
+          Once the first relief finishes generating, there will be one swatch per height level (
+          {levelCount} needed).
         </p>
       )}
-    </section>
+    </div>
   );
 }

@@ -796,3 +796,338 @@ no new `AppState` fields, no new UI controls (a printed/exported pattern
 from an old project JSON will simply render with legible, non-overlapping
 labels the next time it's regenerated, with nothing new for a user to
 configure).
+
+## Iteration 03 — Combined Workspace (#13)
+
+Collapses the 5-stage wizard (Import, Create relief, Height levels, Yarn
+colors, Preview) into 2 stages (Import, Workspace) per
+`docs/ITERATION_03_PLAN.md` #13. The largest single change of the
+engagement -- went through its own plan doc, an independent pre-
+implementation review, and an independent post-implementation diff
+review, per that point's explicit process requirement.
+
+### Model-straightening rotation: lifted to AppState, not duplicated (Wrinkle A)
+
+**The problem:** Roll/Pitch/Yaw rotation (Iteration 03 Round 1, #5) lived
+as local `useState` inside `Viewport3D.tsx` -- the component whose live
+Three.js scene `capture()` actually reads from. The approved mockup put
+the rotation controls on Workspace's "Finished-piece simulation" panel,
+which renders `SimulationView.tsx` -- a wholly separate scene built from
+the _processed_ `RegionMap`, with no rotation awareness and no connection
+to `Viewport3D` at all.
+
+**Decision:** lift rotation into `AppState.modelRotationDeg` (`src/state/
+appState.ts`, a `{roll, pitch, yaw}` record in degrees, default `{0,0,0}`,
+`RotationDeg` type now canonically defined there) with a
+`SET_MODEL_ROTATION` action (`Partial<RotationDeg>`, shallow-merged like
+`SET_RELIEF_SETTINGS`). `Viewport3D.tsx` becomes a _controlled_ component
+for rotation -- `rotationDeg`/`onRotationChange` props replace its former
+local state; the existing rotation-apply effect (mesh transform + Round
+2's `refit()` camera-framing) is unchanged in behavior, just keyed off the
+prop instead. The slider UI itself is extracted verbatim into a new
+shared, purely presentational `src/components/RotationControls.tsx`
+(`rotationDeg`/`onAxisChange`/`onReset`/`idPrefix` props, no domain logic),
+rendered in two places bound to the same `AppState` value: inside
+`Viewport3D` (Import only, see below) and inside the new `src/components/
+workspace/SimulationPanel.tsx` (Workspace's Finished-piece simulation
+panel) -- so adjusting rotation from either location writes to, and is
+immediately visible from, the other.
+
+**Why lift to AppState rather than "render `Viewport3D` in the simulation
+slot" (the lower-risk alternative also considered):** the brief's own
+wording -- "SimulationView.tsx content ... PLUS rotation controls" --
+requires both the yarn-colored/pile-textured simulation render _and_
+working rotation to coexist in that panel. Swapping in the raw-model
+`Viewport3D` view would have thrown away the actual simulation render the
+product owner explicitly asked to keep, not just been lower-fidelity to
+the mockup. Rejected.
+
+**`Viewport3D` stays mounted continuously across Import and Workspace**
+(same guarantee `e2e/orient-persistence.spec.ts` already covered before
+this change, now covering Import↔Workspace instead of Import↔Relief) --
+required because `capture()` reads the live WebGL scene this component
+owns; unmounting it would tear that down and break relief generation
+entirely, not just the visual. During Workspace, its wrapper gets
+`.visually-hidden` (existing sr-only utility class, reused verbatim --
+kept `display`-non-`none` deliberately, since `capture()`'s
+`WebGLRenderTarget` readback is sized by its own explicit `resolution`
+argument, completely independent of the on-screen container's pixel size,
+so hiding the container to ~1×1px does not affect capture correctness)
+**plus** `aria-hidden="true"` on that same wrapper -- `.visually-hidden`'s
+whole purpose is the opposite of this (keep content _announced_ to screen
+readers, the sr-only-text pattern), which is backwards for a `role="img"
+aria-label="3D model viewport"` landmark that should be fully inert while
+off-screen; `aria-hidden` suppresses it from the accessibility tree
+entirely, `.visually-hidden`'s CSS keeps it visually gone. Found and fixed
+during this implementation's own real-browser verification, not left as a
+residual gap.
+
+`Viewport3D` also gained a `showControls?: boolean` prop (default `true`).
+When `false` (Workspace), the standard-view button row and
+`<RotationControls>` are not rendered at all -- a real conditional
+unmount of just that JSX, not CSS-hidden -- while the canvas container div
+(the one thing that must never conditionally mount/unmount) always
+renders regardless. This is what prevents two simultaneous accessible
+"Roll"/"Pitch"/"Yaw" controls existing in the DOM at once: a
+visually-hidden-but-still-focusable duplicate would have been a real
+keyboard-accessibility anti-pattern (tabbing into a control you can't
+see), and would have made `getByLabel(/^Roll/)`-style test queries
+genuinely ambiguous between the two instances, not just messy. Verified
+directly (both via a real browser session and the e2e suite) that exactly
+one `[aria-label="Straighten model"]` group exists in the DOM at any time.
+
+**Rotation stays on Import too, not removed.** The brief asks for
+rotation "accessible from here [Workspace] rather than only on the
+separate Import step" -- not instead of. Both locations write the same
+`AppState` value, so this costs one extra small component render, not a
+second source of truth, and avoids regressing the Import-stage
+straightening workflow.
+
+**`ProjectFile` still excludes rotation**, unchanged from the original
+Round 1 decision -- lifting the state's _location_ doesn't change its
+_lifecycle_: still reset to zero on `SET_SOURCE` (a fresh import), still
+per-import and ephemeral, not project data. `handleSaveProjectJson` in
+`App.tsx` explicitly does not include `modelRotationDeg`.
+
+### Live regeneration: debounce interval, and a generation counter over cancellation (Wrinkle B)
+
+**The problem:** replace the manual "Generate relief" button
+(`App.tsx`'s former `handleGenerateRelief`) with regeneration that fires
+automatically as settings change, without a slower, now-stale worker
+result overwriting a newer one if the user changes a setting again before
+the first request finishes.
+
+**Debounce interval: 300ms.** Profiled via a real headless-Chromium
+session (this exact branch's build, `Concentric Ripple` sample, 12 pile
+heights -- the worst case on the level-count axis, resolution fixed at
+256px per Round 1). One clean, uncontended measurement (a self-contained
+JS poll loop using `performance.now()` deltas, taken immediately after a
+real user gesture so the tab hadn't yet been subject to Chrome's
+background-tab timer throttling) gave **~196ms** end-to-end for capture →
+worker round-trip → React re-render. Repeated-measurement attempts after
+that were corrupted by exactly that throttling (Chrome clamps background-
+tab timers to ~1Hz; readings came back suspiciously exact at ~1000.0ms
+across otherwise-varying inputs, a known symptom, not real work) and were
+discarded rather than used. Architecturally, ~196ms is expected to be
+representative and not a fluke: the capture is a `256×256`
+(65,536px) float `WebGLRenderTarget` readback (a few ms on any real GPU),
+the worker payload is a few-hundred-KB typed array (cheap to structured-
+clone), and every per-pixel domain function
+(mask/normalize/invert/intensity/smooth/quantize/cleanup) already runs
+off-main-thread per CLAUDE.md's existing worker-based-processing decision.
+300ms leaves roughly 100ms of headroom above the one clean measurement for
+slower real-world hardware, while staying under the point a live control
+starts to feel laggy -- an engineering judgment call, not re-derived from
+a formula; see `src/hooks/useLiveRelief.ts`'s own doc comment for the same
+account.
+
+**Correctness: a monotonic generation counter, not `AbortController`-style
+cancellation.** `useProcessingWorker`'s single long-lived `Worker` has no
+real cancellation primitive -- terminating/recreating it per keystroke
+would be wasteful and lose in-flight work for nothing, so an in-flight
+request is left to run to completion, and a generation counter decides
+whether its result is _applied_:
+
+```
+generationRef starts at 0
+effect deps: [hasModel, reliefSettings, rotationDeg]  // reference
+                                                       // identity; every
+                                                       // real dispatch
+                                                       // produces a new
+                                                       // object
+on every effect run (i.e. every real trigger):
+  generationRef.current += 1        // bumped synchronously, before the
+                                     // debounce timer even fires --
+                                     // invalidates a still-in-flight
+                                     // older request the instant a newer
+                                     // trigger is observed, not just at
+                                     // that older request's own
+                                     // completion
+  clear any pending debounce timeout (effect cleanup)
+  schedule setTimeout(300ms):
+    myGeneration = generationRef.current
+    captured = capture(resolutionPx, captureColor)
+    if (!captured) return                       // nothing to capture
+                                                  // yet -- silent no-op,
+                                                  // no onStart
+    onStart()                                    // -> PROCESSING_STARTED
+    result = await process(buildProcessArgs(captured))
+    if (generationRef.current !== myGeneration) return   // superseded,
+                                                          // discard
+    onSuccess(result, captured.width, captured.height)   // -> PROCESSING_SUCCEEDED
+```
+
+(`onError` is guarded the same way `onSuccess` is, so a late-arriving
+stale failure can never clobber a newer success.) Bumping the counter
+synchronously in the effect body -- not inside the timer -- is what lets a
+request that has _already started_ be invalidated the moment a newer
+trigger appears, rather than only once that older request eventually
+resolves; this is deliberate, not an oversight, and is exactly the
+property `src/hooks/__tests__/useLiveRelief.test.ts`'s out-of-order-
+completion test locks in (trigger A, let it start; trigger B while A is
+still pending; resolve A _after_ B has started; assert A's result is
+discarded and only B's is applied).
+
+**What triggers regeneration vs. what doesn't**, matching the brief's own
+explicit carve-out: every `ReliefSettings` field reachable via the single
+`reliefSettings` object reference (`levels`, `intensity`, `invert`,
+`smoothingStrength`, `edgePreservation`, `quantizationMode`,
+`minRegionPreset`) plus `modelRotationDeg` trigger it; yarn swatch colors,
+color-mode switching, `paletteSize`, pattern view-mode/grid/mirrored/
+labels/punch-guide, and pile-style/lighting/fabric-color do not -- these
+only redraw already-computed data (`PatternCanvas`/`SimulationView` from
+the current `regionMap`/`legend`), never reaching `useLiveRelief` at all.
+**Known, narrow, pre-existing edge case, not a new regression:** switching
+_into_ `source-material` color mode (or changing `paletteSize` while
+already in it) doesn't by itself re-run the worker's color quantization --
+identical to the old manual-button flow, where the same change also
+required a fresh "Generate relief" click to take effect. `useLiveRelief`
+reads current `colorMode`/`paletteSize` fresh every time it _does_ fire
+(via a ref-to-latest-options pattern), so any real relief-settings/
+rotation trigger afterward correctly captures color under whatever mode
+is active at that moment -- the gap is narrow (mode/size changed and
+nothing else touched since) and behavior-identical to before.
+
+**Not stage-gated, deliberately.** `useLiveRelief`'s effect depends only
+on `hasModel`/`reliefSettings`/`rotationDeg`, never on
+`workflow.currentStage` -- it fires as soon as a model loads, regardless
+of whether the user is currently on Import or Workspace. This means a
+relief is often already generating (or finished) by the time the user
+navigates from Import to Workspace, matching how a slicer's preview stays
+live behind the scenes rather than waiting for a specific page to be
+open. One consequence, found while writing e2e coverage: a test that
+tried to assert Workspace's "Generating your first relief…" placeholder
+is visible immediately after navigating there is inherently racy (the
+first generation's 300ms debounce often elapses during the test's own
+navigation/assertion overhead) -- not a bug, just not a state worth
+pinning exactly; the corresponding accessibility-sweep test checks
+Workspace "on arrival" without requiring that specific transient state.
+
+**The rail's live-status pill** ("● Live — updates as you adjust" / "●
+Processing…") reflects `AppState.processing` directly, set/cleared by
+`onStart`/`onSuccess`/`onError` above -- genuinely tied to whether a
+generation the app currently considers _current_ is in flight, not a
+cosmetic label. If settings change again while a request is already
+in-flight, the pill correctly stays on "Processing…" through the whole
+overlapping-changes window (each new trigger's own `onStart` is
+idempotent; only the _latest_ generation's `onSuccess`/`onError`
+resolves it), never flickering back to "Live" on a result that's about
+to be superseded.
+
+### Rail grouping: HeightStage's table becomes live chips, its warning moves (a judgment call)
+
+The former `HeightStage.tsx` (its own page) is absorbed into
+`src/components/workspace/ReliefControls.tsx`'s "Needle & pile" group as
+a live per-level coverage-percentage chip row (`H1 17.7%`, `H2 13.4%`,
+...), directly under the pile-heights slider it's live feedback for --
+per the brief's own framing ("really just live feedback for that one
+control, not a destination"). `HeightStage`'s small-region warning
+(`findSmallRegions`, unchanged domain call) is **not** kept alongside the
+chips; it moves into the "Punch detail" group instead, directly under the
+`minRegionPreset` select that actually drives it. The brief left this
+placement to implementer judgment ("your call based on what's cleanest")
+-- chosen so the control a user would reach for in response to the
+warning (raise the minimum region size) sits immediately below the
+warning itself, rather than in a different group entirely.
+
+### `ExportPanel` reuses its existing shape unchanged; the rail gates it like the preview panels
+
+`ExportPanel.tsx` itself needed **no internal changes** -- it already
+reads `screenView`/`screenShowGrid`/`screenMirrored`/`screenShowLabels`
+as props (Iteration 03 Round 1) and already renders as a self-contained
+`<details className="export-panel">` block, which is exactly the shape
+"one more collapsed section in the rail" needed. What changed is _where_
+those screen-state props come from: `view`/`showGrid`/`mirrored` (local
+`useState` inside the old `PreviewStage.tsx`, passed down only to its
+child `PatternCanvas`/`ExportPanel`) move up into `Workspace.tsx`, since
+`PatternPanel` and `ExportPanel` are now _siblings_ in the rail rather
+than parent/child -- both need the same values as controlled props from
+one shared owner. `Workspace.tsx` also gates `ExportPanel` on
+`regionMap && processed`, the same not-ready-yet condition
+`PatternPanel`/`SimulationPanel` are gated on, with a rail placeholder
+("Export & print will be available once the first relief has generated.")
+in the interim -- `ExportPanel` requires a non-null `RegionMap`, and
+before the first live generation lands there isn't one yet. This gating
+gap (and the `view`/`showGrid`/`mirrored` lift) were both found by the
+independent pre-implementation plan review, not left implicit.
+
+### Print output: `.screen-only` must wrap the rail and preview column, but never `ExportPanel`
+
+Every prior stage's on-screen content was wrapped in `.screen-only`
+(`display:none !important` under `@media print`) so print output shows
+only the intended `.print-pages` block, not live app chrome. `Workspace.tsx`
+initially had no such wrapper at all (an internal gap, not present in any
+released version) -- found and fixed via this implementation's own
+Playwright print-emulation testing, not left for a later pass. The fix:
+`.screen-only` wraps the rail's heading/`ReliefControls`/`YarnColorsGroup`
+(and, separately, the not-ready-yet Export placeholder) in one wrapper,
+and the entire `.workspace-preview-col` in another -- but **deliberately
+not** `ExportPanel` itself, which renders its own `.print-pages` block as
+a sibling of its `<details>`; nesting `ExportPanel` inside a `.screen-only`
+ancestor would have hidden `.print-pages` too, since a `display:none`
+ancestor can't be overridden by any descendant's own display rule.
+`ExportPanel`'s `<details>` is still separately hidden in print via the
+pre-existing `.export-panel` selector in `styles.css`'s `@media print`
+block, unchanged.
+
+A second, related bug found by the same testing pass: `main.workspace-
+layout`'s CSS grid (`grid-template-columns: minmax(0,1fr)
+minmax(280px,420px)`) stayed active during print, since Export & print
+now lives _inside_ that grid-classed `<main>` -- unlike the old
+`PreviewStage`, which was never itself a grid page (`relief-layout`/now
+`workspace-layout` was only ever applied on the stage that needed the
+sticky preview). An explicit grid track still reserves its sizing even
+when the item occupying it is `display:none` (`.workspace-preview-col`,
+hidden by `.screen-only` in print), so `.print-pages` -- a normal-flow
+child of the grid's _first_ column -- was being squeezed into a
+much-too-narrow column (one measured case: literally zero width) instead
+of the full print-page width. Fixed with `@media print { main.workspace-
+layout { display: block; padding: 0; } }`, mirroring the pre-existing
+`.stage-panel` print reset that already resets on-screen width/padding
+constraints for print in the same block.
+
+### CSS class renames, and `.preview-columns` removal
+
+`.relief-layout`/`.relief-controls-col`/`.relief-preview-col` (Iteration
+02 Stage B's sticky-preview mechanism) are renamed to `.workspace-layout`/
+`.workspace-controls-col`/`.workspace-preview-col` -- same rules, reused
+verbatim per the brief's explicit instruction, renamed only because
+"relief" is no longer a distinct stage. `.preview-columns` (Round 2's
+Preview-stage side-by-side pattern/simulation grid) is removed outright,
+not renamed -- Workspace's preview column stacks Pattern and
+Finished-piece simulation _vertically_ now (two full-width panels, not a
+2-column grid), so the class had no remaining call site; confirmed via
+grep before removal.
+
+### Two simultaneous WebGL scenes during Workspace: an accepted trade-off
+
+While on Workspace, two `requestAnimationFrame` render loops run at once:
+`Viewport3D`'s (hidden, kept alive only so `capture()` keeps working) and
+`SimulationView`'s (visible, the actual Finished-piece simulation). Both
+are small, simple scenes (a handful of meshes/lights each), so the
+overhead is not expected to be meaningfully different from either
+component's existing pre-this-change cost run alone -- not optimized
+further, accepted as the cost of keeping `capture()`'s WebGL-scene
+dependency correct without a more invasive redesign (e.g., a headless/
+offscreen capture path independent of the on-screen `Viewport3D`
+instance, which would be real additional complexity for a cost that
+hasn't been shown to matter in practice).
+
+### `vitest.config.ts`: exclude nested git worktrees
+
+Unrelated to the feature itself, but found and fixed during this
+implementation's own local verification: `vitest.config.ts`'s `exclude`
+list (`['e2e/**', 'node_modules/**']`) doesn't match nested paths like
+`.claude/worktrees/*/node_modules/**` (this project's multi-agent
+worktree convention keeps other agents' full checkouts, each with their
+own `node_modules` and test files, inside the same repo directory).
+Providing a custom Vitest `exclude` _replaces_ (rather than extends)
+Vitest's own sensible defaults, which would otherwise have caught this.
+`npm run test` from a checkout with sibling worktrees present was
+discovering and running their test files too (one observed run went from
+this project's real ~33 test files to 202, most of them stale copies from
+other in-progress worktrees), producing meaningless pass/fail signal that
+had to be worked around with an explicit `src`-path scope before the real
+fix was made. Fixed by
+adding `'.claude/worktrees/**'` to the exclude list -- a narrow, one-line
+fix with no effect on any worktree's own copy of this same config file.
