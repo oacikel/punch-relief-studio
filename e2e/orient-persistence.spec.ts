@@ -15,11 +15,30 @@ import { expect, test } from '@playwright/test';
  * not touch Viewport3D's own JSX slot, so it doesn't affect the no-remount
  * guarantee the rest of this file exercises.
  *
- * Verified at a realistic window size (1440x900, not an artificially tall
- * test window, which would trivially "fix" this by having room for
- * everything regardless of order).
+ * Follow-up fix (same file, later commit): the reorder above wasn't
+ * sufficient on its own -- `ImportStage`'s sample cards + drop zone stayed
+ * fully rendered at their full ~700px height even after a model had
+ * loaded, which is what was actually pushing the viewport (and the
+ * "Continue to Workspace" button even further) below the fold. Fixed by
+ * collapsing that picker behind a closed `<details>` once `hasModel` is
+ * true (see ImportStage.tsx).
+ *
+ * Real before/after measurement at 1440x900 after loading Concentric
+ * Ripple (values from manual verification, not asserted verbatim below
+ * since exact pixel values are sensitive to font metrics):
+ *   - .viewport-container top:  929.6px (bug) -> 723px (reorder only) -> ~272px (this fix)
+ *   - "Orient the model" top:                     1713px (reorder only) -> ~1260px (this fix)
+ *   - "Continue to Workspace" top:                1835px (reorder only) -> ~1381px (this fix)
+ * The viewport -- the thing a user actually needs to see to orient the
+ * model -- is now comfortably above the fold. The heading/button remain
+ * below the fold at this window height because `Viewport3D`'s own
+ * "Standard views" + "Straighten model" controls (shown on Import) are
+ * tall in their own right -- that's pre-existing height unrelated to the
+ * picker regression this fix targets, so this test doesn't demand it be
+ * eliminated, only that it not regress back toward the broken numbers
+ * above.
  */
-test('the 3D orient viewport is visible near the fold on Import, not pushed below it', async ({
+test('the 3D orient viewport lands near the top on Import, and the Continue button is not pushed further down by the sample picker', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -29,6 +48,9 @@ test('the 3D orient viewport is visible near the fold on Import, not pushed belo
 
   const viewportTop = await page
     .locator('.viewport-container')
+    .evaluate((el) => el.getBoundingClientRect().top);
+  const headingTop = await page
+    .getByRole('heading', { name: 'Orient the model' })
     .evaluate((el) => el.getBoundingClientRect().top);
   const continueTop = await page
     .getByRole('button', { name: 'Continue to Workspace' })
@@ -40,6 +62,49 @@ test('the 3D orient viewport is visible near the fold on Import, not pushed belo
   // viewport having already scrolled into view first.
   expect(viewportTop).toBeLessThan(900);
   expect(viewportTop).toBeLessThan(continueTop);
+
+  // The heading/button must land well above where they sat with the
+  // sample picker fully expanded (1713px / 1835px) -- a real, generous
+  // margin below those broken values, so a regression back to "picker
+  // never collapses" is caught, without over-asserting on Viewport3D's own
+  // (pre-existing, out-of-scope-here) control height.
+  expect(headingTop).toBeLessThan(1500);
+  expect(continueTop).toBeLessThan(1600);
+});
+
+/**
+ * Companion coverage for the same follow-up fix: once a model has loaded,
+ * the "Try a built-in sample" cards and "Or import your own" drop zone
+ * collapse behind a closed `<details>` disclosure (ImportStage.tsx) instead
+ * of staying fully expanded, which is what was consuming the ~700px that
+ * pushed the viewport/CTA below the fold in the first place. This does not
+ * remove the ability to import a *different* model -- the disclosure stays
+ * reachable via its one-line summary, and reopening it must still let the
+ * user pick a different sample.
+ */
+test('the sample picker collapses once a model loads, and can be reopened to load a different model', async ({
+  page,
+}) => {
+  await page.goto('/');
+
+  // Before any model is loaded, the picker is open and the cards are the
+  // ones actually clicked to load a model.
+  const picker = page.locator('details.import-picker');
+  await expect(picker).toHaveJSProperty('open', true);
+  await page.getByText('Concentric Ripple').click();
+  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+
+  // Once loaded, the picker collapses and a one-line summary names what's
+  // loaded, instead of the cards/drop-zone staying fully expanded.
+  await expect(picker).toHaveJSProperty('open', false);
+  await expect(page.getByText(/Model loaded: Concentric Ripple/)).toBeVisible();
+
+  // Reopening it and picking a different sample must still actually work --
+  // this is the "don't just delete the re-import path" requirement.
+  await page.getByText(/choose a different file/i).click();
+  await expect(picker).toHaveJSProperty('open', true);
+  await page.getByText('Geometric Steps').click();
+  await expect(page.getByText(/Model loaded: Geometric Steps/)).toBeVisible();
 });
 
 /**

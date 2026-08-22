@@ -178,6 +178,22 @@ export default function App(): JSX.Element {
     };
   }, [state.processed, state.colorMode, state.swatches]);
 
+  // Usability fix (docs/DECISIONS.md, follow-up to "move the Import 3D
+  // orient viewport above the fold"): the label shown in ImportStage's
+  // collapsed-picker summary once a model is loaded. Reuses the same
+  // sourceKind/sampleId/sourceFilename fields SET_SOURCE already writes
+  // (see handleSelectSample/handleFilesSelected above) rather than adding a
+  // new piece of state just to describe what's loaded.
+  const loadedModelLabel = useMemo(() => {
+    if (state.sourceKind === 'built-in-sample') {
+      return (state.sampleId && getSampleById(state.sampleId)?.name) ?? 'sample model';
+    }
+    if (state.sourceKind === 'user-file') {
+      return state.sourceFilename;
+    }
+    return null;
+  }, [state.sourceKind, state.sampleId, state.sourceFilename]);
+
   const legend = useMemo(() => {
     if (!state.processed || !regionMap) return [];
     return buildLegend(state.swatches, state.processed.levels, state.calibrationProfile, regionMap);
@@ -311,6 +327,8 @@ export default function App(): JSX.Element {
               <ImportStage
                 onSelectSample={handleSelectSample}
                 onFilesSelected={(files) => void handleFilesSelected(files)}
+                hasModel={workflow.hasModel}
+                loadedModelLabel={loadedModelLabel}
               />
               {importWarning && (
                 <p role="alert" className="warning-banner" style={{ margin: '0 24px' }}>

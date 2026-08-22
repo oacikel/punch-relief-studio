@@ -194,6 +194,30 @@ select:focus-visible {
   color: var(--color-ink-muted);
 }
 
+/* Usability fix (docs/DECISIONS.md): the Import stage's sample-picker/
+   drop-zone collapses into this disclosure once a model has loaded, so it
+   stops consuming ~700px of vertical space that used to push the 3D
+   viewport and "Continue to Workspace" button below the fold. */
+.import-picker {
+  margin-top: var(--space-2);
+}
+
+.import-picker > summary {
+  cursor: pointer;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+
+.import-picker[open] > summary {
+  margin-bottom: var(--space-3);
+}
+
+.import-picker__body {
+  padding-top: var(--space-2);
+}
+
 .warning-banner {
   background: #fbe9dd;
   border: 1px solid var(--color-accent);

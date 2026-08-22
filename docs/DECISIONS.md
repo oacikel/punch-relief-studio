@@ -1259,6 +1259,90 @@ not an artificially tall test window, which would trivially mask the bug.
 The three pre-existing orientation-persistence tests in that file pass
 unmodified in their actual assertions.
 
+### 2b. Follow-up: the DOM reorder alone didn't fix the root cause -- the sample picker's ~700px was the real problem
+
+**Decision:** in `src/components/stages/ImportStage.tsx`, the "Try a
+built-in sample" cards and "Or import your own" drop zone are now wrapped
+in a native `<details className="import-picker">`, with `open={!hasModel}`
+(a new `hasModel: boolean` prop, fed from the same `workflow.hasModel`
+signal that already gates `ImportOrientSection` in `App.tsx` -- no new
+"has a model" concept invented). A one-line `<summary>` reads "Choose a
+model to import" before any model is loaded, or "Model loaded: {name} --
+choose a different file" once one is (the label comes from a new
+`loadedModelLabel` prop `App.tsx` derives from the existing
+`sourceKind`/`sampleId`/`sourceFilename` fields `SET_SOURCE` already
+writes).
+
+**Root cause the #2 entry above missed:** reordering `ImportOrientSection`
+to render after `Viewport3D` fixed _relative_ order, but every element
+involved -- sample cards, drop zone, viewport, orient heading/button --
+was still fully rendered and visible either way. `ImportStage`'s own
+content (`<h2>Import a model</h2>` down through the sample cards and drop
+zone) occupies roughly the first ~700px of vertical space _regardless_ of
+whether a model is loaded, since nothing in that component ever reacted to
+`workflow.hasModel`. So the #2 fix's own verified number, `viewport top:
+723px`, was itself the symptom: at 1440x900 that's already at the fold,
+and the "Orient the model" heading / "Continue to Workspace" button --
+sitting textually _after_ the viewport in the new order -- landed at
+`1713px` / `1835px`, considerably deeper below the fold than _before_ the
+#2 fix (when the unfixed bug only hid the viewport, not the text/button,
+which used to be the first thing visible). Net effect of #2 alone: the
+viewport went from fully hidden to barely peeking in, while the primary
+CTA went from immediately visible to deeply buried -- not a real
+improvement a user would feel.
+
+**Why collapse via `<details>` rather than remove/relocate the picker:** a
+user does need a way to load a _different_ model without restarting the
+app, so hiding the picker outright (or only via `display:none` with no
+way back) was rejected. `<details>`/`<summary>` gives that for free: native
+keyboard/screen-reader semantics, an already-proven pattern in this exact
+codebase (`ExportPanel`'s own `.export-panel[open]` disclosure, swept by
+the same axe-core accessibility spec), and no new interactive-widget code
+to write or test from scratch.
+
+**Why `open={!hasModel}` doesn't fight the user's own clicks:** React only
+touches a DOM attribute when the _value_ it's given actually changes
+between renders. `!hasModel` flips exactly once, from `true` to `false`,
+the moment a model finishes loading -- forcing the collapse at that
+instant, which is the desired behavior. On every render afterward (as long
+as `hasModel` stays `true`), the prop value is unchanged, so React leaves
+the attribute alone and a user's own native expand/re-collapse clicks on
+`<summary>` stick. This is deliberately _not_ a fully controlled
+component -- no `useState` was added to track open/closed -- since the
+one transition that matters (load -> collapse) is exactly what a derived,
+un-memoized boolean already gives for free.
+
+**Verified working in a real browser** at 1440x900 after loading
+Concentric Ripple: `.viewport-container` top went from `723px` (#2 alone)
+to `~272px` (comfortably above the fold); `"Orient the model"` heading
+went from `1713px` to `~1260px`; `"Continue to Workspace"` went from
+`1835px` to `~1381px`. The heading/button remain below a 900px fold at
+this window size -- not because of the sample picker (now collapsed to a
+single summary line) but because `Viewport3D`'s own "Standard views" +
+"Straighten model" control panel (shown only on Import, unrelated to this
+regression, pre-existing before this whole PR) is tall in its own right.
+Closing that remaining gap would mean reducing `Viewport3D`'s rendered
+height on Import, a materially different and riskier change to a shared,
+already load-bearing component (its no-remount guarantee is exercised by
+every test in `e2e/orient-persistence.spec.ts`) -- left as a possible
+future refinement, not bundled into this follow-up.
+
+**Re-import still works:** re-clicking the collapsed summary reopens the
+`<details>` natively, and picking a different sample or dropping a
+different file behaves exactly as before -- covered by both a component
+test (`src/components/__tests__/ImportStage.test.tsx`) and an e2e test
+(`e2e/orient-persistence.spec.ts`) that reopen the picker and swap from
+Concentric Ripple to Geometric Steps.
+
+**Test coverage:** `src/components/__tests__/ImportStage.test.tsx` gained
+a `describe('collapsing the picker once a model is loaded', …)` block
+(open-by-default before load, closed-by-default after, reopen + reselect).
+`e2e/orient-persistence.spec.ts`'s viewport-position test was updated to
+also assert the heading/button land well above their #2-alone-fix values
+rather than only checking the viewport, plus a new test asserting the
+picker's `open` JS property flips as expected and that reopening it and
+picking a different sample actually swaps the loaded model.
+
 ### 3 & 4. Rail jump-nav, sticky mini-headers, and reachable Export & print -- one combined fix
 
 **Decision:** a single new "Jump to:" nav row (`.rail-jump-nav` in
