@@ -19,7 +19,7 @@ interface Props {
  */
 export function Legend({ entries }: Props): JSX.Element {
   return (
-    <div>
+    <div className="legend-table-wrap">
       <table className="legend-table">
         <caption className="helper-text">Region legend: color and symbol</caption>
         <thead>

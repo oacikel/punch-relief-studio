@@ -17,8 +17,16 @@ verified (full `npm run verify` plus `npm run test:e2e` on both the
 not yet merged — per this iteration's deployment-checkpoint rule (§13), a
 session implementing Stage D stops at "PR open, CI green" so a human can
 review before it ships. See §17 for Stage D's own "what was actually
-built," including the two real bugs it found and fixed. Stage E remains
-unstarted. See `docs/COWORK_HANDOFF.md` for the Stage-A-era cross-session
+built," including the two real bugs it found and fixed. **Stage E's
+open-ended polish audit findings were superseded by the product owner's
+13-point Iteration 03 feedback** (see `docs/ITERATION_03_PLAN.md`) before
+Stage E itself was ever formally scoped/implemented as its own stage; the
+two Stage E findings that were _not_ covered by that feedback (the
+camera-framing bug and Preview's mobile-narrow layout overflow) were
+carried forward explicitly in `docs/ITERATION_03_PLAN.md`'s own
+cross-reference section and finally resolved, along with three further
+real bugs found on fresh re-verification, in **Iteration 03 Round 2** — see
+§18 below. See `docs/COWORK_HANDOFF.md` for the Stage-A-era cross-session
 continuation state — it predates Stage A's actual merge and Stage B/C/D's
 implementation, so trust this document and the repository over it where
 they disagree.
@@ -792,3 +800,88 @@ punch-guide overlay and refreshing multi-page tiling regression coverage
   the suite + 7 new in the net-new `e2e/print-emulation.spec.ts`; the
   WebKit project runs 16 of those 17, correctly skipping the
   Chromium-only PDF-render test).
+
+## 18. Stage E — what was actually built (as Iteration 03 Round 2)
+
+Stage E was never implemented as its own dedicated stage in this
+repository: its open-ended "polish" audit was superseded, before it ran to
+completion, by the product owner's 13-point Iteration 03 feedback (see
+`docs/ITERATION_03_PLAN.md`), which took priority and shipped first as
+Iteration 03 Round 1. Two of Stage E's own findings — a camera-framing bug
+in `src/three/viewport.ts` and a mobile-narrow layout overflow on Preview —
+were not covered by that feedback and were carried forward explicitly in
+`docs/ITERATION_03_PLAN.md`'s "Cross-reference: Iteration 02's own Stage E
+survey" section as still-open. **This repository's own text never actually
+contained a written Stage E findings section** (only the forward references
+above, "Stage E remains unstarted" / "Stage E untouched"), so — per this
+project's rule against silently guessing on a thin spec — this section
+records what those two carried-forward findings actually turned out to be
+on fresh re-verification against the post-Round-1 codebase, alongside three
+further real bugs found in the same pass, all fixed together as
+**Iteration 03 Round 2** (branch `feat/iteration-03-round-2`).
+
+Every item below was re-investigated against the current code before a fix
+was proposed, not assumed correct from the original framing — Round 1
+significantly changed several of the files this round touches
+(`PreviewStage.tsx`, `ExportPanel.tsx`, `Legend.tsx`, `Viewport3D.tsx`/
+`viewport.ts`).
+
+1. **Camera framing wastes most of the canvas on flat/wide relief models —
+   confirmed as-is, fixed as originally proposed.** `fitOrthographicCamera`
+   framed the camera to an isotropic bounding-sphere radius, which a
+   flat/wide bas-relief model wastes most of the frame against (the
+   sphere's radius is inflated by the view's depth axis, which never
+   appears on screen). Also discovered in the same investigation: the same
+   mismatched-frustum issue silently stretched the actual depth _capture_
+   (the capture render target is always square; the on-screen frustum
+   isn't) — a real output-quality bug, not just a display one. Round 1's
+   new model-straightening rotation controls (`Viewport3D.tsx`) turned out
+   not to change the diagnosis (a bounding sphere's radius is
+   rotation-invariant, so the isotropic-fit waste is orthogonal to whether
+   a model is tilted), but they _do_ need the camera to re-fit after a
+   rotation change, which the fix now does. See `docs/DECISIONS.md` for the
+   `projectedHalfExtent`/`fitOrthographicCameraToExtent` implementation.
+2. **Preview breaks at the project's own mobile-narrow viewport —
+   confirmed still present post-Round-1, fixed as originally proposed.**
+   Round 1 deleted the Export panel's duplicate controls and the
+   calibration section (both real changes to the overflow math), but the
+   root cause — Preview's pattern/simulation two-column layout using an
+   inline `display: grid, gridTemplateColumns: '1fr 1fr'` style with no
+   responsive fallback, unlike every other two-column layout in the app —
+   was untouched by either change and still reproduced at 390px width, with
+   the Export & print `<summary>` toggle genuinely unclickable in that
+   state (confirmed by a real Playwright click, not just a visibility
+   check). Fixed by converting to a `.preview-columns` class with the same
+   `@media (max-width: 720px)` pattern `.app-shell`/`main.relief-layout`
+   already use.
+3. **The Legend table has no horizontal-scroll wrapper — confirmed, fixed
+   as originally proposed.** The `CalibrationEditor` table half of the
+   original finding is moot (Round 1 removed calibration from the UI
+   entirely). `Legend.tsx`'s `.legend-table` is now wrapped in a
+   `.legend-table-wrap` (`overflow-x: auto`) container.
+4. **Region labels overlap and become unreadable in thin/small regions —
+   confirmed, new work (not part of the original Stage E framing, found on
+   fresh re-verification).** `buildLabels` in `src/export/svgPattern.ts`
+   placed every qualifying region's label at its centroid unconditionally,
+   with no collision avoidance between neighboring labels — small/thin
+   regions routinely produced stacked, illegible labels, undermining
+   CLAUDE.md's "never rely on color alone" requirement in practice even
+   though a label was technically drawn. Fixed with a new pure,
+   deterministic collision-avoidance pass — see `docs/DECISIONS.md` for the
+   chosen strategy and the alternatives considered.
+5. **No automated axe-core accessibility run had ever been executed —
+   closed.** `docs/LIMITATIONS.md` recorded this gap as an environment
+   limitation (no browser available in the sandbox that built the MVP), not
+   a product decision. Added `@axe-core/playwright` and
+   `e2e/accessibility.spec.ts`, sweeping Import (both before and after a
+   model loads), Relief, Height levels, Yarn colors, and Preview (including
+   the opened Export & print panel) against WCAG 2.0/2.1 A/AA and
+   best-practice rules. **Result: zero real violations found**, on both the
+   `chromium` and `mobile-narrow` (WebKit) projects — see
+   `docs/LIMITATIONS.md` for the closure note.
+
+**Verification**: `npm run verify` (format + lint + typecheck + test +
+build) green; `npm run test:e2e` green on both the `chromium` and
+`mobile-narrow` (WebKit) projects, including the new mobile-overflow
+regression test and the full axe-core sweep. See the PR for this branch for
+the exact test counts and both independent review passes' findings.

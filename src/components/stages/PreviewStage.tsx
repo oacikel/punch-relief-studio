@@ -89,7 +89,7 @@ export function PreviewStage({
       <div className="screen-only">
         <h2 id="preview-heading">Preview the finished piece</h2>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div className="preview-columns">
           <div>
             <h3>Pattern</h3>
             <div role="group" aria-label="Pattern view" style={{ marginBottom: 8 }}>

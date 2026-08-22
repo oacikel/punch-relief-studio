@@ -236,19 +236,104 @@ silently ignored.
 
 ### Accessibility
 
-Not run with an automated tool (axe-core) in this session — out of scope
-for what was asked this pass. Manual review from the prior session still
-holds (form inputs have labels, real button/input elements, `role="alert"`/
-`role="status"` for messages, descriptive `aria-label`s, `prefers-reduced-motion`
-respected) and was reinforced by the E2E specs, which query the app by
-accessible role/label (`getByRole`, `getByLabel`) throughout — those
-queries would fail if the relevant ARIA semantics were missing, and they
-passed. Deferred-verify command unchanged:
+Not run with an automated tool (axe-core) as of this section (Session 2) —
+out of scope for what was asked in that pass. Manual review from the prior
+session still holds (form inputs have labels, real button/input elements,
+`role="alert"`/`role="status"` for messages, descriptive `aria-label`s,
+`prefers-reduced-motion` respected) and was reinforced by the E2E specs,
+which query the app by accessible role/label (`getByRole`, `getByLabel`)
+throughout — those queries would fail if the relevant ARIA semantics were
+missing, and they passed. **This gap was closed in Session 3 below** — see
+that section for the real axe-core run and its result.
 
-```bash
-npm run build && npm run preview
-npx playwright test --grep @a11y   # if an axe-core Playwright test is added
+## Session 3: Iteration 03 Round 2 verification
+
+Branch `feat/iteration-03-round-2`. Run from the repository root, Node
+22.16.0 (`$HOME/.nvm/versions/node/v22.16.0/bin` prepended to `PATH`; the
+worktree's shell wouldn't allow sourcing `nvm.sh` directly, so the already-
+installed 22.16.0 binaries were used directly instead), npm 10.9.2.
+
+### `npm install` / `npm install -D @axe-core/playwright`
+
+Both exit code 0. `@axe-core/playwright` added as a devDependency (`^4.13.0`
+resolved) for the new `e2e/accessibility.spec.ts` sweep (see below).
+
+### `npm run verify` (`format` + `lint` + `typecheck` + `test` + `build`)
+
+All green, exit code 0:
+
 ```
+> prettier --check .
+All matched files use Prettier code style!
+
+> eslint . --max-warnings=0
+(no output — 0 errors, 0 warnings)
+
+> tsc -b --noEmit
+(no output — 0 errors)
+
+> vitest run
+ Test Files  33 passed (33)
+      Tests  235 passed (235)
+
+> tsc -b && vite build
+✓ built in 1.23s
+```
+
+(**Correction, caught by the second independent review pass below**: an
+earlier draft of this exact block pasted a `232`-test count, from a
+`verify` run captured before the `bounds` fix commit's own 3 new
+`labelPlacement.test.ts` cases were added — a smaller recurrence of the
+same "report a check without having actually run it last" mistake this
+document exists to prevent. The number above is from a `verify` run
+against the final commit on this branch, re-confirmed via a standalone
+`npm run test` immediately before this correction was made.)
+
+One `fitOrthographicCameraToExtent` unit test needed correcting during this
+pass — the first draft compared frame height at aspect=1 (a square canvas)
+against `contentHeight * paddingFactor`, which is mathematically wrong for
+a canvas whose aspect doesn't match the content's aspect (the frame is
+correctly forced to match canvas aspect exactly, which for an extremely
+flat/wide box at a _square_ canvas necessarily wastes vertical space no
+algorithm can avoid without cropping). Rewritten to compare the new
+extent-based fit against the old isotropic-sphere fit at a realistic 4:3
+canvas aspect for a modestly-flat relief-shaped box, asserting the new fit
+wastes meaningfully less frame space — this is what the test now checks,
+and it passes.
+
+### `npx playwright install --with-deps chromium webkit` / `npm run test:e2e`
+
+```
+Running 60 tests using 6 workers
+  1 skipped
+  59 passed (22.4s)
+```
+
+Both `chromium` and `mobile-narrow` (WebKit) projects, exit code 0. The one
+skip is the pre-existing, intentional `test.skip(browserName !==
+'chromium', ...)` in `e2e/print-emulation.spec.ts` (PDF generation is
+Chromium-only in Playwright) — unrelated to this round's changes. This run
+includes:
+
+- The new `e2e/preview-controls.spec.ts` mobile-overflow regression test
+  (`document.documentElement.scrollWidth <= clientWidth` at 390px, plus a
+  real click on the Export & print `<summary>` toggle) — passing on both
+  projects.
+- The new `e2e/accessibility.spec.ts` axe-core sweep — 6 tests × 2 projects
+  = 12 total, all passing, **zero real violations found** against WCAG
+  2.0/2.1 A/AA + best-practice rules across Import (before/after model
+  load), Relief, Height levels, Yarn colors, and Preview (including the
+  opened Export & print panel). This closes the accessibility gap noted at
+  the end of Session 2 above.
+
+### Independent review passes
+
+Two independent, fresh-context `general-purpose` subagent reviews were run
+against this branch per this project's established process (see
+`docs/ITERATION_02_PLAN.md` §17/§18 for prior examples of the same
+convention): one against the finished implementation before docs were
+written, one against the final diff afterward. See the PR description for
+this branch for both passes' findings and what was fixed in response.
 
 ## Session 1 (prior, sandboxed): what was reviewed manually
 

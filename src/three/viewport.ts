@@ -74,6 +74,117 @@ export function fitOrthographicCamera(
   camera.updateProjectionMatrix();
 }
 
+/** Content half-width/half-height (in world units) that an orthographic
+ * frustum needs to frame something along a given screen-space right/up
+ * basis -- see `projectedHalfExtent`. */
+export interface ContentExtent {
+  halfWidth: number;
+  halfHeight: number;
+}
+
+const BOX_CORNER_SIGNS: ReadonlyArray<readonly [number, number, number]> = [
+  [-1, -1, -1],
+  [-1, -1, 1],
+  [-1, 1, -1],
+  [-1, 1, 1],
+  [1, -1, -1],
+  [1, -1, 1],
+  [1, 1, -1],
+  [1, 1, 1],
+];
+
+/**
+ * Projects a box's 8 corners onto the given screen-space `right`/`up` axes
+ * (typically a camera's own local X/Y basis vectors, e.g. read from
+ * `camera.matrixWorld`) and returns the half-width/half-height an
+ * orthographic frustum needs to frame the box exactly for that view
+ * direction -- unlike an isotropic bounding-sphere radius, this correctly
+ * reflects that a flat/wide model (small extent along the current view's
+ * depth axis) doesn't need a tall frustum just because it's wide, or vice
+ * versa (docs/ITERATION_03_PLAN.md #1 / Iteration 03 Round 2). `matrixWorld`,
+ * if given, is applied to each corner first -- e.g. a straightened/rotated
+ * mesh's transform -- so `box` should be the geometry's own local-space
+ * bounding box in that case, not a pre-transformed one.
+ *
+ * This frames the box's corners, not the mesh's true silhouette -- exact
+ * for any axis-aligned standard view of an unrotated box, and always a
+ * safe (never-clipping) over-estimate for an arbitrarily rotated model or
+ * off-axis orbit angle, at the cost of some slack versus a perfect
+ * silhouette fit in that case. A from-scratch per-vertex silhouette
+ * projection was considered and rejected as unnecessary complexity for a
+ * flat-relief-shaped input, where the bounding box is already a tight fit.
+ */
+export function projectedHalfExtent(
+  box: THREE.Box3,
+  right: THREE.Vector3,
+  up: THREE.Vector3,
+  matrixWorld?: THREE.Matrix4,
+): ContentExtent {
+  let halfWidth = 0;
+  let halfHeight = 0;
+  const corner = new THREE.Vector3();
+  for (const [sx, sy, sz] of BOX_CORNER_SIGNS) {
+    corner.set(
+      sx < 0 ? box.min.x : box.max.x,
+      sy < 0 ? box.min.y : box.max.y,
+      sz < 0 ? box.min.z : box.max.z,
+    );
+    if (matrixWorld) corner.applyMatrix4(matrixWorld);
+    halfWidth = Math.max(halfWidth, Math.abs(corner.dot(right)));
+    halfHeight = Math.max(halfHeight, Math.abs(corner.dot(up)));
+  }
+  return { halfWidth, halfHeight };
+}
+
+// Floor applied to padded content half-extents before computing their
+// ratio, so a fully degenerate (zero-size in both axes) box can't produce
+// a NaN/zero frustum. Real geometry is always far larger than this: it
+// only matters for the single-point edge case.
+const MIN_PADDED_HALF_EXTENT = 1e-6;
+
+/**
+ * Fits an orthographic camera's frustum to a real content half-width/
+ * half-height (see `projectedHalfExtent`) rather than an isotropic sphere
+ * radius -- the object fills the canvas along whichever screen axis it's
+ * proportionally larger on, instead of wasting space on the shorter axis
+ * to match a symmetric radius (the flat/wide-relief framing bug in
+ * docs/ITERATION_03_PLAN.md #1). `paddingFactor` and the aspect-fill
+ * behavior otherwise match `fitOrthographicCamera`: the content always
+ * fits within the frustum (never clipped), and the canvas's non-binding
+ * dimension is expanded (never the content shrunk) to fill the aspect
+ * ratio.
+ */
+export function fitOrthographicCameraToExtent(
+  camera: THREE.OrthographicCamera,
+  extent: ContentExtent,
+  paddingFactor = 1.15,
+  aspect = 1,
+): void {
+  const paddedHalfWidth = Math.max(extent.halfWidth * paddingFactor, MIN_PADDED_HALF_EXTENT);
+  const paddedHalfHeight = Math.max(extent.halfHeight * paddingFactor, MIN_PADDED_HALF_EXTENT);
+  const contentAspect = paddedHalfWidth / paddedHalfHeight;
+
+  let halfWidth: number;
+  let halfHeight: number;
+  if (contentAspect > aspect) {
+    // Content is proportionally wider than the canvas -- width is the
+    // binding constraint; height is derived from it so nothing stretches.
+    halfWidth = paddedHalfWidth;
+    halfHeight = paddedHalfWidth / aspect;
+  } else {
+    halfHeight = paddedHalfHeight;
+    halfWidth = paddedHalfHeight * aspect;
+  }
+
+  camera.left = -halfWidth;
+  camera.right = halfWidth;
+  camera.top = halfHeight;
+  camera.bottom = -halfHeight;
+  camera.near = 0.01;
+  camera.far = Math.max(halfWidth, halfHeight) * 8 + 10;
+  camera.updateProjectionMatrix();
+}
+
 export function applyStandardView(
   camera: THREE.Camera,
   view: StandardView,

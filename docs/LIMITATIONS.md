@@ -44,9 +44,19 @@
   _viewport preview specifically_ (source-material color capture, which is
   what the color pipeline actually uses, samples the rendered scene's real
   materials, not this merged preview mesh).
-- **No axe-core automated accessibility run has been executed** in this
-  session (no browser available) -- manual semantic/ARIA review only. See
-  docs/TEST_REPORT.md for the exact command to run this later.
+- **Axe-core automated accessibility sweep: closed, as of Iteration 03
+  Round 2.** `e2e/accessibility.spec.ts` (using `@axe-core/playwright`)
+  sweeps Import (both before and after a model loads), Relief, Height
+  levels, Yarn colors, and Preview (including the opened Export & print
+  panel) against WCAG 2.0/2.1 A/AA and axe-core's best-practice rule sets,
+  on both the `chromium` and `mobile-narrow` (WebKit) Playwright projects.
+  **Result: zero real violations found** on first run against the
+  post-Round-1 codebase -- the gap was closed with no accessibility fixes
+  needed, not by excluding or downgrading any failing rule. This
+  supplements, rather than replaces, manual semantic/ARIA review: axe-core
+  cannot catch every accessibility issue (e.g. it does not judge whether
+  focus order or interaction flow genuinely makes sense to a screen-reader
+  user), so manual review of new UI remains worthwhile going forward.
 
 ## Environment-level (not a product decision)
 
