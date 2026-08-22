@@ -12,6 +12,7 @@ import type { LegendEntry } from '@/domain/pattern/legend';
 import { regionId, symbolForHeight } from '@/domain/regionId';
 import { findConnectedComponents } from '@/domain/regionCleanup';
 import { computePunchGuideDots, type PunchGuideSettings } from '@/domain/pattern/punchGuide';
+import { placeLabels, type LabelCandidate } from '@/domain/pattern/labelPlacement';
 
 export type PatternView = 'combined' | 'color-only' | 'height-only' | 'contour';
 
@@ -204,19 +205,34 @@ function buildContourLines(
 }
 
 const MIN_LABEL_AREA_PX = 40;
+const LABEL_FONT_SIZE = 11;
+// Rough average glyph width for the font stack this renders with, as a
+// fraction of font-size -- doesn't need to be pixel-exact, only good enough
+// for the AABB overlap test in `placeLabels` to correctly judge whether two
+// labels would visually collide.
+const LABEL_CHAR_WIDTH = LABEL_FONT_SIZE * 0.62;
+const LABEL_HEIGHT = LABEL_FONT_SIZE * 1.3;
+
+function estimateLabelWidth(id: string): number {
+  return id.length * LABEL_CHAR_WIDTH;
+}
 
 /**
  * `showLabels` was declared on SvgPatternOptions and always passed as
  * `true` by every caller, but nothing ever read it -- the pattern relied
  * entirely on fill color to distinguish regions, which CLAUDE.md
  * explicitly rules out ("never rely on color alone... always pair with a
- * symbol/ID"). Prints each connected region's "C{n}-H{n}" id at its
+ * symbol/ID"). Prints each connected region's "C{n}-H{n}" id near its
  * centroid, in every view (including "contour", which has no fill at all
  * and so has even less to go on without this). Reuses the same flood-fill
  * `findConnectedComponents` already used for tiny-region cleanup, keyed on
  * a combined color+height value so components only merge when both match.
- * Tiny regions are skipped -- a label wouldn't fit and would just clutter
- * the print.
+ * Tiny regions are skipped outright -- a label wouldn't fit and would just
+ * clutter the print. Remaining candidates go through `placeLabels`
+ * (`src/domain/pattern/labelPlacement.ts`) for collision avoidance --
+ * see that module's doc comment and docs/DECISIONS.md for why (Iteration 03
+ * Round 2 #4: small/thin regions previously produced stacked, illegible
+ * labels).
  */
 function buildLabels(
   regionMap: RegionMap,
@@ -233,7 +249,7 @@ function buildLabels(
     combined[i] = c * 100 + h;
   }
 
-  const labels: string[] = [];
+  const candidates: LabelCandidate[] = [];
   for (const comp of findConnectedComponents(combined, width, height)) {
     if (comp.pixels.length < MIN_LABEL_AREA_PX) continue;
     let sumX = 0;
@@ -268,11 +284,18 @@ function buildLabels(
     const x = (px + 0.5) * cellW;
     const y = (cy + 0.5) * cellH;
     const id = regionId(Math.floor(comp.levelValue / 100), comp.levelValue % 100);
-    labels.push(
-      `<text x="${x}" y="${y}" font-size="11" text-anchor="middle" dominant-baseline="middle" fill="#000" stroke="#fff" stroke-width="3" paint-order="stroke">${id}</text>`,
-    );
+    candidates.push({ id, x, y, areaPx: comp.pixels.length });
   }
-  if (labels.length === 0) return '';
+
+  const placed = placeLabels(candidates, {
+    labelWidth: estimateLabelWidth,
+    labelHeight: LABEL_HEIGHT,
+  });
+  if (placed.length === 0) return '';
+  const labels = placed.map(
+    (p) =>
+      `<text x="${p.x}" y="${p.y}" font-size="${LABEL_FONT_SIZE}" text-anchor="middle" dominant-baseline="middle" fill="#000" stroke="#fff" stroke-width="3" paint-order="stroke">${p.id}</text>`,
+  );
   return `<g data-layer="labels">${labels.join('')}</g>`;
 }
 
