@@ -22,13 +22,30 @@ interface Props {
 
 const STANDARD_VIEWS: StandardView[] = ['front', 'back', 'left', 'right', 'top', 'bottom'];
 
+/** Model-straightening rotation, in degrees (docs/ITERATION_03_PLAN.md #5).
+ * `OrbitControls` orbits the *camera* around the model while deliberately
+ * preserving world-up, so it can never compensate for a model that's
+ * tilted/rotated around its own axis on import -- these three sliders
+ * rotate the model itself instead. Named by convention (roll = around the
+ * forward/view axis, pitch = around the lateral axis, yaw = around the
+ * vertical axis) under this app's Y-up, front-is-+Z world convention (see
+ * `VIEW_DIRECTIONS` in src/three/viewport.ts): roll -> object-space Z,
+ * pitch -> object-space X, yaw -> object-space Y. */
+interface RotationDeg {
+  roll: number;
+  pitch: number;
+  yaw: number;
+}
+const ZERO_ROTATION: RotationDeg = { roll: 0, pitch: 0, yaw: 0 };
+
 /**
  * Interactive 3D viewport: orbit/pan/zoom, standard-view buttons, reset,
- * and orthographic framing used both for inspection and as the basis for
- * relief capture. WebGL setup lives entirely in this one component so it
- * can fail gracefully (see the try/catch around renderer creation) without
- * taking the rest of the app down -- caught failures bubble to
- * <ErrorBoundary> only if truly unrecoverable.
+ * model-straightening rotation, and orthographic framing used both for
+ * inspection and as the basis for relief capture. WebGL setup lives
+ * entirely in this one component so it can fail gracefully (see the
+ * try/catch around renderer creation) without taking the rest of the app
+ * down -- caught failures bubble to <ErrorBoundary> only if truly
+ * unrecoverable.
  */
 export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -38,6 +55,13 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
   const meshRef = useRef<THREE.Mesh | null>(null);
   const radiusRef = useRef(6);
   const [initError, setInitError] = useState<string | null>(null);
+  // Local component state, deliberately not lifted to AppState -- mirrors
+  // how the existing camera-view state already persists across Import <->
+  // Relief navigation today: this Viewport3D instance is never remounted
+  // between those two stages (see e2e/orient-persistence.spec.ts), so
+  // local state survives the same way, with no schema/persistence changes
+  // needed.
+  const [rotationDeg, setRotationDeg] = useState<RotationDeg>(ZERO_ROTATION);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -138,6 +162,14 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
     const mesh = new THREE.Mesh(geometry, material);
     scene.add(mesh);
     meshRef.current = mesh;
+    // A newly loaded model always starts unrotated -- straightening is
+    // per-import, not a property of the mesh data itself. Reset the new
+    // mesh's rotation directly rather than applying whatever the previous
+    // model's rotationDeg happened to be first (that would apply stale
+    // rotation for one frame before the state-reset effect below
+    // overwrote it back to zero).
+    mesh.rotation.set(0, 0, 0);
+    setRotationDeg(ZERO_ROTATION);
 
     const container = containerRef.current;
     const aspect =
@@ -146,10 +178,27 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
     applyStandardView(camera, 'front', radiusRef.current * 3);
   }, [geometry]);
 
+  // Apply the model-straightening rotation to the mesh in place -- no
+  // geometry rebuild, no camera/controls change, so dragging a rotation
+  // slider never fights an in-progress orbit drag or resets framing.
+  useEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    mesh.rotation.set(
+      THREE.MathUtils.degToRad(rotationDeg.pitch),
+      THREE.MathUtils.degToRad(rotationDeg.yaw),
+      THREE.MathUtils.degToRad(rotationDeg.roll),
+    );
+  }, [rotationDeg]);
+
   const goToView = (view: StandardView): void => {
     const camera = cameraRef.current;
     if (!camera) return;
     applyStandardView(camera, view, radiusRef.current * 3);
+  };
+
+  const setRotationAxis = (axis: keyof RotationDeg, value: number): void => {
+    setRotationDeg((prev) => ({ ...prev, [axis]: value }));
   };
 
   if (initError) {
@@ -182,6 +231,42 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
           Reset view
         </button>
       </div>
+      {geometry && (
+        <div
+          role="group"
+          aria-label="Straighten model"
+          style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}
+        >
+          <p className="helper-text" style={{ margin: 0 }}>
+            Not every import lands upright. Rotate the model itself (not just the view) to
+            straighten it before generating a relief.
+          </p>
+          {(['roll', 'pitch', 'yaw'] as const).map((axis) => (
+            <div key={axis} className="field" style={{ marginBottom: 0 }}>
+              <label htmlFor={`rotate-${axis}`}>
+                {axis[0]?.toUpperCase()}
+                {axis.slice(1)} ({rotationDeg[axis]}°)
+              </label>
+              <input
+                id={`rotate-${axis}`}
+                type="range"
+                min={-180}
+                max={180}
+                step={1}
+                value={rotationDeg[axis]}
+                onChange={(e) => setRotationAxis(axis, Number(e.target.value))}
+              />
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => setRotationDeg(ZERO_ROTATION)}
+            style={{ alignSelf: 'flex-start' }}
+          >
+            Reset rotation
+          </button>
+        </div>
+      )}
     </div>
   );
 }

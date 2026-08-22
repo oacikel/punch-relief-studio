@@ -46,3 +46,44 @@ test('camera orientation chosen on Import carries over to relief generation', as
   const nonZeroBands = shareCells.filter((text) => text.trim() !== '0.0%').length;
   expect(nonZeroBands).toBeGreaterThan(2);
 });
+
+/**
+ * Iteration 03 Round 1 (docs/ITERATION_03_PLAN.md #5): model-straightening
+ * rotation (Roll/Pitch/Yaw) added to Viewport3D alongside the standard-view
+ * buttons. It's implemented as local component state, on the same shared,
+ * never-remounted Viewport3D instance the camera-view persistence above
+ * already relies on -- this test locks in that it survives the same
+ * Import -> Relief navigation the camera orientation does, rather than
+ * silently resetting to 0.
+ */
+test('model rotation chosen on Import carries over to relief generation', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('Concentric Ripple').click();
+  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+
+  const rollInput = page.getByLabel(/^Roll/);
+  await rollInput.fill('45');
+  await rollInput.blur();
+  await expect(rollInput).toHaveValue('45');
+
+  await page.getByRole('button', { name: '2. Create relief' }).click();
+  await expect(page.getByRole('heading', { name: 'Create the relief' })).toBeVisible();
+
+  await expect(page.getByLabel(/^Roll/)).toHaveValue('45');
+});
+
+test('"Reset rotation" zeroes all three axes', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('Concentric Ripple').click();
+  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+
+  await page.getByLabel(/^Roll/).fill('30');
+  await page.getByLabel(/^Pitch/).fill('-15');
+  await page.getByLabel(/^Yaw/).fill('90');
+
+  await page.getByRole('button', { name: 'Reset rotation' }).click();
+
+  await expect(page.getByLabel(/^Roll/)).toHaveValue('0');
+  await expect(page.getByLabel(/^Pitch/)).toHaveValue('0');
+  await expect(page.getByLabel(/^Yaw/)).toHaveValue('0');
+});
