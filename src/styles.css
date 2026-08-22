@@ -74,7 +74,20 @@ select:focus-visible {
 
 @media (max-width: 720px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    /* Usability fix #5 (docs/DECISIONS.md): the true systemic root cause
+       behind this branch's whole mobile-overflow investigation. A bare
+       `1fr` grid track has an implicit `auto` (content-based) minimum, so
+       *any* descendant with a wide enough min-content -- a long
+       unbreakable string, a wide `<select>`, anything -- forces this
+       single mobile-width column (and therefore the whole page) wider
+       than the viewport, no matter how much `flex-wrap` gets added to
+       individual rows inside it (the two upstream fixes in this same
+       investigation both helped, but neither could fully close this
+       without also fixing the ancestor track). `minmax(0, 1fr)` removes
+       the auto-minimum, so the column actually respects the viewport
+       width and any wide descendant has to wrap/scroll within its own
+       box instead of stretching the page. */
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

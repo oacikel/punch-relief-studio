@@ -1446,16 +1446,62 @@ exact same missing-`flex-wrap` shape as `.workspace-rail-heading` above --
 (it's the app's original top banner) and sits on every stage, not just
 Workspace -- it just also needed CI's real Linux font substitution to
 actually overflow at 375px. Fixed identically: `flex-wrap: wrap` added, so
-the tagline drops below the title on narrow-enough/wide-enough-font
-combinations instead of overflowing. This closes out both real
-contributors CI found, confirmed by a clean CI run afterward (see the PR).
+the tagline drops below the title instead of overflowing.
+
+**Round 2's fix did not close it out -- the next CI run reported the
+exact same `right: 383.03px`, unchanged.** That was the tell: if fixing
+`.app-header` had actually mattered, the number should have moved. The
+diagnostics were extended again to report the widest 5 elements, not
+just 1 -- the next failure showed `<header class="app-header">`,
+`<nav class="stage-nav">`, `<main class="workspace-layout">`,
+`.workspace-controls-col`, and `.screen-only` **all tied at the identical
+`right: 383.03px`** -- five unrelated elements at different DOM depths
+sharing one exact pixel value is not five independent bugs, it's one
+shared ancestor being forced wide and every descendant just inheriting
+its width.
+
+**Round 3, the actual systemic root cause:** `.app-shell`'s mobile
+`@media (max-width: 720px)` rule sets `grid-template-columns: 1fr` (bare,
+not `minmax(0, 1fr)`). A bare `1fr` grid track has an implicit `auto`
+(content-based) minimum -- so _any_ descendant anywhere in that column
+with a wide enough min-content (a long unbreakable string, a wide
+`<select>`, anything) forces the entire single-column track, and
+therefore the whole page, wider than the viewport, no matter how much
+`flex-wrap` gets added to individual rows inside it. Rounds 1 and 2 both
+made real, worthwhile fixes (two genuine missing-`flex-wrap` bugs, still
+correct and still needed), but neither could fully close this out without
+also fixing the ancestor track's sizing -- which is exactly why the
+`.app-header` fix left the failure's exact pixel value unchanged: some
+other, unidentified descendant was still forcing the same shared column
+width, and `.app-header` was just one of several elements riding along
+with it. Fixed by changing the mobile rule to `grid-template-columns:
+minmax(0, 1fr)`, removing the auto-minimum so the column actually
+respects the viewport width and any wide descendant has to wrap or
+scroll within its own box instead of stretching the page. Verified
+locally with the same font-substitution simulation used in rounds 1-2
+(forcing `'Courier New', monospace` everywhere at 375px): zero overflow.
+See the PR for whether this round's CI run confirms it against the real
+environment that found the previous two rounds' gaps.
+
+**Why this took three rounds instead of one:** each round's diagnosis was
+correct as far as it looked, and each fix was a real, independent bug
+worth having fixed regardless -- but reasoning from "the widest single
+element" alone (round 1's original diagnostic) systematically
+under-diagnoses this exact class of bug, since a forced-wide ancestor
+track makes every descendant in it report a similarly-inflated
+`getBoundingClientRect()`, and the true cause can be an ancestor several
+levels removed from whichever leaf element happens to visually look
+"cut off" in a screenshot. The widest-5 diagnostic (added in round 2) is
+what actually surfaced the tied-value pattern that pointed at a shared
+ancestor rather than another leaf-level flex row.
 
 **Regression coverage:** `e2e/preview-controls.spec.ts` gained a
 permanent test using the new `sliver.stl` fixture, so this specific state
 (warning banner + narrow viewport) has real, deterministic e2e coverage
 going forward instead of relying on incidental model/setting combinations
-that may or may not trigger it -- and this test is what actually caught
-the regression on CI, doing exactly the job it was written for.
+that may or may not trigger it -- and this test, plus its widest-5
+diagnostic, is what actually caught and root-caused all three rounds of
+this regression on CI, doing exactly the job it was written for.
 `docs/ITERATION_02_PLAN.md`'s §18 item 2 (which originally tracked and
 fixed a _different_, already-resolved mobile-overflow bug) is updated
 with a closing note pointing here, so this specific question doesn't get
