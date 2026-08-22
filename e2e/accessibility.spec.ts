@@ -95,7 +95,7 @@ test.describe('Accessibility sweep (Iteration 03 Round 2 #5)', () => {
     await page.getByRole('button', { name: '2. Workspace' }).click();
     await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
 
-    await page.getByText('Export & print', { exact: true }).click();
+    await page.locator('.export-panel summary').click();
     await expect(page.locator('.export-panel[open]')).toBeVisible();
     await expectNoViolations(page);
   });

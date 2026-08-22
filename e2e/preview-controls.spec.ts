@@ -46,12 +46,12 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
     const onScreenLabels = page.getByRole('checkbox', { name: 'Region labels (C1-H1 etc.)' });
     await expect(onScreenLabels).toBeChecked(); // on by default
 
-    await page.getByText('Export & print', { exact: true }).click();
+    await page.locator('.export-panel summary').click();
     await expect(page.getByRole('checkbox', { name: /Print region labels/i })).toHaveCount(0);
   });
 
   test('the export panel has no "Export pattern view" selector of its own', async ({ page }) => {
-    await page.getByText('Export & print', { exact: true }).click();
+    await page.locator('.export-panel summary').click();
     const exportPanel = page.locator('.export-panel');
     await expect(exportPanel.getByText('Export pattern view')).toHaveCount(0);
     await expect(exportPanel.getByRole('button', { name: 'contour' })).toHaveCount(0);
@@ -87,7 +87,7 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
 
     // Export panel reuses whatever was set on Preview rather than exposing
     // a second, separate "Punch guide" selector of its own.
-    await page.getByText('Export & print', { exact: true }).click();
+    await page.locator('.export-panel summary').click();
     const exportPanel = page.locator('.export-panel');
     await expect(exportPanel.getByLabel('Punch guide')).toHaveCount(0);
     await expect(exportPanel.getByLabel('Dot spacing (cm)')).toHaveCount(0);
@@ -136,7 +136,7 @@ test.describe('Workspace mobile-narrow layout (Iteration 03 Round 2 #2)', () => 
     // interaction the original bug broke (the toggle was "visible" per
     // Playwright's own definition, but off-screen/overlapped enough that a
     // real click was intercepted by another element).
-    const summary = page.getByText('Export & print', { exact: true });
+    const summary = page.locator('.export-panel summary');
     await summary.click();
     await expect(page.locator('.export-panel[open]')).toBeVisible();
   });

@@ -35,7 +35,7 @@ test.describe('Print/PDF output (Iteration 02 Stage D)', () => {
     // src/export/__tests__/printTiling.test.ts (60cm x 40cm, a4, 1cm
     // overlap -> 4 cols x 2 rows = 8 pages) so the e2e and unit coverage
     // are provably exercising the same scenario.
-    await page.getByText('Export & print', { exact: true }).click();
+    await page.locator('.export-panel summary').click();
     await page.getByLabel('Width (cm)').fill('60');
     await page.getByLabel('Height (cm)').fill('40');
   });

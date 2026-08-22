@@ -279,6 +279,47 @@ select:focus-visible {
   margin-top: 0;
 }
 
+/* Usability fix #3 (docs/DECISIONS.md): a short "Jump to:" row near the
+   Workspace heading, one button per top-level rail section, so a section
+   further down a long rail is never more than one click away. */
+.rail-jump-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.rail-jump-nav button {
+  font-size: 0.78rem;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+/* Usability fix #3 (docs/DECISIONS.md): sticky mini-headers so scrolling
+   two sections deep into the rail still shows which section you're in.
+   Scoped to `.rail-section` (applied only to the 4 top-level rail groups
+   in ReliefControls.tsx/YarnColorsGroup.tsx) rather than every
+   `.control-group h3` -- YarnColorsGroup nests a second, non-rail-section
+   `.control-group` ("Color story palettes") inside it, and matching that
+   one too would let two headers both try to stick at `top: 0`
+   simultaneously and visually overlap once both containing blocks are
+   mid-scroll. `scroll-margin-top` gives the jump-nav's scrollIntoView a
+   little breathing room above each target. */
+.rail-section {
+  scroll-margin-top: var(--space-2);
+}
+
+.rail-section > h3 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
 .advanced-controls {
   margin-top: var(--space-3);
 }

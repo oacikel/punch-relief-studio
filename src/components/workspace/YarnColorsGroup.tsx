@@ -46,7 +46,11 @@ export function YarnColorsGroup({
   onApplyPalette,
 }: Props): JSX.Element {
   return (
-    <div className="control-group" aria-labelledby="color-heading">
+    <div
+      className="control-group rail-section"
+      id="rail-yarn-colors"
+      aria-labelledby="color-heading"
+    >
       <h3 id="color-heading">Yarn colors</h3>
 
       <fieldset className="field">
