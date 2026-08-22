@@ -1346,18 +1346,19 @@ button text duplicates the `<summary>`'s own text, so `page.getByText
 more precisely targeted at the actual disclosure toggle than a text match
 ever was.
 
-### 5. Mobile-overflow at 375px: reproduced with the exact missing precondition, does not reproduce
+### 5. Mobile-overflow at 375px: reproduced with the exact missing precondition, root-caused, fixed
 
-**Outcome: does not reproduce.** A previously-reported 375px-width
-horizontal-overflow bug (`document.documentElement.scrollWidth: 420` vs
-`clientWidth: 375`) could not be reproduced by an earlier follow-up audit
-that toggled every discrete control (disclosures, palettes, pattern-view
-buttons, checkboxes) at 375px width on both a local build and the live
-deployment. That audit's own working theory -- untested at the time -- was
-that the original overflow was found while the small-region warning
-banner ("N region(s) are smaller than the minimum punchable size... may be
-difficult to punch reliably", `ReliefControls.tsx`) was actively showing,
-a state its control-toggling sweep never happened to trigger.
+**Outcome: reproduces, root-caused precisely, fixed.** A previously-
+reported 375px-width horizontal-overflow bug (`document.documentElement
+.scrollWidth: 420` vs `clientWidth: 375`) could not be reproduced by an
+earlier follow-up audit that toggled every discrete control (disclosures,
+palettes, pattern-view buttons, checkboxes) at 375px width on both a local
+build and the live deployment. That audit's own working theory -- untested
+at the time -- was that the original overflow was found while the
+small-region warning banner ("N region(s) are smaller than the minimum
+punchable size... may be difficult to punch reliably", `ReliefControls
+.tsx`) was actively showing, a state its control-toggling sweep never
+happened to trigger.
 
 **This investigation deliberately reproduced that exact state** rather
 than continuing to guess. First attempted with the built-in samples
@@ -1380,22 +1381,59 @@ away during generation, before the warning check ever sees it.
 sliver projects as an isolated foreground island bordered entirely by
 background -- `cleanupTinyRegions`'s one exception -- so it survives
 cleanup at the _default_ "Balanced" preset with no setting changes needed,
-and the warning banner fires reliably. Confirmed by hand against a running
-build, with real measurements, at both 375px and the project's own 390px
-mobile-narrow width: banner genuinely showing (`.warning-banner` text
-present and matching), zero horizontal overflow
-(`document.documentElement.scrollWidth === clientWidth` exactly, and a
-full-page element sweep found no element with `getBoundingClientRect()
-.right` exceeding the viewport width).
+and the warning banner fires reliably.
 
-**No CSS fix was made for #5** -- there was nothing to fix once the exact
-missing precondition from the prior investigation was actually
-reproduced. `e2e/preview-controls.spec.ts` gained a permanent regression
-test using the new fixture, so this specific state (warning banner +
-narrow viewport) has real, deterministic e2e coverage going forward
-instead of relying on incidental model/setting combinations that may or
-may not trigger it. `docs/ITERATION_02_PLAN.md`'s §18 item 2 (which
-originally tracked and fixed a _different_, already-resolved mobile-
-overflow bug) is updated with a closing note pointing here, so this
-specific question doesn't get re-litigated a third time without new
-information.
+**First-pass local testing found no overflow -- CI proved that
+conclusion wrong, for an instructive reason.** Confirmed by hand against a
+running build (macOS, local Chromium/WebKit) at both 375px and the
+project's own 390px mobile-narrow width: banner genuinely showing, zero
+horizontal overflow by every measurement taken at the time. But this
+branch's own CI run (`npm run test:e2e` on GitHub Actions' Ubuntu
+runner) failed the new regression test with real overflow --
+`document.documentElement.scrollWidth (391) > clientWidth (375)` -- on
+both `chromium` and `mobile-narrow` (WebKit) projects. The CI failure
+screenshot showed the actual culprit clearly: the Workspace rail
+heading's live-status pill ("● Live -- updates as you adjust") and the
+new jump-nav's button row both visibly cut off at the right edge.
+
+**Real root cause, once looked at directly:** `.workspace-rail-heading`
+(`src/styles.css`) is `display: flex` with no `flex-wrap`, and
+`.live-status-pill` has `white-space: nowrap` -- so the pill can never
+shrink below its full un-wrapped text width, and the row has no way to
+move it to a second line when space runs out. This is a genuine,
+pre-existing bug from Iteration 03's combined-workspace change (not
+something this branch's other fixes introduced), it just needed the
+right combination of narrow viewport _and_ wider font-rendering metrics
+to actually overflow -- CI's Ubuntu runner falls back much further down
+this app's font stack (`'Iowan Old Style', 'Palatino Linotype', Georgia,
+'Segoe UI', system-ui, sans-serif` -- none of the first four exist on
+Linux) than macOS does, rendering this text measurably wider. This is
+exactly why local-only verification on one OS's font stack isn't
+sufficient for a horizontal-overflow claim, and why "does not reproduce"
+was the wrong conclusion to leave standing once contradicting evidence
+appeared -- corrected here rather than left in place.
+
+**Fix:** `flex-wrap: wrap` added to `.workspace-rail-heading`, so the
+pill drops to its own line instead of forcing the row wider than its
+container. `.rail-jump-nav button` also gets an explicit `white-space:
+normal` as defensive hardening for the same class of bug (buttons don't
+reliably wrap their own text across engines without it, and the parent's
+existing `flex-wrap: wrap` can only move whole buttons to a new line, not
+shrink one below its own un-wrapped width). Verified structurally sound
+by forcing every element to a much wider fallback font (`'Courier New',
+monospace`) in a running local build at 375px -- a deliberately more
+extreme metrics shift than CI's actual font substitution -- and
+confirming zero overflow, both via `scrollWidth`/`clientWidth` and
+visually (the pill and jump-nav buttons wrap cleanly onto their own
+rows).
+
+**Regression coverage:** `e2e/preview-controls.spec.ts` gained a
+permanent test using the new `sliver.stl` fixture, so this specific state
+(warning banner + narrow viewport) has real, deterministic e2e coverage
+going forward instead of relying on incidental model/setting combinations
+that may or may not trigger it -- and this test is what actually caught
+the regression on CI, doing exactly the job it was written for.
+`docs/ITERATION_02_PLAN.md`'s §18 item 2 (which originally tracked and
+fixed a _different_, already-resolved mobile-overflow bug) is updated
+with a closing note pointing here, so this specific question doesn't get
+re-litigated a fourth time without new information.

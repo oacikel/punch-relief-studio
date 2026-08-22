@@ -293,6 +293,13 @@ select:focus-visible {
   font-size: 0.78rem;
   padding: 2px 10px;
   border-radius: 999px;
+  /* Buttons don't reliably wrap their own text across engines/platforms
+     without this -- defensive hardening alongside the parent's
+     `flex-wrap: wrap` (which moves whole buttons to a new line, but can't
+     shrink a single button's text below one un-wrapped line on its own).
+     Same root cause investigated for the live-status pill below -- see
+     docs/DECISIONS.md's usability fix #5. */
+  white-space: normal;
 }
 
 /* Usability fix #3 (docs/DECISIONS.md): sticky mini-headers so scrolling
@@ -406,6 +413,14 @@ main.workspace-layout > .workspace-preview-col {
 .workspace-rail-heading {
   display: flex;
   align-items: center;
+  /* Usability fix #5 (docs/DECISIONS.md): the live-status pill has
+     `white-space: nowrap` (below) and this row had no `flex-wrap`, so at
+     narrow widths -- combined with wider fallback-font metrics than this
+     was ever tested against locally -- the pill could never shrink below
+     its full un-wrapped text width and the row overflowed horizontally
+     instead of wrapping. `flex-wrap: wrap` lets the pill drop to its own
+     line instead. */
+  flex-wrap: wrap;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
 }

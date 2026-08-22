@@ -862,10 +862,14 @@ significantly changed several of the files this round touches
    > `.preview-columns` entirely. That report was investigated
    > specifically (not conflated with this already-fixed item) and turned
    > out to require an additional precondition this item's fix never
-   > covered: the small-region warning banner actively showing. See
-   > `docs/DECISIONS.md`'s "Workspace usability fixes" section, item 5,
-   > for the full reproduction and its "does not reproduce" outcome —
-   > that question is now closed with real measurements, not left open.
+   > covered: the small-region warning banner actively showing. A
+   > different, real bug was found once that precondition was actually
+   > reproduced against a real CI environment (not just a local one) —
+   > `.workspace-rail-heading`'s live-status pill had no way to wrap onto
+   > a second line at narrow widths. See `docs/DECISIONS.md`'s "Workspace
+   > usability fixes" section, item 5, for the full reproduction,
+   > root-cause, and fix — that question is now closed with real
+   > measurements from both a local build and CI, not left open.
 
 3. **The Legend table has no horizontal-scroll wrapper — confirmed, fixed
    as originally proposed.** The `CalibrationEditor` table half of the
