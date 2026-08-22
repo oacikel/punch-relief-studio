@@ -1389,12 +1389,13 @@ running build (macOS, local Chromium/WebKit) at both 375px and the
 project's own 390px mobile-narrow width: banner genuinely showing, zero
 horizontal overflow by every measurement taken at the time. But this
 branch's own CI run (`npm run test:e2e` on GitHub Actions' Ubuntu
-runner) failed the new regression test with real overflow --
-`document.documentElement.scrollWidth (391) > clientWidth (375)` -- on
-both `chromium` and `mobile-narrow` (WebKit) projects. The CI failure
-screenshot showed the actual culprit clearly: the Workspace rail
-heading's live-status pill ("● Live -- updates as you adjust") and the
-new jump-nav's button row both visibly cut off at the right edge.
+runner) failed the new regression test with real overflow (the test at
+that point only asserted a boolean, so the exact pixel numbers weren't
+captured -- see the diagnostics work below) on both `chromium` and
+`mobile-narrow` (WebKit) projects. The CI failure screenshot showed the
+actual culprit clearly: the Workspace rail heading's live-status pill
+("● Live -- updates as you adjust") and the new jump-nav's button row
+both visibly cut off at the right edge.
 
 **Real root cause, once looked at directly:** `.workspace-rail-heading`
 (`src/styles.css`) is `display: flex` with no `flex-wrap`, and
@@ -1413,8 +1414,8 @@ sufficient for a horizontal-overflow claim, and why "does not reproduce"
 was the wrong conclusion to leave standing once contradicting evidence
 appeared -- corrected here rather than left in place.
 
-**Fix:** `flex-wrap: wrap` added to `.workspace-rail-heading`, so the
-pill drops to its own line instead of forcing the row wider than its
+**Fix, round 1:** `flex-wrap: wrap` added to `.workspace-rail-heading`, so
+the pill drops to its own line instead of forcing the row wider than its
 container. `.rail-jump-nav button` also gets an explicit `white-space:
 normal` as defensive hardening for the same class of bug (buttons don't
 reliably wrap their own text across engines without it, and the parent's
@@ -1426,6 +1427,28 @@ extreme metrics shift than CI's actual font substitution -- and
 confirming zero overflow, both via `scrollWidth`/`clientWidth` and
 visually (the pill and jump-nav buttons wrap cleanly onto their own
 rows).
+
+**Round 1 fixed the visible symptom but CI still failed** -- with no
+cut-off content in either failure screenshot this time, meaning the
+remaining overflow was small and needed better diagnostics, not another
+guess. The regression test was extended to report the widest few elements
+by `getBoundingClientRect().right` directly in the assertion failure
+message (`e2e/preview-controls.spec.ts`), rather than downloading and
+reading CI artifacts by hand for each iteration. The next CI run pinpointed
+it precisely: `scrollWidth=383 clientWidth=375`, widest element `<header
+class="app-header">` at `right: 383.03px` on `chromium`, `379px` on
+`mobile-narrow`.
+
+**Round 2 root cause and fix:** `.app-header` (`src/styles.css`) has the
+exact same missing-`flex-wrap` shape as `.workspace-rail-heading` above --
+`display: flex; align-items: baseline;` with no `flex-wrap`, holding the
+`<h1>`/tagline `<p>` pair. This element predates Iteration 03 entirely
+(it's the app's original top banner) and sits on every stage, not just
+Workspace -- it just also needed CI's real Linux font substitution to
+actually overflow at 375px. Fixed identically: `flex-wrap: wrap` added, so
+the tagline drops below the title on narrow-enough/wide-enough-font
+combinations instead of overflowing. This closes out both real
+contributors CI found, confirmed by a clean CI run afterward (see the PR).
 
 **Regression coverage:** `e2e/preview-controls.spec.ts` gained a
 permanent test using the new `sliver.stl` fixture, so this specific state

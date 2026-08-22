@@ -84,6 +84,13 @@ select:focus-visible {
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: baseline;
+  /* Usability fix #5 (docs/DECISIONS.md): same missing-flex-wrap class of
+     bug as `.workspace-rail-heading` below -- the h1 + tagline pair had
+     no way to drop to a second line, so wider (non-macOS) font-rendering
+     metrics at a narrow viewport pushed this row past the viewport edge.
+     CI's real Linux font substitution caught this precisely (8px over at
+     375px width); this element sits on every page, not just Workspace. */
+  flex-wrap: wrap;
   gap: var(--space-3);
 }
 

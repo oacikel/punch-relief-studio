@@ -196,27 +196,26 @@ test.describe('Mobile-narrow layout with the small-region warning banner active 
     );
 
     // Diagnostic-rich failure message: if this ever regresses again, the
-    // exact offending element (not just true/false) should show up
+    // widest few offending elements (not just true/false) should show up
     // directly in the CI log without needing an artifact download.
     const diagnostics = await page.evaluate(() => {
       const doc = document.documentElement;
-      let worst: { tag: string; cls: string; right: number } | null = null;
-      document.querySelectorAll('*').forEach((el) => {
-        const r = el.getBoundingClientRect();
-        if (!worst || r.right > worst.right) {
-          worst = { tag: el.tagName, cls: (el as HTMLElement).className || '', right: r.right };
-        }
-      });
+      const all = Array.from(document.querySelectorAll('*')).map((el) => ({
+        tag: el.tagName,
+        cls: (el as HTMLElement).className || '',
+        right: el.getBoundingClientRect().right,
+      }));
+      all.sort((a, b) => b.right - a.right);
       return {
         scrollWidth: doc.scrollWidth,
         clientWidth: doc.clientWidth,
         innerWidth: window.innerWidth,
-        worst,
+        widest: all.slice(0, 5),
       };
     });
     expect(
       diagnostics.scrollWidth,
-      `scrollWidth=${diagnostics.scrollWidth} clientWidth=${diagnostics.clientWidth} innerWidth=${diagnostics.innerWidth} worst=${JSON.stringify(diagnostics.worst)}`,
+      `scrollWidth=${diagnostics.scrollWidth} clientWidth=${diagnostics.clientWidth} innerWidth=${diagnostics.innerWidth} widest=${JSON.stringify(diagnostics.widest)}`,
     ).toBeLessThanOrEqual(diagnostics.clientWidth);
   });
 });
