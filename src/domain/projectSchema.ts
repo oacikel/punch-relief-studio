@@ -42,6 +42,13 @@ export interface ProjectFile {
     pageSize: 'a4' | 'letter' | 'actual-size';
     overlapCm: number;
     orientation: 'front' | 'mirrored';
+    /** Iteration 02 Stage C. Optional and defaulted at load time (not
+     * deep-validated by `parseProjectFile`, same as every other field of
+     * this nested object) -- schema v1 project files saved before Stage C
+     * won't have this key at all, and load as "no punch guide" rather than
+     * failing to parse. Deliberately *not* a schema-version bump; see
+     * docs/DECISIONS.md for the (a)-vs-(b) reasoning. */
+    punchGuide?: { mode: 'none' | 'dots'; spacingCm: number };
   };
 }
 

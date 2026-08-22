@@ -40,3 +40,51 @@ describe('appReducer', () => {
     expect(state.processingError).toBe('boom');
   });
 });
+
+describe('patternViewSettings (Iteration 02 Stage C)', () => {
+  it('defaults to on-screen labels visible and no punch guide', () => {
+    const state = initialAppState();
+    expect(state.patternViewSettings.showOnScreenLabels).toBe(true);
+    expect(state.patternViewSettings.punchGuide).toEqual({ mode: 'none', spacingCm: 1 });
+  });
+
+  it('SET_PATTERN_VIEW_SETTINGS updates showOnScreenLabels without touching punchGuide', () => {
+    const state = initialAppState();
+    const next = appReducer(state, {
+      type: 'SET_PATTERN_VIEW_SETTINGS',
+      showOnScreenLabels: false,
+    });
+    expect(next.patternViewSettings.showOnScreenLabels).toBe(false);
+    expect(next.patternViewSettings.punchGuide).toEqual(state.patternViewSettings.punchGuide);
+  });
+
+  it('SET_PATTERN_VIEW_SETTINGS updates punchGuide.mode without touching punchGuide.spacingCm', () => {
+    const state = initialAppState();
+    const next = appReducer(state, {
+      type: 'SET_PATTERN_VIEW_SETTINGS',
+      punchGuide: { mode: 'dots' },
+    });
+    expect(next.patternViewSettings.punchGuide.mode).toBe('dots');
+    expect(next.patternViewSettings.punchGuide.spacingCm).toBe(
+      state.patternViewSettings.punchGuide.spacingCm,
+    );
+    // Unrelated field untouched by a punchGuide-only patch.
+    expect(next.patternViewSettings.showOnScreenLabels).toBe(true);
+  });
+
+  it('SET_PATTERN_VIEW_SETTINGS updates punchGuide.spacingCm without resetting mode', () => {
+    let state = initialAppState();
+    state = appReducer(state, { type: 'SET_PATTERN_VIEW_SETTINGS', punchGuide: { mode: 'dots' } });
+    state = appReducer(state, {
+      type: 'SET_PATTERN_VIEW_SETTINGS',
+      punchGuide: { spacingCm: 2.5 },
+    });
+    expect(state.patternViewSettings.punchGuide).toEqual({ mode: 'dots', spacingCm: 2.5 });
+  });
+
+  it('an empty-patch SET_PATTERN_VIEW_SETTINGS action is a no-op', () => {
+    const state = initialAppState();
+    const next = appReducer(state, { type: 'SET_PATTERN_VIEW_SETTINGS' });
+    expect(next.patternViewSettings).toEqual(state.patternViewSettings);
+  });
+});
