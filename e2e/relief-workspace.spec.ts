@@ -29,11 +29,14 @@ test.describe('Relief workspace (Iteration 02 Stage B)', () => {
     // Advanced controls are collapsed by default (product owner's own
     // "Advanced shape controls" label from item 7, per §5's table).
     await expect(page.getByLabel('Height band spacing')).toBeHidden();
-    await expect(page.getByLabel('Detail resolution')).toBeHidden();
     await page.getByText('Advanced shape controls').click();
     await expect(page.getByLabel('Height band spacing')).toBeVisible();
-    await page.getByText('Advanced punch detail controls').click();
-    await expect(page.getByLabel('Detail resolution')).toBeVisible();
+
+    // "Detail resolution" was removed entirely in Iteration 03 Round 1
+    // (docs/ITERATION_03_PLAN.md #2) -- no longer a control anywhere, not
+    // even under Advanced.
+    await expect(page.getByLabel('Detail resolution')).toHaveCount(0);
+    await expect(page.getByText('Advanced punch detail controls')).toHaveCount(0);
 
     // Sticky preview: the shared viewport panel is pinned via CSS
     // `position: sticky` at desktop width (see the `.relief-preview-col`
@@ -57,7 +60,15 @@ test.describe('Relief workspace (Iteration 02 Stage B)', () => {
     expect(previewPosition).toBe('static');
   });
 
-  test('"Calibrate needle settings" on Height Levels jumps to Preview with calibration open', async ({
+  /**
+   * Iteration 03 Round 1 (docs/ITERATION_03_PLAN.md #6): needle-setting/
+   * calibration UI was removed app-wide by explicit, reversible product
+   * decision. This replaces the old "Calibrate needle settings" jump-link
+   * test (that control no longer exists) with a regression check that
+   * neither Height Levels nor Preview's Export panel expose any
+   * calibration entry point anymore.
+   */
+  test('Height Levels shows plain height bands, with no calibration UI anywhere in the app', async ({
     page,
   }) => {
     await page.goto('/');
@@ -68,13 +79,16 @@ test.describe('Relief workspace (Iteration 02 Stage B)', () => {
       timeout: 15_000,
     });
 
-    await expect(page.getByText('not yet calibrated (relative order only)')).toBeVisible();
-    await page.getByRole('button', { name: /Calibrate needle settings/ }).click();
+    await expect(page.getByRole('columnheader', { name: 'Level' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Share of pattern' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Needle setting' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Calibrate needle settings/ })).toHaveCount(0);
+    await expect(page.getByText('not yet calibrated')).toHaveCount(0);
 
+    await page.getByRole('button', { name: '5. Preview' }).click();
     await expect(page.getByRole('heading', { name: 'Preview the finished piece' })).toBeVisible();
-    // The Export & print disclosure should already be open, with the
-    // Calibration section (inside it) visible without clicking anything.
-    await expect(page.getByRole('heading', { name: 'Calibration', level: 3 })).toBeVisible();
-    await expect(page.getByLabel('Profile name')).toBeVisible();
+    await page.getByText('Export & print').click();
+    await expect(page.getByRole('heading', { name: 'Calibration', level: 3 })).toHaveCount(0);
+    await expect(page.getByLabel('Profile name')).toHaveCount(0);
   });
 });

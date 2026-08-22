@@ -12,14 +12,20 @@ create ever leaves your device.
    once). Once a model is loaded, an orientation section appears on this
    same page: rotate/pan/zoom to the viewpoint you want. Only what's visible
    from this one viewpoint becomes the pattern; back and hidden surfaces are
-   not captured (see the in-app note on this step). Click "Continue to
-   Create Relief" when you're happy with the view.
+   not captured (see the in-app note on this step). If the model itself
+   isn't aligned upright, use the "Straighten model" Roll/Pitch/Yaw sliders
+   (next to the standard-view buttons) to rotate the model itself -- not
+   just the view -- before generating the relief; "Reset rotation" clears
+   all three back to zero. Click "Continue to Create Relief" when you're
+   happy with the view.
 2. **Create relief** -- controls are grouped by what they actually affect:
    - **Needle & pile**: how many distinct pile heights the pattern uses
      ("Number of pile heights", 2-12).
-   - **Punch detail**: "Smallest punchable region" (removes fiddly tiny
-     areas); "Detail resolution", behind an "Advanced punch detail
-     controls" disclosure, for how finely the shape is sampled.
+   - **Punch detail**: "Smallest punchable region" -- pick "Fine detail",
+     "Balanced" (the default), or "Bold & simple" to control how
+     aggressively tiny, fiddly areas get removed. There's no separate
+     detail-resolution control to tune; the app uses a fixed sampling
+     resolution internally.
    - **Shape interpretation**: "Relief depth", "Smoothing", and "Raise near
      surfaces" (which end of the model becomes the tallest pile); "Height
      band spacing" and "Keep edges crisp", behind an "Advanced shape
@@ -31,53 +37,42 @@ create ever leaves your device.
    scroll, on wider screens) so you can see the effect of a change without
    scrolling back up.
 
-3. **Height levels** -- see how much of the pattern each level covers and
-   which needle setting it maps to, plus a warning if any region is too
-   small to punch reliably. A "Calibrate needle settings" link takes you
-   straight to the calibration editor on the Preview step (see
-   "Calibration" below) if your profile isn't calibrated yet, or you want
-   to add/remove needle settings.
+3. **Height levels** -- see how much of the pattern each level covers, plus
+   a warning if any region is too small to punch reliably.
 4. **Yarn colors** -- choose single-color, color-by-height, or (when the
    model has material/texture data) source-material color extraction, and
-   edit swatches/names.
+   edit swatches/names. In color-by-height mode, a small "Color story
+   palettes" gallery lets you apply a hand-picked color collection (e.g.
+   Terrain, Coastal) to all swatches in one click -- you can still hand-edit
+   any swatch afterward.
 5. **Preview** -- compare pattern views (combined/color-only/height-only/
-   contour) against the finished-piece simulation, and read the legend that
-   ties color IDs, height IDs, yarn names, and needle settings together. A
-   "Region labels (C1-H1 etc.)" checkbox controls whether the on-screen
-   pattern shows those ids -- independent of the separate "Print region
-   labels" checkbox in the export panel below, which only affects what
-   actually prints. A "Punch guide" selector (None/Dots) adds an optional
-   grid of evenly spaced dots at a spacing (in cm) you choose, as a rough
-   placement guide -- the same guide setting is used both on screen and in
-   every SVG/PNG/print export, so what you see in Preview is what prints.
-   This is the spacing you set, not a measurement of your printer's actual
-   output; always check the printed scale-check square with a ruler before
-   punching. Open the "Export & print" panel on this page to set the
-   physical project size, export SVG/PNG/print-PDF, save project settings
-   as JSON, and manage your calibration profile (including a printable
-   calibration strip).
+   contour) against the finished-piece simulation (now shown in your actual
+   yarn colors, not a flat placeholder), and read the legend that ties color
+   IDs, height IDs, and yarn names together. A "Region labels (C1-H1 etc.)"
+   checkbox controls whether the pattern shows those ids -- this is the
+   _only_ label control; export/print always match it, along with the
+   current pattern view, grid, and mirrored state, so there's nothing to
+   set twice. A "Punch guide" selector (None/Dots) adds an optional grid of
+   evenly spaced dots at a spacing (in cm) you choose, as a rough placement
+   guide -- the same guide setting is used both on screen and in every
+   SVG/PNG/print export. This is the spacing you set, not a measurement of
+   your printer's actual output; always check the printed scale-check
+   square with a ruler before punching. Open the "Export & print" panel on
+   this page to set the physical project size, export SVG/PNG/print-PDF,
+   and save/load project settings as JSON.
 
 You can move backward and forward through these steps without losing your
 settings.
 
-## Calibration
+## About needle-setting calibration
 
-The default profile is explicitly **uncalibrated** -- it only tells you
-relative low-to-high order, not real measurements. To get real numbers:
-print the calibration strip (in the Export & print panel on Preview), punch
-each labeled block on scrap fabric with the corresponding needle setting,
-measure the pile height with a ruler, and enter the measurements back into
-the profile. Save the profile so it's remembered next time (stored locally
-in your browser; export it as JSON to back it up or move it to another
-device).
-
-You can add or remove needle settings from a profile (1-12 per profile,
-matching the 2-12 range of pile heights a pattern can use) with the "Add
-needle setting"/"Remove" controls in the calibration editor -- most needles
-only have a handful of real settings, so a profile isn't padded with unused
-rows by default. The calibration editor lives in the "Export & print"
-panel on Preview; the "Calibrate needle settings" link on the Height
-Levels step jumps there directly and opens it for you.
+Punch Relief Studio computes height levels as relative low-to-high bands,
+and does not currently show a needle-setting/calibration UI anywhere in the
+app -- that surface was removed by an explicit, reversible product
+decision, since most crafters using this tool have adjustable-needle tools
+where relative height order is what actually matters. The underlying
+calibration engine still exists and is fully tested; if you need it back,
+that's a product decision to revisit, not a missing feature to work around.
 
 ## Printing
 
@@ -88,5 +83,5 @@ your physical dimensions.
 
 ## Privacy
 
-Your model, textures, patterns, and calibration data stay on your device.
-There is no account, no upload, and no analytics.
+Your model, textures, and patterns stay on your device. There is no
+account, no upload, and no analytics.

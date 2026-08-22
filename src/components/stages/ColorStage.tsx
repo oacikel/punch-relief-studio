@@ -1,4 +1,5 @@
 import type { ColorMode, ColorSwatch, RgbColor } from '@/domain/types';
+import { COLOR_STORY_PALETTES } from '@/domain/color/palettes';
 
 interface Props {
   mode: ColorMode;
@@ -9,6 +10,10 @@ interface Props {
   onModeChange: (mode: ColorMode) => void;
   onSwatchesChange: (swatches: ColorSwatch[]) => void;
   onPaletteSizeChange: (size: number) => void;
+  /** Iteration 03 Round 1 (docs/ITERATION_03_PLAN.md #7): applies a named
+   * color-story palette's colors to the current swatches in one click.
+   * Only meaningful in "by-height" mode -- see the gallery below. */
+  onApplyPalette: (paletteId: string) => void;
 }
 
 function toHex(c: RgbColor): string {
@@ -31,6 +36,7 @@ export function ColorStage({
   onModeChange,
   onSwatchesChange,
   onPaletteSizeChange,
+  onApplyPalette,
 }: Props): JSX.Element {
   return (
     <section className="stage-panel" aria-labelledby="color-heading">
@@ -82,6 +88,52 @@ export function ColorStage({
             value={paletteSize}
             onChange={(e) => onPaletteSizeChange(Number(e.target.value))}
           />
+        </div>
+      )}
+
+      {mode === 'by-height' && (
+        <div className="control-group">
+          <h3>Color story palettes</h3>
+          <p className="helper-text">
+            Apply a hand-picked color collection to all the swatches below in one click. You can
+            still edit any swatch by hand afterward.
+          </p>
+          <div
+            role="group"
+            aria-label="Color story palettes"
+            style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}
+          >
+            {COLOR_STORY_PALETTES.map((palette) => (
+              <button
+                key={palette.id}
+                type="button"
+                onClick={() => onApplyPalette(palette.id)}
+                title={palette.description}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: 4,
+                }}
+              >
+                <span style={{ display: 'flex' }}>
+                  {palette.colors.map((c, i) => (
+                    <span
+                      key={i}
+                      aria-hidden="true"
+                      style={{
+                        display: 'inline-block',
+                        width: 16,
+                        height: 16,
+                        background: `rgb(${c.r}, ${c.g}, ${c.b})`,
+                      }}
+                    />
+                  ))}
+                </span>
+                <strong>{palette.name}</strong>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

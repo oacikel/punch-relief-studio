@@ -1,11 +1,16 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Iteration 02 Stage C coverage: the on-screen label toggle (independent
- * of the existing "Print region labels" export checkbox) and the
+ * Iteration 02 Stage C coverage: the on-screen label toggle and the
  * punch-guide selector/spacing control on Preview. See
  * docs/ITERATION_02_PLAN.md §8/§9/§10 and docs/DECISIONS.md for the design
  * interpretation and schema decision.
+ *
+ * Iteration 03 Round 1 (docs/ITERATION_03_PLAN.md #11) reversed Stage C's
+ * "screen and print settings can diverge" call -- the export panel's own
+ * "Export pattern view" selector and "Print region labels" checkbox are
+ * deleted, and export/print now reads Preview's on-screen state directly.
+ * The first test below is updated accordingly (see docs/DECISIONS.md).
  *
  * Deep SVG-content assertions (whether the rendered pattern actually
  * contains a `data-layer="punch-guide"` group, correct dot counts, etc.)
@@ -28,20 +33,28 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
     await expect(page.getByRole('heading', { name: 'Preview the finished piece' })).toBeVisible();
   });
 
-  test('on-screen "Region labels" toggle is independent of the export "Print region labels" toggle', async ({
+  /**
+   * Iteration 03 Round 1 (docs/ITERATION_03_PLAN.md #11): this reverses
+   * the Stage C decision the old test name described -- the export
+   * panel's own, independent "Print region labels" checkbox is deleted
+   * entirely. There is exactly one "Region labels" control now, on
+   * Preview, and export/print reads it directly.
+   */
+  test('the export panel has no "Print region labels" checkbox of its own -- the on-screen toggle is the only one', async ({
     page,
   }) => {
     const onScreenLabels = page.getByRole('checkbox', { name: 'Region labels (C1-H1 etc.)' });
-    await expect(onScreenLabels).toBeChecked(); // on by default -- preserves pre-Stage-C behavior
+    await expect(onScreenLabels).toBeChecked(); // on by default
 
-    await onScreenLabels.uncheck();
-    await expect(onScreenLabels).not.toBeChecked();
-
-    // The export panel's own, separate label checkbox is unaffected --
-    // still defaults on, since these are two independent settings.
     await page.getByText('Export & print').click();
-    const printLabels = page.getByRole('checkbox', { name: /Print region labels/i });
-    await expect(printLabels).toBeChecked();
+    await expect(page.getByRole('checkbox', { name: /Print region labels/i })).toHaveCount(0);
+  });
+
+  test('the export panel has no "Export pattern view" selector of its own', async ({ page }) => {
+    await page.getByText('Export & print').click();
+    const exportPanel = page.locator('.export-panel');
+    await expect(exportPanel.getByText('Export pattern view')).toHaveCount(0);
+    await expect(exportPanel.getByRole('button', { name: 'contour' })).toHaveCount(0);
   });
 
   test('selecting "Dots" reveals the spacing input; "None" hides it again', async ({ page }) => {

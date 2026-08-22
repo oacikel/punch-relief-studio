@@ -1,8 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { HeightStage } from '../HeightStage';
-import { createDefaultProfile } from '@/domain/calibration';
 import type { HeightLevel } from '@/domain/types';
 import { normalizedDepth } from '@/domain/units';
 
@@ -15,14 +13,14 @@ function makeLevels(count: number): HeightLevel[] {
 }
 
 /**
- * Iteration 02 Stage B: HeightStage gains a contextual "Calibrate needle
- * settings" entry point (docs/ITERATION_02_PLAN.md §14 decision #1) --
- * calibration itself still lives on Preview, this stage just links to it.
- * HeightStage had no test file before Stage B; these tests cover both the
- * pre-existing per-level table and the new calibration link/status line.
+ * Iteration 03 Round 1 (docs/ITERATION_03_PLAN.md #6): calibration/
+ * needle-setting UI was removed app-wide by explicit, reversible product
+ * decision. HeightStage now shows plain height bands only -- no
+ * "Needle setting" column, no "Calibrate needle settings" link, no
+ * profile status line.
  */
 describe('HeightStage', () => {
-  it('shows the profile name and an uncalibrated status for the default profile', () => {
+  it('shows a per-level share-of-pattern table with no needle-setting language', () => {
     const levels = makeLevels(2);
     render(
       <HeightStage
@@ -30,37 +28,18 @@ describe('HeightStage', () => {
         heightIndex={Int16Array.from([0, 1, 0, 1])}
         width={2}
         height={2}
-        minRegionPx={4}
-        profile={createDefaultProfile()}
-        onCalibrate={vi.fn()}
+        minRegionPreset="balanced"
       />,
     );
 
-    expect(screen.getByText(/Generic \(uncalibrated\)/)).toBeInTheDocument();
-    expect(screen.getByText('not yet calibrated (relative order only)')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Level' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Share of pattern' })).toBeInTheDocument();
+    expect(screen.queryByText(/Needle setting/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Calibrate needle settings/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/uncalibrated/)).not.toBeInTheDocument();
   });
 
-  it('shows a calibrated status once the profile has a measured height', () => {
-    const levels = makeLevels(2);
-    const profile = { ...createDefaultProfile(), calibrated: true };
-    render(
-      <HeightStage
-        levels={levels}
-        heightIndex={Int16Array.from([0, 1, 0, 1])}
-        width={2}
-        height={2}
-        minRegionPx={4}
-        profile={profile}
-        onCalibrate={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText('calibrated')).toBeInTheDocument();
-    expect(screen.queryByText('not yet calibrated (relative order only)')).not.toBeInTheDocument();
-  });
-
-  it('calls onCalibrate when "Calibrate needle settings" is clicked', async () => {
-    const onCalibrate = vi.fn();
+  it('shows the correct share for each level', () => {
     const levels = makeLevels(2);
     render(
       <HeightStage
@@ -68,13 +47,11 @@ describe('HeightStage', () => {
         heightIndex={Int16Array.from([0, 1, 0, 1])}
         width={2}
         height={2}
-        minRegionPx={4}
-        profile={createDefaultProfile()}
-        onCalibrate={onCalibrate}
+        minRegionPreset="balanced"
       />,
     );
 
-    await userEvent.click(screen.getByRole('button', { name: /Calibrate needle settings/ }));
-    expect(onCalibrate).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('row', { name: /H1 50\.0%/ })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /H2 50\.0%/ })).toBeInTheDocument();
   });
 });

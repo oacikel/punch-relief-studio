@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { ExportPanel } from '../ExportPanel';
-import { createDefaultProfile } from '@/domain/calibration';
 import * as usePatternSvgUrlModule from '@/hooks/usePatternSvgUrl';
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
@@ -50,6 +48,25 @@ function basePunchGuide(overrides: Partial<PunchGuideSettings> = {}): PunchGuide
   return { mode: 'none', spacingCm: 1, ...overrides };
 }
 
+/** Baseline props matching Preview's default on-screen state
+ * (view=combined, grid off, not mirrored, labels on) -- see
+ * docs/ITERATION_03_PLAN.md #11: ExportPanel no longer owns its own
+ * view/label controls, it reads Preview's current on-screen state
+ * directly via these props. */
+function baseScreenProps(): {
+  screenView: 'combined';
+  screenShowGrid: boolean;
+  screenMirrored: boolean;
+  screenShowLabels: boolean;
+} {
+  return {
+    screenView: 'combined',
+    screenShowGrid: false,
+    screenMirrored: false,
+    screenShowLabels: true,
+  };
+}
+
 describe('ExportPanel print pages', () => {
   it('renders one .print-page per tile computeTiling produces, not just a single continuous document', () => {
     // A 30cm-wide pattern on A4 (printable width ~19cm) must tile across
@@ -63,14 +80,10 @@ describe('ExportPanel print pages', () => {
         onDimensionsChange={vi.fn()}
         exportSettings={baseExportSettings()}
         onExportSettingsChange={vi.fn()}
-        calibrationProfile={createDefaultProfile()}
-        savedProfiles={[]}
-        onCalibrationChange={vi.fn()}
-        onCalibrationSave={vi.fn()}
-        onCalibrationSelect={vi.fn()}
         onSaveProjectJson={vi.fn()}
         onLoadProjectJson={vi.fn()}
         punchGuide={basePunchGuide()}
+        {...baseScreenProps()}
       />,
     );
 
@@ -96,14 +109,10 @@ describe('ExportPanel print pages', () => {
         onDimensionsChange={vi.fn()}
         exportSettings={baseExportSettings({ pageSize: 'actual-size' })}
         onExportSettingsChange={vi.fn()}
-        calibrationProfile={createDefaultProfile()}
-        savedProfiles={[]}
-        onCalibrationChange={vi.fn()}
-        onCalibrationSave={vi.fn()}
-        onCalibrationSelect={vi.fn()}
         onSaveProjectJson={vi.fn()}
         onLoadProjectJson={vi.fn()}
         punchGuide={basePunchGuide()}
+        {...baseScreenProps()}
       />,
     );
 
@@ -128,76 +137,28 @@ describe('ExportPanel print pages', () => {
         onDimensionsChange={vi.fn()}
         exportSettings={baseExportSettings({ pageSize: 'actual-size' })}
         onExportSettingsChange={vi.fn()}
-        calibrationProfile={createDefaultProfile()}
-        savedProfiles={[]}
-        onCalibrationChange={vi.fn()}
-        onCalibrationSave={vi.fn()}
-        onCalibrationSelect={vi.fn()}
         onSaveProjectJson={vi.fn()}
         onLoadProjectJson={vi.fn()}
         punchGuide={basePunchGuide()}
+        {...baseScreenProps()}
       />,
     );
 
     const pages = document.querySelectorAll('.print-page');
     expect(pages).toHaveLength(1);
   });
-
-  it('lets the user choose the pattern view used for export and print', async () => {
-    const onExportSettingsChange = vi.fn();
-    render(
-      <ExportPanel
-        regionMap={makeRegionMap()}
-        legend={makeLegend()}
-        dimensions={baseDimensions}
-        onDimensionsChange={vi.fn()}
-        exportSettings={baseExportSettings()}
-        onExportSettingsChange={onExportSettingsChange}
-        calibrationProfile={createDefaultProfile()}
-        savedProfiles={[]}
-        onCalibrationChange={vi.fn()}
-        onCalibrationSave={vi.fn()}
-        onCalibrationSelect={vi.fn()}
-        onSaveProjectJson={vi.fn()}
-        onLoadProjectJson={vi.fn()}
-        punchGuide={basePunchGuide()}
-      />,
-    );
-
-    await userEvent.click(screen.getByRole('button', { name: 'contour' }));
-    expect(onExportSettingsChange).toHaveBeenCalledWith({ view: 'contour' });
-  });
-
-  it('lets the user turn printed region labels off for export/print', async () => {
-    const onExportSettingsChange = vi.fn();
-    render(
-      <ExportPanel
-        regionMap={makeRegionMap()}
-        legend={makeLegend()}
-        dimensions={baseDimensions}
-        onDimensionsChange={vi.fn()}
-        exportSettings={baseExportSettings({ showLabels: true })}
-        onExportSettingsChange={onExportSettingsChange}
-        calibrationProfile={createDefaultProfile()}
-        savedProfiles={[]}
-        onCalibrationChange={vi.fn()}
-        onCalibrationSave={vi.fn()}
-        onCalibrationSelect={vi.fn()}
-        onSaveProjectJson={vi.fn()}
-        onLoadProjectJson={vi.fn()}
-        punchGuide={basePunchGuide()}
-      />,
-    );
-
-    const checkbox = screen.getByRole('checkbox', { name: /Print region labels/i });
-    expect(checkbox).toBeChecked();
-    await userEvent.click(checkbox);
-    expect(onExportSettingsChange).toHaveBeenCalledWith({ showLabels: false });
-  });
 });
 
-describe('ExportPanel contextual calibration focus (Iteration 02 Stage B)', () => {
-  it('is collapsed by default when focusCalibration is not set', () => {
+/**
+ * Iteration 03 Round 1 (docs/ITERATION_03_PLAN.md #11): ExportPanel no
+ * longer has its own "Export pattern view" selector or "Print region
+ * labels" checkbox -- it reads Preview's current on-screen state
+ * directly via the screenView/screenShowGrid/screenMirrored/
+ * screenShowLabels props instead. This is a full reversal of the Stage C
+ * decision that let screen and print settings diverge (docs/DECISIONS.md).
+ */
+describe('ExportPanel reads on-screen state, no duplicate controls', () => {
+  it('has no "Export pattern view" control or "Print region labels" checkbox of its own', () => {
     render(
       <ExportPanel
         regionMap={makeRegionMap()}
@@ -206,22 +167,22 @@ describe('ExportPanel contextual calibration focus (Iteration 02 Stage B)', () =
         onDimensionsChange={vi.fn()}
         exportSettings={baseExportSettings()}
         onExportSettingsChange={vi.fn()}
-        calibrationProfile={createDefaultProfile()}
-        savedProfiles={[]}
-        onCalibrationChange={vi.fn()}
-        onCalibrationSave={vi.fn()}
-        onCalibrationSelect={vi.fn()}
         onSaveProjectJson={vi.fn()}
         onLoadProjectJson={vi.fn()}
         punchGuide={basePunchGuide()}
+        {...baseScreenProps()}
       />,
     );
 
-    expect(document.querySelector('.export-panel')).not.toHaveAttribute('open');
+    expect(screen.queryByText('Export pattern view')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('checkbox', { name: /Print region labels/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'contour' })).not.toBeInTheDocument();
   });
 
-  it('forces the panel open and reports focus completion when focusCalibration is true', () => {
-    const onCalibrationFocused = vi.fn();
+  it('passes the on-screen view/grid/mirrored/labels state into the print-image SVG build', () => {
+    const spy = vi.spyOn(usePatternSvgUrlModule, 'usePatternSvgUrl');
     render(
       <ExportPanel
         regionMap={makeRegionMap()}
@@ -230,22 +191,23 @@ describe('ExportPanel contextual calibration focus (Iteration 02 Stage B)', () =
         onDimensionsChange={vi.fn()}
         exportSettings={baseExportSettings()}
         onExportSettingsChange={vi.fn()}
-        calibrationProfile={createDefaultProfile()}
-        savedProfiles={[]}
-        onCalibrationChange={vi.fn()}
-        onCalibrationSave={vi.fn()}
-        onCalibrationSelect={vi.fn()}
         onSaveProjectJson={vi.fn()}
         onLoadProjectJson={vi.fn()}
         punchGuide={basePunchGuide()}
-        focusCalibration
-        onCalibrationFocused={onCalibrationFocused}
+        screenView="contour"
+        screenShowGrid={true}
+        screenMirrored={true}
+        screenShowLabels={false}
       />,
     );
 
-    expect(document.querySelector('.export-panel')).toHaveAttribute('open');
-    expect(screen.getByRole('heading', { name: 'Calibration', level: 3 })).toBeVisible();
-    expect(onCalibrationFocused).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalled();
+    const printCallOptions = spy.mock.calls.at(-1)?.[2];
+    expect(printCallOptions?.view).toBe('contour');
+    expect(printCallOptions?.showGrid).toBe(true);
+    expect(printCallOptions?.mirrored).toBe(true);
+    expect(printCallOptions?.showLabels).toBe(false);
+    spy.mockRestore();
   });
 });
 
@@ -259,14 +221,10 @@ describe('ExportPanel punch guide (Iteration 02 Stage C)', () => {
         onDimensionsChange={vi.fn()}
         exportSettings={baseExportSettings()}
         onExportSettingsChange={vi.fn()}
-        calibrationProfile={createDefaultProfile()}
-        savedProfiles={[]}
-        onCalibrationChange={vi.fn()}
-        onCalibrationSave={vi.fn()}
-        onCalibrationSelect={vi.fn()}
         onSaveProjectJson={vi.fn()}
         onLoadProjectJson={vi.fn()}
         punchGuide={basePunchGuide({ mode: 'dots', spacingCm: 0.5 })}
+        {...baseScreenProps()}
       />,
     );
 
@@ -288,11 +246,7 @@ describe('ExportPanel punch guide (Iteration 02 Stage C)', () => {
    * Spies on the real `usePatternSvgUrl` implementation (wrapping it, not
    * replacing it, so the panel keeps rendering real pattern images) to
    * assert the one call ExportPanel makes on render -- for the print
-   * image -- is given the exact `punchGuide` prop it was passed. This is
-   * the regression test for the class of bug this stage's investigation
-   * was checking for (even though it found the wiring was already
-   * correct): if a future change stops forwarding `punchGuide` into that
-   * call, this test fails.
+   * image -- is given the exact `punchGuide` prop it was passed.
    */
   it('threads the punchGuide prop into the print-image SVG build (usePatternSvgUrl), not just the export buttons', () => {
     const spy = vi.spyOn(usePatternSvgUrlModule, 'usePatternSvgUrl');
@@ -305,14 +259,10 @@ describe('ExportPanel punch guide (Iteration 02 Stage C)', () => {
         onDimensionsChange={vi.fn()}
         exportSettings={baseExportSettings()}
         onExportSettingsChange={vi.fn()}
-        calibrationProfile={createDefaultProfile()}
-        savedProfiles={[]}
-        onCalibrationChange={vi.fn()}
-        onCalibrationSave={vi.fn()}
-        onCalibrationSelect={vi.fn()}
         onSaveProjectJson={vi.fn()}
         onLoadProjectJson={vi.fn()}
         punchGuide={dotsGuide}
+        {...baseScreenProps()}
       />,
     );
 

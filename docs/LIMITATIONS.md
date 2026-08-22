@@ -7,10 +7,14 @@
   occluded geometry, and the back/sides of the model are never represented.
   This is communicated in the Import stage's orientation section UI (formerly
   a separate "Orient" stage -- see docs/ITERATION_02_PLAN.md), not only here.
-- **Uncalibrated height is not a physical measurement.** Without a
-  calibration profile with at least one measured setting, height levels are
-  ordered low-to-high only. The app labels this "uncalibrated" everywhere a
-  needle setting appears.
+- **Height is never labeled as a physical measurement.** Height levels are
+  relative low-to-high bands only. As of Iteration 03 Round 1, no UI
+  surface shows needle-setting/measured-height numbers at all -- the
+  calibration engine that could compute them still exists
+  (`src/domain/calibration.ts`, `CalibrationEditor.tsx`) but has no current
+  entry point, by explicit reversible product decision (see
+  docs/ITERATION_03_PLAN.md #6 and docs/DECISIONS.md). If that UI returns,
+  the "uncalibrated" labeling requirement from CLAUDE.md still applies.
 - **Yarn-usage estimates are planning estimates**, not purchasing
   guarantees -- see the documented assumptions returned alongside every
   estimate (`docs/ALGORITHMS.md` "Yarn-usage estimate").

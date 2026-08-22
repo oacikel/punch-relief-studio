@@ -102,6 +102,32 @@ test.describe('Print/PDF output (Iteration 02 Stage D)', () => {
     expect(svgContent).not.toContain('data-layer="punch-guide"');
   });
 
+  /**
+   * Iteration 03 Round 1 (docs/ITERATION_03_PLAN.md #11): the export/print
+   * panel no longer has its own "Print region labels" checkbox -- it
+   * reads Preview's on-screen "Region labels" toggle directly. This is
+   * the content-level proof that wiring actually reaches the printed
+   * SVG, not just that the duplicate checkbox is gone from the DOM
+   * (covered separately in e2e/preview-controls.spec.ts).
+   */
+  test('turning off the on-screen "Region labels" toggle removes labels from the printed SVG too', async ({
+    page,
+  }) => {
+    await page.getByRole('checkbox', { name: 'Region labels (C1-H1 etc.)' }).uncheck();
+    await page.emulateMedia({ media: 'print' });
+    await expect(page.locator('.print-page img').first()).toBeVisible();
+
+    const svgContent = await page.evaluate(async () => {
+      const img = document.querySelector('.print-page img') as HTMLImageElement | null;
+      if (!img?.src) return null;
+      const response = await fetch(img.src);
+      return response.text();
+    });
+
+    expect(svgContent).not.toBeNull();
+    expect(svgContent).not.toContain('data-layer="labels"');
+  });
+
   test('"Actual project size" page setting no longer crashes the app (Stage D regression)', async ({
     page,
   }) => {

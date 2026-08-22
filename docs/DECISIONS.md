@@ -341,3 +341,316 @@ mounted workspace folder for the user to inspect).
 **Why documented here:** every "Deferred-verify" row in
 docs/ACCEPTANCE_MATRIX.md and every unrun command in docs/TEST_REPORT.md
 traces back to this one constraint, not to missing implementation effort.
+
+## Iteration 03 Round 1
+
+Implements docs/ITERATION_03_PLAN.md points #1, #2, #5, #6, #7, #8, #9,
+#10, #11 (each point's own "RESOLVED"/"Status" note there links back
+here). #3, #4, #13 stayed explicitly out of scope for this round.
+
+### Background excluded from the finished-piece simulation mesh (#9)
+
+**Decision:** `buildReliefGeometry` (`src/three/buildReliefMesh.ts`) still
+computes a height (`y`) for every vertex including background ones (kept
+at `y=0`, unchanged from before), but now filters the geometry's index
+buffer after the fact, dropping any triangle that references a background
+(`heightIndex === -1`) vertex. Background pixels become a real gap in the
+mesh -- no triangles drawn there -- instead of a filled zero-height slab.
+**Alternative considered:** rebuild the geometry from scratch as a sparse
+mesh (only emit vertices/faces for foreground pixels), which would avoid
+carrying unused background vertices in the position buffer.
+**Why the index-filter approach instead:** it reuses `THREE.PlaneGeometry`
+verbatim for vertex layout, UVs, and (post-filter) `computeVertexNormals`,
+so the only new code is the filter loop and the per-vertex foreground
+flag -- far less surface area to get wrong than a from-scratch sparse
+mesh builder, at the cost of some unreferenced vertices sitting unused in
+the position buffer (harmless: they're never drawn, and nothing here
+calls `computeBoundingBox`/`computeBoundingSphere` on the result, since
+camera framing in `SimulationView.tsx` uses `widthCm`/`heightCm` directly,
+not geometry bounds).
+**Known cosmetic edge case:** because a triangle survives only when _all
+three_ of its vertices are foreground, the silhouette boundary erodes by
+roughly half a grid cell all the way around (a triangle straddling the
+foreground/background edge is dropped entirely, not clipped to the exact
+boundary). At the hardcoded 256px capture resolution (see below) this is
+imperceptible in practice; a true silhouette-clipped mesh (inserting new
+boundary vertices at the exact fg/bg crossing) would be the fix if it
+ever becomes visible, not attempted here as unrequested scope.
+**Index typed-array size:** `geometry.setIndex()` is called with a plain
+JS `number[]`, not a pre-sized typed array -- Three.js picks `Uint16Array`
+vs `Uint32Array` itself based on the array's contents, so this stays
+correct even if a legacy project JSON requests `outputResolutionPx` above
+256 (see below), where a 512x512 capture's ~262k vertices would overflow
+a naively-sized `Uint16Array`.
+
+### Yarn color in the finished-piece simulation (#10)
+
+**Decision:** `buildReliefGeometry` takes an optional `legend:
+LegendEntry[]` and writes a per-vertex `color` `BufferAttribute`, looking
+up each pixel's color via `regionId(colorIndex, heightIndex)` against a
+`Map` built from the legend (the exact same ID format
+`domain/pattern/legend.ts` produces and `export/svgPattern.ts`'s
+`fillForView` already keys off of). `SimulationView`'s material switches
+from a hardcoded `color: 0xb5563c` to `vertexColors: true, color:
+0xffffff` (a white base so vertex colors render unmodified -- Three.js's
+`MeshStandardMaterial` multiplies base color by vertex color).
+**Alternative considered:** per-region sub-meshes/materials (one
+`THREE.Mesh` per distinct region, each with its own solid-color
+material), which would give perfectly crisp region boundaries instead of
+the shaded-material's per-fragment color interpolation across a shared
+vertex.
+**Why per-vertex color instead:** the geometry is a single shared-vertex
+displaced plane (see the background-exclusion decision above) --
+splitting it into per-region sub-meshes would mean re-deriving mesh
+topology per contiguous region (essentially the same connected-component
+analysis `regionCleanup.ts` already does, just re-run for meshing instead
+of cleanup) for a visual difference that's minor at this resolution.
+Per-vertex color reuses the existing single-mesh structure with no new
+topology code, at the cost of color blending slightly across region
+boundaries -- consistent with (not a new inconsistency versus) the
+existing per-vertex _height_ interpolation this same mesh already does,
+which the file's own doc comment already describes as "stepped,
+faceted-but-smoothed."
+**One source of truth, not two:** deliberately reuses `LegendEntry[]`
+(the same data `PatternCanvas`/`Legend.tsx`/`svgPattern.ts` already
+render from) rather than recomputing color-by-mode logic a second time
+inside `src/three/`. `src/three` importing this `src/domain/pattern`
+type is within CLAUDE.md's architecture rule -- `three/` may talk to
+`domain` via plain data, `LegendEntry` has zero React/Three imports, and
+`buildReliefMesh.ts` already imported `CalibrationProfile`/`HeightLevel`/
+`RegionMap` from `domain` before this change, so this isn't a new
+architectural pattern.
+
+### Lighting-slider camera reset fix -- effect split (#8)
+
+**Decision:** `SimulationView.tsx`'s single mega-effect (which rebuilt
+the entire scene -- renderer, camera, `OrbitControls`, mesh, lights,
+everything -- on every prop change) is split into three: a mount effect
+(deps `[]`, creates renderer/scene/camera/controls/lights/materials
+exactly once), a geometry effect (deps: regionMap/levels/profile/
+widthCm/heightCm/legend, rebuilds mesh+fabric geometry and re-frames the
+camera), and a light/material effect (deps: pileStyle/fabricColorHex/
+lightingAzimuthDeg/lightingElevationDeg **plus** widthCm/heightCm,
+updates the light position and material properties in place, never
+touches camera/controls).
+**Why widthCm/heightCm are in the light effect's deps too, not just the
+geometry effect's:** light _distance_ (not just direction) scales with
+`Math.max(widthCm, heightCm)` (`maxSpan`) in the original formula. Without
+this, changing the pattern's physical Width/Height without touching a
+lighting slider would leave the light positioned for the old size -- the
+same class of stale-effect bug this split exists to fix, just moved to a
+different trigger. Since the light effect never touches camera/controls,
+re-running it more often than strictly necessary is harmless.
+**Accepted trade-off:** the geometry effect _does_ still re-frame the
+camera (matching how `Viewport3D.tsx`'s own geometry effect already
+re-fits its camera on new geometry) whenever regionMap/levels/profile/
+dimensions change -- e.g. recoloring swatches on the Yarn Colors stage
+changes `regionMap`, which resets the simulation's camera framing on the
+next Preview visit. This is a real, narrower residual of the original
+"camera resets on non-user-requested changes" complaint, but it's
+strictly better than before (those changes were rare compared to
+dragging a lighting slider, which is the specific interaction the bug
+report was about) and matches the established `Viewport3D.tsx` precedent
+rather than inventing a new one. Left open for a future pass if it proves
+user-visible.
+
+### "Smallest punchable region" presets, not physical units (#1)
+
+**Decision:** `src/domain/pattern/minRegionPreset.ts` exports three named
+presets (`fine`/`balanced`/`bold`), each mapped to a fixed percentage of
+the raster canvas area: fine 0.01%, balanced 0.02%, bold 0.08%.
+`minRegionPxForPreset(preset, width, height)` computes
+`Math.max(1, Math.round(width * height * percent))`.
+**Why not cm/mm (the original draft plan's proposal):** the control feeds
+`cleanupTinyRegions` inside `processing.worker.ts`, which runs during
+relief generation -- _before_ the app has ever asked for a physical
+Width/Height (that's an Export-panel-only concept, set after the fact).
+A cm-based value would have no scale to convert against at the point
+it's actually applied; the only way to make it "work" would be assuming
+a placeholder physical size, which would be a fabricated-precision
+violation of CLAUDE.md's units discipline in spirit even if not in the
+literal `Cm`/`Px` type sense.
+**Why percentage-of-area instead of a fixed px count (the original
+control's shape):** the removed "Detail resolution" control (see next
+decision) is now hardcoded at 256px, so in practice the resolution is
+fixed for new sessions -- but old project JSON can still carry a
+different `outputResolutionPx`, and a percentage stays meaningful at any
+resolution rather than silently becoming too aggressive/too lax if the
+effective raster size ever changes.
+**Why these specific percentages:** chosen so `balanced` at 256x256
+(65,536px) rounds to 13px, close to the previous fixed default of 12px --
+existing patterns generated with default settings look almost identical
+under the new default preset, not surprisingly different. `fine`/`bold`
+are roughly 4x smaller/larger than `balanced` (7px / 52px at 256x256),
+giving three genuinely distinct results rather than three presets that
+all look the same in practice. Locked in by
+`src/domain/pattern/__tests__/minRegionPreset.test.ts`.
+**Backward compatibility:** `ReliefSettings.minRegionPx: number` was
+renamed outright to `minRegionPreset: MinRegionPreset` (a shape change,
+unlike `outputResolutionPx` which keeps its old field -- see next
+decision for why that one differs). A pre-Round-1 project JSON's stray
+`minRegionPx` key is harmlessly absorbed as dead data by
+`SET_RELIEF_SETTINGS`'s shallow-merge reducer, while a missing
+`minRegionPreset` key simply leaves the existing default ('balanced') in
+place -- no crash, no `NaN`, no schema-version bump needed (`ProjectFile.
+reliefSettings: ReliefSettings` is a type reference, and
+`parseProjectFile` only checks top-level key presence, never deep-
+validates `reliefSettings`'s shape).
+
+### "Detail resolution" removed entirely, not just hidden (#2)
+
+**Decision:** the "Advanced punch detail controls" `<details>` disclosure
+in `ReliefStage.tsx` (which contained only this one field) is deleted
+outright. `ReliefSettings.outputResolutionPx: Px` stays in the type and
+`DEFAULT_RELIEF_SETTINGS` (256px) -- unlike `minRegionPx` above, this
+field is **not** renamed or removed, specifically so a project JSON saved
+before this change (or one a user hand-edits) that specifies a different
+resolution still loads and behaves as it did before. There's simply no
+UI control that writes a different value anymore in a fresh session.
+**Why 256px is the right hardcoded default:** it's the value the removed
+control's own former helper text already called "a sensible default that
+covers most cases" (i.e. this isn't a new judgment call, it's promoting
+the previous default to the only value) -- see docs/ITERATION_03_PLAN.md
+#2 for why resolution was already established (Iteration 02 Stage B
+planning) as a sampling-density knob, not a physical measurement, so
+hardcoding it doesn't create a units-discipline problem.
+
+### Model-straightening rotation: mesh transform, local state (#5)
+
+**Decision:** `Viewport3D.tsx` adds Roll/Pitch/Yaw sliders (+ "Reset
+rotation") that call `mesh.rotation.set(pitchRad, yawRad, rollRad)` on
+the live `THREE.Mesh` object already in the scene -- an `Object3D`
+transform, not a raw `BufferGeometry` vertex mutation, and not a camera-
+side workaround. Axis mapping (roll -> object-space Z, pitch -> X, yaw ->
+Y) follows the aviation-style convention under this app's Y-up,
+front-is-+Z world convention (`VIEW_DIRECTIONS` in `src/three/
+viewport.ts`).
+**Why Object3D rotation, not vertex mutation:** each slider change sets
+an _absolute_ rotation value (not an incremental one applied on top of
+the mesh's current transform), so there's no drift/rounding accumulation
+across repeated adjustments, "Reset rotation" is trivially exact
+(`{roll:0,pitch:0,yaw:0}`), and Three.js recomputes the normal matrix
+from the object's world transform automatically every frame -- no need
+to call `computeVertexNormals()` again after rotating, unlike a vertex
+mutation approach would require. Depth capture
+(`src/three/depthCapture.ts`) needed zero changes: `captureDepth` just
+calls `renderer.render(scene, camera)`, which already respects whatever
+transform is currently on `mesh` -- straightening a model on Import
+genuinely changes what "Generate relief" captures, not just what the
+preview shows.
+**Why local component state, not lifted to `AppState`:** mirrors the
+existing camera-view state, which is _also_ local `useRef`/`useState`
+inside `Viewport3D.tsx` and already persists correctly across Import <->
+Relief navigation (covered by `e2e/orient-persistence.spec.ts`) purely
+because this component is never remounted between those two stages (a
+single shared `<Viewport3D>` instance, same position in `App.tsx`'s JSX
+tree regardless of which of the two stages is active). Rotation state
+gets the identical guarantee for free, with no `AppState`/
+`appReducer`/`ProjectFile` schema changes needed. A newly loaded model
+(new `geometry` prop) always resets rotation to zero -- straightening is
+a per-import adjustment, not a property of the mesh data itself.
+**Scope:** all three axes (Roll/Pitch/Yaw) were built, not just Roll --
+the reported bug (a relief rendered at a skewed diagonal angle) is
+specifically a roll problem, but a model tilted around more than one axis
+on import is equally plausible and three sliders cost little more than
+one.
+**Inconsistency noted, not fixed:** `Viewport3D.tsx`'s existing
+`centerAndMeasure`/`normalizeScale` (`src/three/viewport.ts`) already
+mutate raw geometry vertices directly, for a different purpose (one-time
+import normalization, not live user adjustment) -- rotation deliberately
+does not follow that same pattern, for the reasons above. Both approaches
+coexist in the same file for different concerns; this is intentional; not
+an oversight.
+
+### Calibration/needle-setting UI removed, not deleted (#6)
+
+**Decision:** removed from the render tree only --
+`src/domain/calibration.ts`, `CalibrationEditor.tsx`, and their test
+files are byte-for-byte untouched by this round. What actually changed:
+
+- `HeightStage.tsx`: dropped the "Needle setting" table column, the
+  profile-name/calibrated-status line, and the "Calibrate needle
+  settings" link/button. Props `profile`/`onCalibrate` removed entirely.
+- `Legend.tsx`: dropped "Needle setting"/"Measured height" columns and
+  the "uncalibrated" status banner. `calibrated` prop removed.
+  Region/Symbol/Yarn color/Yarn name stay -- Symbol is CLAUDE.md's
+  "never rely on color alone" requirement, unrelated to calibration.
+- `ExportPanel.tsx`: the entire Calibration section (`CalibrationEditor`
+  usage, the `focusCalibration`/`onCalibrationFocused` scroll-and-focus
+  effects, and their props) removed.
+- `App.tsx`: the now-orphaned `handleCalibrate` function and the three
+  `onCalibration*` handlers (their only callers were the deleted
+  controls) removed, along with the `focusCalibration`/
+  `setFocusCalibration` navigation-flag state.
+  **What deliberately stayed wired, in App.tsx/state/appState.ts:**
+  `state.calibrationProfile` (still feeds `buildLegend` -- every
+  `LegendEntry` still carries `needleSettingLabel`/`needleSettingNumber`/
+  `measuredHeightCm`, just unrendered -- and still feeds
+  `SimulationView`/`buildReliefGeometry`'s height-lookup fallback, which
+  needs a profile regardless of whether its UI is reachable);
+  `state.savedProfiles` and the `SET_CALIBRATION_PROFILE`/
+  `SET_SAVED_PROFILES` reducer cases (untouched); the `useEffect` in
+  `App.tsx` that loads saved profiles from `localStorage` via
+  `loadProfiles()` on mount (kept deliberately, even though nothing
+  currently reads `state.savedProfiles` -- it's cheap, and removing it
+  would mean a future reinstated calibration UI would start from an empty
+  list instead of real saved data until someone remembered to re-add it).
+  **Why this counts as "not defunct code" rather than a CLAUDE.md
+  violation:** this is an explicit, reversible product decision ("for
+  now"), not abandoned work -- the domain layer, persistence layer, and
+  `CalibrationEditor` component are a complete, tested, working feature
+  that simply has no current UI entry point. Re-adding an entry point is a
+  render-tree change only; no domain/schema work would be needed.
+
+### Export/print duplicate controls removed, Stage C reversed (#11)
+
+**Decision:** `ExportPanel.tsx`'s own "Export pattern view" button group
+and "Print region labels" checkbox are deleted outright. `ExportPanel`
+now takes `screenView`/`screenShowGrid`/`screenMirrored`/
+`screenShowLabels` props and uses them directly in all three places that
+build the pattern SVG (`exportSvg`, `exportPng`, the `usePatternSvgUrl`
+call backing the hidden `.print-pages` block) -- replacing the previous
+`exportSettings.view`/`exportSettings.showLabels`/a
+`exportSettings.orientation`-derived `mirrored` local. `PreviewStage.tsx`
+threads its own existing local `view`/`showGrid`/`mirrored` state (plus
+`patternViewSettings.showOnScreenLabels`) straight through as those
+props -- there is exactly one set of pattern-view controls in the UI now,
+not two.
+**This explicitly reverses a Stage C decision** (documented earlier in
+this file, "Iteration 02 Stage C" punch-guide section and the sibling
+decision it references) that screen and print settings could deliberately
+diverge. In practice, per the product owner's Iteration 03 feedback, this
+read as redundant rather than powerful -- two nearly-identical control
+sets a user had to keep in sync by hand, printing whatever the second,
+easy-to-forget set happened to be set to.
+**`ExportSettings.view`/`.showLabels`/`.orientation` were not removed
+from the type/schema** -- they're now inert (no UI writes them), kept
+only so `ProjectFile.exportSettings` round-trips old project JSON without
+a schema-shape change. See the comment on `ExportSettings` in
+`src/state/appState.ts`. Page size/overlap (`exportSettings.pageSize`/
+`.overlapCm`) are untouched -- physical print-page sizing is a
+legitimately export-only concept with no on-screen equivalent, not part
+of the duplication complaint.
+
+### Yarn color-story palettes (#7)
+
+**Decision:** `src/domain/color/palettes.ts` bundles four hand-picked,
+named palettes (Terrain, Coastal, Sunset Fade, Meadow) as a plain local
+data array plus one pure transform, `applyPaletteToSwatches(swatches,
+palette)`, which only ever overwrites each swatch's `color` (cycling
+through the palette's colors by swatch index if there are more swatches
+than colors) -- `index`/`yarnName` are always preserved, so a palette
+application never clobbers a user's existing yarn naming.
+**Why gated to "by-height" color mode only:** a palette is inherently a
+multi-color ramp; "single yarn" mode has exactly one swatch to color
+(no ramp to apply), and "source-material" mode's swatches are meant to
+approximate the model's actual captured surface colors, which a
+generic decorative palette would just overwrite with no relationship to
+the source data.
+**Why four palettes, not more:** the brief explicitly asked for "a
+handful," "tasteful and small," "don't let it grow into a big feature" --
+four is enough to demonstrate genuine stylistic range (earthy/cool/warm/
+playful) without becoming its own sub-system (search, favorites,
+custom-palette authoring, etc., all deliberately not built).
+**No network calls:** all palette data is a bundled TypeScript array, per
+CLAUDE.md -- no fetching a palette API or CDN-hosted swatch library.

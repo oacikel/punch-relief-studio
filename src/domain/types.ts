@@ -4,6 +4,7 @@
  * see docs/PLAN_REVIEW.md, "zero-compile risk" resolution.
  */
 import type { NormalizedDepth, Px } from './units';
+import type { MinRegionPreset } from './pattern/minRegionPreset';
 
 /** A single-channel raster field: width*height values, row-major. */
 export interface ScalarField {
@@ -61,7 +62,22 @@ export interface ReliefSettings {
   invert: boolean; // near-to-high (false) vs near-to-low (true)
   smoothingStrength: number; // 0-1
   edgePreservation: number; // 0-1, 0 = pure gaussian, 1 = bilateral-like
-  minRegionPx: number; // connected-component cleanup threshold
+  /** Connected-component cleanup threshold, expressed as a named preset
+   * rather than a raw pixel count -- see
+   * src/domain/pattern/minRegionPreset.ts and docs/ITERATION_03_PLAN.md
+   * #1 for why (a physical-cm control has no scale to convert against at
+   * the point in the pipeline where this is actually applied).
+   *
+   * Backward compatibility note (unlike `outputResolutionPx` below, which
+   * keeps its old field on purpose): this field replaced a raw
+   * `minRegionPx: number` field of the same shape (Iteration 03 Round 1).
+   * A pre-Round-1 project JSON's stray `minRegionPx` key is harmlessly
+   * ignored -- `SET_RELIEF_SETTINGS`'s reducer shallow-merges
+   * `Partial<ReliefSettings>`, so a missing `minRegionPreset` key simply
+   * leaves whatever preset was already in state (the 'balanced' default
+   * on a fresh session), rather than crashing or producing `undefined`.
+   * See docs/DECISIONS.md. */
+  minRegionPreset: MinRegionPreset;
   quantizationMode: QuantizationMode;
   seed: number;
 }
@@ -73,7 +89,7 @@ export const DEFAULT_RELIEF_SETTINGS: ReliefSettings = {
   invert: false,
   smoothingStrength: 0.3,
   edgePreservation: 0.5,
-  minRegionPx: 12,
+  minRegionPreset: 'balanced',
   quantizationMode: 'equal-interval',
   seed: 0x50554e43,
 };

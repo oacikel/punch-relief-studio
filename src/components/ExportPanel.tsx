@@ -1,18 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
-import type { CalibrationProfile } from '@/domain/calibration';
 import type { PatternDimensions, ExportSettings } from '@/state/appState';
 import type { PunchGuideSettings } from '@/domain/pattern/punchGuide';
 import { buildSvgPattern, type PatternView } from '@/export/svgPattern';
 import { downloadSvg, svgToPngBlob, downloadBlob } from '@/export/download';
 import { computeTiling, cmToCssPx } from '@/export/printTiling';
 import { withExtension } from '@/domain/filenameSanitize';
-import { CalibrationEditor } from '@/components/CalibrationEditor';
 import { usePatternSvgUrl } from '@/hooks/usePatternSvgUrl';
 import type { ProjectFile } from '@/domain/projectSchema';
-
-const VIEWS: PatternView[] = ['combined', 'color-only', 'height-only', 'contour'];
 
 interface Props {
   regionMap: RegionMap;
@@ -21,39 +17,41 @@ interface Props {
   onDimensionsChange: (patch: Partial<PatternDimensions>) => void;
   exportSettings: ExportSettings;
   onExportSettingsChange: (patch: Partial<ExportSettings>) => void;
-  calibrationProfile: CalibrationProfile;
-  savedProfiles: CalibrationProfile[];
-  onCalibrationChange: (profile: CalibrationProfile) => void;
-  onCalibrationSave: (profile: CalibrationProfile) => void;
-  onCalibrationSelect: (profile: CalibrationProfile) => void;
   onSaveProjectJson: () => void;
   onLoadProjectJson: (project: ProjectFile) => void;
-  /** Iteration 02 Stage B: when true, forces this panel's disclosure open
-   * and scrolls/focuses the calibration section -- set from App.tsx when
-   * the user follows the "Calibrate needle settings" link on the Height
-   * Levels stage (see docs/ITERATION_02_PLAN.md §14 decision #1). Optional
-   * so existing callers/tests that don't care about this behave exactly as
-   * before. */
-  focusCalibration?: boolean;
-  /** Called once the forced-open/scroll/focus above has happened, so the
-   * caller can reset its flag and a later, ordinary visit to Preview
-   * doesn't keep re-forcing it. */
-  onCalibrationFocused?: () => void;
   /** Iteration 02 Stage C: the same punch-guide setting shown on the
    * on-screen Preview pattern, applied to every export/print path too --
    * what you preview is what prints. */
   punchGuide: PunchGuideSettings;
+  /** Iteration 03 Round 1: the rest of Preview's on-screen pattern-display
+   * state (pattern view mode, grid, mirrored, region labels), read
+   * directly here instead of this panel owning a second, independent copy
+   * of the same controls. This reverses the Stage C decision that let
+   * screen and print settings diverge -- see docs/DECISIONS.md. */
+  screenView: PatternView;
+  screenShowGrid: boolean;
+  screenMirrored: boolean;
+  screenShowLabels: boolean;
 }
 
 /**
  * Compact export/print panel, rendered inside the Preview stage as of
  * Iteration 02 Stage A (formerly its own "Export" workflow stage -- see
- * docs/ITERATION_02_PLAN.md). Same underlying logic and the same
- * `CalibrationEditor`, just relocated and collapsed behind a `<details>`
- * disclosure so Preview isn't a wall of controls (product owner feedback
- * item 19). The hidden `.print-pages` block is unaffected by whether the
- * disclosure is open or closed -- it lives outside the `<details>` element
- * so printing always works regardless of the panel's on-screen state. */
+ * docs/ITERATION_02_PLAN.md). The hidden `.print-pages` block is
+ * unaffected by whether the disclosure is open or closed -- it lives
+ * outside the `<details>` element so printing always works regardless of
+ * the panel's on-screen state.
+ *
+ * As of Iteration 03 Round 1, this panel no longer owns its own "Export
+ * pattern view" selector or "Print region labels" checkbox (both deleted
+ * -- see the `screenView`/`screenShowGrid`/`screenMirrored`/
+ * `screenShowLabels` props above), and no longer renders a Calibration
+ * section (calibration UI was removed app-wide by explicit, reversible
+ * product decision -- see docs/ITERATION_03_PLAN.md #6; the underlying
+ * `CalibrationEditor`/`src/domain/calibration.ts` are untouched, just not
+ * referenced here anymore). See docs/ITERATION_03_PLAN.md #11 and
+ * docs/DECISIONS.md for both reversals.
+ */
 export function ExportPanel({
   regionMap,
   legend,
@@ -61,40 +59,17 @@ export function ExportPanel({
   onDimensionsChange,
   exportSettings,
   onExportSettingsChange,
-  calibrationProfile,
-  savedProfiles,
-  onCalibrationChange,
-  onCalibrationSave,
-  onCalibrationSelect,
   onSaveProjectJson,
   onLoadProjectJson,
-  focusCalibration = false,
-  onCalibrationFocused,
   punchGuide,
+  screenView,
+  screenShowGrid,
+  screenMirrored,
+  screenShowLabels,
 }: Props): JSX.Element {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const calibrationRef = useRef<HTMLDivElement | null>(null);
 
-  // Force the disclosure open when asked to focus calibration (see the
-  // "Calibrate needle settings" link on the Height Levels stage).
-  useEffect(() => {
-    if (focusCalibration) setDetailsOpen(true);
-  }, [focusCalibration]);
-
-  // Once open, scroll to and focus the calibration section, then tell the
-  // caller so it can clear the flag -- otherwise a later, ordinary visit to
-  // Preview would keep re-forcing the panel open. `scrollIntoView` doesn't
-  // exist in jsdom (unit tests), so both the ref and the method are
-  // optionally chained rather than mocked -- this effect simply becomes a
-  // no-op scroll/focus in that environment, which is fine since tests only
-  // assert the `open` state and that the callback fired.
-  useEffect(() => {
-    if (!focusCalibration || !detailsOpen) return;
-    calibrationRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-    calibrationRef.current?.focus?.();
-    onCalibrationFocused?.();
-  }, [focusCalibration, detailsOpen, onCalibrationFocused]);
   // Guard against a cleared/invalid width producing NaN/Infinity, which
   // would otherwise propagate into the tiling math and SVG dimensions
   // below (a real crash path found in implementation review).
@@ -139,16 +114,14 @@ export function ExportPanel({
     }
   };
 
-  const mirrored = exportSettings.orientation === 'mirrored';
-
   const exportSvg = (): void => {
     const result = buildSvgPattern(regionMap, legend, {
       widthCm: safeDimensions.widthCm,
       heightCm: safeDimensions.heightCm,
-      view: exportSettings.view,
-      showGrid: false,
-      showLabels: exportSettings.showLabels,
-      mirrored,
+      view: screenView,
+      showGrid: screenShowGrid,
+      showLabels: screenShowLabels,
+      mirrored: screenMirrored,
       punchGuide,
     });
     downloadSvg(result.svg, withExtension('punch-relief-pattern', 'svg'));
@@ -158,10 +131,10 @@ export function ExportPanel({
     const result = buildSvgPattern(regionMap, legend, {
       widthCm: safeDimensions.widthCm,
       heightCm: safeDimensions.heightCm,
-      view: exportSettings.view,
-      showGrid: false,
-      showLabels: exportSettings.showLabels,
-      mirrored,
+      view: screenView,
+      showGrid: screenShowGrid,
+      showLabels: screenShowLabels,
+      mirrored: screenMirrored,
       punchGuide,
     });
     const widthPx = Math.round(safeDimensions.widthCm * 40);
@@ -185,10 +158,10 @@ export function ExportPanel({
   const { url: printImageUrl } = usePatternSvgUrl(regionMap, legend, {
     widthCm: safeDimensions.widthCm,
     heightCm: safeDimensions.heightCm,
-    view: exportSettings.view,
-    showGrid: false,
-    showLabels: exportSettings.showLabels,
-    mirrored,
+    view: screenView,
+    showGrid: screenShowGrid,
+    showLabels: screenShowLabels,
+    mirrored: screenMirrored,
     punchGuide,
   });
   const fullWidthPx = cmToCssPx(safeDimensions.widthCm);
@@ -240,37 +213,10 @@ export function ExportPanel({
             Lock aspect ratio
           </label>
 
-          <div className="field">
-            <span id="export-view-label">Export pattern view</span>
-            <div role="group" aria-labelledby="export-view-label" style={{ marginTop: 4 }}>
-              {VIEWS.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={exportSettings.view === v}
-                  onClick={() => onExportSettingsChange({ view: v })}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          </div>
           <p className="helper-text">
-            Applies to SVG/PNG export and printing -- "contour" prints outlines only, with no fill,
-            for tracing.
-          </p>
-
-          <label>
-            <input
-              type="checkbox"
-              checked={exportSettings.showLabels}
-              onChange={(e) => onExportSettingsChange({ showLabels: e.target.checked })}
-            />{' '}
-            Print region labels (C1-H1 etc.)
-          </label>
-          <p className="helper-text">
-            Turn off for an uncluttered print if you're reading colors/heights from the on-screen
-            legend instead.
+            Export and print always match what Preview is currently showing above -- pattern view,
+            grid, mirrored, region labels, and punch guide. Change those there; there's nothing to
+            set twice.
           </p>
 
           <div className="field">
@@ -325,21 +271,10 @@ export function ExportPanel({
             </p>
           )}
           <p className="helper-text">
-            Reopening a project restores settings, calibration, and colors -- if it was made from
-            your own imported file (not a built-in sample), you'll need to re-select that file too,
-            since the original model isn't embedded in the project JSON. See docs/DECISIONS.md.
+            Reopening a project restores settings and colors -- if it was made from your own
+            imported file (not a built-in sample), you'll need to re-select that file too, since the
+            original model isn't embedded in the project JSON. See docs/DECISIONS.md.
           </p>
-
-          <div ref={calibrationRef} tabIndex={-1}>
-            <h3>Calibration</h3>
-            <CalibrationEditor
-              profile={calibrationProfile}
-              savedProfiles={savedProfiles}
-              onChange={onCalibrationChange}
-              onSave={onCalibrationSave}
-              onSelectSaved={onCalibrationSelect}
-            />
-          </div>
         </div>
       </details>
 
@@ -347,10 +282,9 @@ export function ExportPanel({
           leaves visible (see @media print in styles.css). "Print / Save as
           PDF" previously called window.print() against the controls above
           -- which never contained the pattern itself -- so a print/PDF was
-          just the export form and calibration table, not the pattern.
-          Each .print-page clips a full-size copy of the pattern image to
-          that tile's region via a negative offset, so every page prints at
-          true physical scale. */}
+          just the export form, not the pattern. Each .print-page clips a
+          full-size copy of the pattern image to that tile's region via a
+          negative offset, so every page prints at true physical scale. */}
       <div className="print-pages" aria-hidden="true">
         {tiling.pages.map((tile) => {
           const tileWidthPx = cmToCssPx(tile.x1Cm - tile.x0Cm);
