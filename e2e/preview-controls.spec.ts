@@ -1,4 +1,8 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Iteration 02 Stage C coverage: the on-screen label toggle and the
@@ -139,5 +143,61 @@ test.describe('Workspace mobile-narrow layout (Iteration 03 Round 2 #2)', () => 
     const summary = page.locator('.export-panel summary');
     await summary.click();
     await expect(page.locator('.export-panel[open]')).toBeVisible();
+  });
+});
+
+/**
+ * Usability fix #5 (docs/DECISIONS.md): a previously-reported 375px-width
+ * horizontal-overflow bug (`document.documentElement.scrollWidth: 420` vs
+ * `clientWidth: 375`) could not be reproduced by a follow-up audit that
+ * toggled every discrete control at 375px width using default settings.
+ * The working theory: the original overflow was found while the "N
+ * region(s) are smaller than the minimum punchable size... may be
+ * difficult to punch reliably" warning banner (`ReliefControls.tsx`,
+ * gated on `findSmallRegions` finding at least one leftover small region)
+ * was actively showing, and the follow-up sweep never triggered that
+ * specific state before checking for overflow.
+ *
+ * `cleanupTinyRegions` (`src/domain/regionCleanup.ts`) already removes/
+ * merges every region below the active min-region threshold *except* one
+ * kind: an isolated island with no bordering non-background region to
+ * merge into. None of the three built-in samples (smooth, single-blob
+ * height fields) produce that under any combination of preset/rotation
+ * tried by hand -- so this uses a small, deliberately-crafted STL fixture
+ * (`e2e/fixtures/sliver.stl`: one large cube plus one tiny, fully
+ * detached sliver positioned well outside it) to *reliably* force exactly
+ * that state, deterministically, rather than relying on incidental
+ * model/setting combinations. Reproduced by hand first (real
+ * `getBoundingClientRect`/`scrollWidth` measurements against a running
+ * build, both at 375px and at the project's own 390px mobile-narrow
+ * width) before writing this regression test -- see docs/DECISIONS.md for
+ * the measurements and the explicit "does not reproduce" conclusion.
+ */
+test.describe('Mobile-narrow layout with the small-region warning banner active (usability fix #5)', () => {
+  test('no horizontal overflow at 375px width while the small-region warning banner is showing', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/');
+    const fileInput = page.getByLabel('Choose model files to import');
+    await fileInput.setInputFiles(path.join(here, 'fixtures', 'sliver.stl'));
+    await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible({
+      timeout: 10_000,
+    });
+
+    await page.getByRole('button', { name: '2. Workspace' }).click();
+    await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
+
+    // The sliver fixture's tiny detached piece has no valid neighbor to
+    // merge into, so it survives cleanup at the default "Balanced" preset
+    // -- no preset change needed to force the warning.
+    await expect(page.locator('.warning-banner')).toContainText(
+      /smaller than the minimum punchable size/,
+    );
+
+    const hasHorizontalOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    );
+    expect(hasHorizontalOverflow).toBe(false);
   });
 });
