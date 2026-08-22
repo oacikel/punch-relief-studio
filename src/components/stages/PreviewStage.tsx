@@ -34,17 +34,8 @@ interface Props {
   onRenderSettingsChange: (patch: Partial<RenderSettings>) => void;
   exportSettings: ExportSettings;
   onExportSettingsChange: (patch: Partial<ExportSettings>) => void;
-  savedProfiles: CalibrationProfile[];
-  onCalibrationChange: (profile: CalibrationProfile) => void;
-  onCalibrationSave: (profile: CalibrationProfile) => void;
-  onCalibrationSelect: (profile: CalibrationProfile) => void;
   onSaveProjectJson: () => void;
   onLoadProjectJson: (project: ProjectFile) => void;
-  /** Iteration 02 Stage B: forwarded straight through to `ExportPanel` --
-   * see its own doc comment. Set from App.tsx via the Height Levels
-   * stage's "Calibrate needle settings" link. */
-  focusCalibration?: boolean;
-  onCalibrationFocused?: () => void;
   /** Iteration 02 Stage C: on-screen label toggle + punch-guide selector
    * state, shared with the export/print panel below (see
    * docs/DECISIONS.md). */
@@ -83,14 +74,8 @@ export function PreviewStage({
   onRenderSettingsChange,
   exportSettings,
   onExportSettingsChange,
-  savedProfiles,
-  onCalibrationChange,
-  onCalibrationSave,
-  onCalibrationSelect,
   onSaveProjectJson,
   onLoadProjectJson,
-  focusCalibration = false,
-  onCalibrationFocused = () => {},
   patternViewSettings,
   onPatternViewSettingsChange,
 }: Props): JSX.Element {
@@ -243,16 +228,13 @@ export function PreviewStage({
         onDimensionsChange={onDimensionsChange}
         exportSettings={exportSettings}
         onExportSettingsChange={onExportSettingsChange}
-        calibrationProfile={profile}
-        savedProfiles={savedProfiles}
-        onCalibrationChange={onCalibrationChange}
-        onCalibrationSave={onCalibrationSave}
-        onCalibrationSelect={onCalibrationSelect}
         onSaveProjectJson={onSaveProjectJson}
         onLoadProjectJson={onLoadProjectJson}
-        focusCalibration={focusCalibration}
-        onCalibrationFocused={onCalibrationFocused}
         punchGuide={punchGuide}
+        screenView={view}
+        screenShowGrid={showGrid}
+        screenMirrored={mirrored}
+        screenShowLabels={showOnScreenLabels}
       />
     </section>
   );

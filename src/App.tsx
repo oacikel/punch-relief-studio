@@ -19,7 +19,7 @@ import { useProcessingWorker } from '@/hooks/useProcessingWorker';
 import { appReducer, initialAppState, DEFAULT_SINGLE_COLOR } from '@/state/appState';
 import { DEFAULT_PUNCH_GUIDE_SPACING_CM } from '@/domain/pattern/punchGuide';
 import { workflowReducer, initialWorkflowState } from '@/state/workflow';
-import { loadProfiles, upsertProfile } from '@/persistence/calibrationStore';
+import { loadProfiles } from '@/persistence/calibrationStore';
 import { serializeProject, projectFilename } from '@/persistence/projectStore';
 import { downloadText } from '@/export/download';
 import { PROJECT_SCHEMA_VERSION, type ProjectFile } from '@/domain/projectSchema';
@@ -30,15 +30,15 @@ export default function App(): JSX.Element {
   const [state, dispatch] = useReducer(appReducer, undefined, initialAppState);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [importWarning, setImportWarning] = useState<string | null>(null);
-  // Iteration 02 Stage B: ephemeral navigation flag, not app/domain data --
-  // kept local like `importWarning` above rather than added to appReducer
-  // (see docs/ITERATION_02_PLAN.md §14 decision #1). Set by the Height
-  // Levels stage's "Calibrate needle settings" link; consumed by Preview's
-  // ExportPanel to force its disclosure open and scroll to calibration.
-  const [focusCalibration, setFocusCalibration] = useState(false);
   const viewportHandle = useRef<Viewport3DHandle | null>(null);
   const { process } = useProcessingWorker();
 
+  // Loads any locally-saved calibration profiles into state even though
+  // there's currently no UI surface that reads state.savedProfiles --
+  // calibration UI was removed app-wide by explicit, reversible product
+  // decision (docs/ITERATION_03_PLAN.md #6), but the underlying
+  // persistence/domain layer stays fully wired so a future UI can read
+  // real saved data immediately, not just be "reconnected but empty".
   useEffect(() => {
     dispatch({ type: 'SET_SAVED_PROFILES', profiles: loadProfiles() });
   }, []);
@@ -383,21 +383,8 @@ export default function App(): JSX.Element {
               onExportSettingsChange={(patch) =>
                 dispatch({ type: 'SET_EXPORT_SETTINGS', settings: patch })
               }
-              savedProfiles={state.savedProfiles}
-              onCalibrationChange={(profile) =>
-                dispatch({ type: 'SET_CALIBRATION_PROFILE', profile })
-              }
-              onCalibrationSave={(profile) => {
-                const profiles = upsertProfile(profile);
-                dispatch({ type: 'SET_SAVED_PROFILES', profiles });
-              }}
-              onCalibrationSelect={(profile) =>
-                dispatch({ type: 'SET_CALIBRATION_PROFILE', profile })
-              }
               onSaveProjectJson={handleSaveProjectJson}
               onLoadProjectJson={handleLoadProjectJson}
-              focusCalibration={focusCalibration}
-              onCalibrationFocused={() => setFocusCalibration(false)}
               patternViewSettings={state.patternViewSettings}
               onPatternViewSettingsChange={(patch) =>
                 dispatch({ type: 'SET_PATTERN_VIEW_SETTINGS', ...patch })
