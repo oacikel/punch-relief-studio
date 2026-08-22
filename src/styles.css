@@ -320,6 +320,24 @@ main.workspace-layout > .workspace-preview-col {
   position: sticky;
   top: var(--space-3);
   align-self: start;
+  /* Usability fix #1 (docs/DECISIONS.md): a CSS grid row auto-sizes to the
+     *taller* of its two column children. Without a height cap here, the
+     preview column's own natural height (when it happens to exceed the
+     rail's -- true in the default/first-run state, before the rail has
+     grown from expanded disclosures/more swatches) *is* the row height,
+     leaving the column's own containing block zero taller than the column
+     itself -- no slack for `position: sticky` to pin within, so it just
+     scrolls in lockstep with the page instead of staying pinned. Capping
+     the column's own height here means its contribution to the grid row's
+     auto-sizing is always <= the viewport height, so the rail (which only
+     grows from here) reliably becomes the taller sibling and the column
+     always has real slack to pin against, regardless of rail height. The
+     column becomes independently scrollable for its own contents (Pattern
+     + Finished-piece simulation + Legend) once they exceed that cap,
+     rather than relying on page scroll. */
+  max-height: calc(100vh - 2 * var(--space-3));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -333,6 +351,13 @@ main.workspace-layout > .workspace-preview-col {
 
   main.workspace-layout > .workspace-preview-col {
     position: static;
+    /* `position: static` alone does not neutralize `max-height`/
+       `overflow-y` above (unrelated properties) -- without this reset, a
+       phone-width single-stacked-column layout would trap the three
+       preview panels inside an artificial internal scrollbox capped to
+       viewport height instead of flowing normally with the page. */
+    max-height: none;
+    overflow-y: visible;
   }
 }
 
