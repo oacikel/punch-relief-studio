@@ -69,7 +69,7 @@ describe('computeTiling', () => {
     expect(result.pages).toHaveLength(8);
   });
 
-  it('produces pages in row-major order with strictly increasing page numbers matching each tile\'s row/col', () => {
+  it("produces pages in row-major order with strictly increasing page numbers matching each tile's row/col", () => {
     const result = computeTiling(60, 40, 'a4', 1);
     let expectedPageNumber = 1;
     let index = 0;
