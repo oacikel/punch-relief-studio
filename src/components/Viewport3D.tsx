@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { captureDepth, type DepthCaptureResult } from '@/three/depthCapture';
@@ -6,7 +6,9 @@ import {
   applyStandardView,
   centerAndMeasure,
   fitOrthographicCamera,
+  fitOrthographicCameraToExtent,
   normalizeScale,
+  projectedHalfExtent,
   type StandardView,
 } from '@/three/viewport';
 
@@ -54,6 +56,13 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const meshRef = useRef<THREE.Mesh | null>(null);
   const radiusRef = useRef(6);
+  // The geometry's own local-space bounding box (post centering/scale, pre
+  // any straightening rotation) -- kept so `refit` can re-derive an exact
+  // 2D-projected content extent for whatever direction the camera/mesh are
+  // currently oriented to, instead of an isotropic sphere radius (see
+  // docs/ITERATION_03_PLAN.md #1 / docs/DECISIONS.md). `null` before a
+  // model has ever loaded.
+  const contentBoxRef = useRef<THREE.Box3 | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   // Local component state, deliberately not lifted to AppState -- mirrors
   // how the existing camera-view state already persists across Import <->
@@ -62,6 +71,43 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
   // local state survives the same way, with no schema/persistence changes
   // needed.
   const [rotationDeg, setRotationDeg] = useState<RotationDeg>(ZERO_ROTATION);
+
+  /**
+   * Re-fits the camera's orthographic frustum to the model's real 2D
+   * projected extent for whatever direction the camera is currently facing
+   * (docs/ITERATION_03_PLAN.md #1) -- reads `cameraRef`/`meshRef`/
+   * `contentBoxRef` at call time (all refs, so this stays correct however
+   * long ago the closure itself was created; the `useCallback([])` below
+   * only exists to keep the function identity stable for effect deps, not
+   * because it captures anything that changes). Falls back to the old
+   * isotropic-sphere fit when there's no content box yet (before any model
+   * has loaded). `aspectOverride` lets `capture` temporarily fit to the
+   * (always square) capture resolution's aspect regardless of the on-screen
+   * canvas's own aspect, since the two can differ.
+   */
+  const refit = useCallback((aspectOverride?: number): void => {
+    const camera = cameraRef.current;
+    if (!camera) return;
+    const container = containerRef.current;
+    const aspect =
+      aspectOverride ??
+      (container && container.clientHeight ? container.clientWidth / container.clientHeight : 1);
+
+    const box = contentBoxRef.current;
+    if (box) {
+      camera.updateMatrixWorld();
+      const right = new THREE.Vector3();
+      const up = new THREE.Vector3();
+      const forward = new THREE.Vector3();
+      camera.matrixWorld.extractBasis(right, up, forward);
+      const mesh = meshRef.current;
+      mesh?.updateMatrixWorld();
+      const extent = projectedHalfExtent(box, right.normalize(), up.normalize(), mesh?.matrixWorld);
+      fitOrthographicCameraToExtent(camera, extent, 1.15, aspect);
+    } else {
+      fitOrthographicCamera(camera, radiusRef.current, 1.15, aspect);
+    }
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -112,11 +158,33 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
     onReady?.({
       capture: (resolution, captureColor) => {
         if (!meshRef.current) return null;
-        return captureDepth(renderer, scene, camera, {
+        // The capture render target is always square (`resolution` used for
+        // both width and height -- see App.tsx), but the on-screen frustum
+        // is fit to the *container's* aspect, which is usually not square.
+        // Rendering through a mismatched frustum aspect into a square
+        // target silently stretches the captured depth/color, which then
+        // propagates into the actual relief geometry -- not just a display
+        // artifact. Refit to a square aspect just for the capture, then
+        // restore the on-screen framing immediately after so the live
+        // viewport's own view is unaffected by generating a relief.
+        const saved = {
+          left: camera.left,
+          right: camera.right,
+          top: camera.top,
+          bottom: camera.bottom,
+        };
+        refit(1);
+        const result = captureDepth(renderer, scene, camera, {
           width: resolution,
           height: resolution,
           captureColor,
         });
+        camera.left = saved.left;
+        camera.right = saved.right;
+        camera.top = saved.top;
+        camera.bottom = saved.bottom;
+        camera.updateProjectionMatrix();
+        return result;
       },
     });
 
@@ -125,8 +193,7 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
       const h = container.clientHeight;
       if (w === 0 || h === 0) return;
       renderer.setSize(w, h);
-      const currentCamera = cameraRef.current;
-      if (currentCamera) fitOrthographicCamera(currentCamera, radiusRef.current, 1.15, w / h);
+      refit(w / h);
     });
     resizeObserver.observe(container);
 
@@ -153,6 +220,7 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
     normalizeScale(geometry, 8);
     const measured = centerAndMeasure(geometry);
     radiusRef.current = measured.radius || radius || 4;
+    contentBoxRef.current = geometry.boundingBox ? geometry.boundingBox.clone() : null;
 
     const material = new THREE.MeshStandardMaterial({
       color: 0xb5563c,
@@ -171,16 +239,20 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
     mesh.rotation.set(0, 0, 0);
     setRotationDeg(ZERO_ROTATION);
 
-    const container = containerRef.current;
-    const aspect =
-      container && container.clientHeight ? container.clientWidth / container.clientHeight : 1;
-    fitOrthographicCamera(camera, radiusRef.current, 1.15, aspect);
+    // Position the camera first (sets its orientation/basis), then fit the
+    // frustum to the model's real projected extent for that orientation --
+    // `refit` needs the camera's basis vectors to already be correct.
     applyStandardView(camera, 'front', radiusRef.current * 3);
-  }, [geometry]);
+    refit();
+  }, [geometry, refit]);
 
   // Apply the model-straightening rotation to the mesh in place -- no
-  // geometry rebuild, no camera/controls change, so dragging a rotation
-  // slider never fights an in-progress orbit drag or resets framing.
+  // geometry rebuild, no controls change, so dragging a rotation slider
+  // never fights an in-progress orbit drag. Framing *is* re-fit here
+  // (unlike before): straightening a tilted model changes its on-screen
+  // projected extent for the current view direction, so a stale frustum
+  // fit to the old (tilted) extent would otherwise waste frame space or,
+  // for a large enough correction, risk framing too tight.
   useEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
@@ -189,12 +261,14 @@ export function Viewport3D({ geometry, onReady }: Props): JSX.Element {
       THREE.MathUtils.degToRad(rotationDeg.yaw),
       THREE.MathUtils.degToRad(rotationDeg.roll),
     );
-  }, [rotationDeg]);
+    refit();
+  }, [rotationDeg, refit]);
 
   const goToView = (view: StandardView): void => {
     const camera = cameraRef.current;
     if (!camera) return;
     applyStandardView(camera, view, radiusRef.current * 3);
+    refit();
   };
 
   const setRotationAxis = (axis: keyof RotationDeg, value: number): void => {
