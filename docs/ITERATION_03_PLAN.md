@@ -37,14 +37,14 @@ time.
 > **RESOLVED (product owner review, superseding the above).** The cm-based
 > proposal above has a real sequencing problem: "smallest punchable
 > region" is applied during relief generation, in the Worker via
-> `cleanupTinyRegions`, which runs *before* the app ever asks for a
+> `cleanupTinyRegions`, which runs _before_ the app ever asks for a
 > physical Width/Height (that only exists later, on the Export panel) —
 > so a cm value has no physical scale to convert against at the point
 > it's actually used. **Corrected direction: don't use physical units at
 > all.** Replace the raw pixel number input with a small set of
 > descriptive presets ("Fine detail" / "Balanced" / "Bold & simple"),
-> each mapped internally to a threshold expressed as a *percentage of the
-> canvas area* (not a fixed px count), so it stays meaningful regardless
+> each mapped internally to a threshold expressed as a _percentage of the
+> canvas area_ (not a fixed px count), so it stays meaningful regardless
 > of raster resolution. This fully resolves the original complaint
 > without needing physical scale. The "Balanced" preset reproduces
 > today's effective default. See `src/domain/pattern/minRegionPreset.ts`
@@ -60,8 +60,8 @@ Two things are bundled in the original note:
 **(a) Should resolution be tied to physical loop/stitch size?** This was
 already explicitly considered and rejected during Stage B's planning.
 `docs/ITERATION_02_PLAN.md`'s Relief-stage audit table says of this exact
-control: *"conflating this with physical loop density would be dishonest,
-per CLAUDE.md's units discipline."* Resolution is a sampling-density knob —
+control: _"conflating this with physical loop density would be dishonest,
+per CLAUDE.md's units discipline."_ Resolution is a sampling-density knob —
 how many raster samples the depth capture takes — not a physical scale.
 There's no honest fixed conversion between "256px raster" and "yarn loop
 spacing," because that depends on how large the pattern is eventually
@@ -170,7 +170,7 @@ would be a much smaller fix (a label, a cursor affordance).
 > gap is that **some imported models aren't aligned to their "natural"
 > orientation on import**, and standard `OrbitControls` deliberately
 > preserves world-up, so it can orbit azimuth/elevation freely but can
-> never *roll* the view to compensate for a model that's tilted/rotated
+> never _roll_ the view to compensate for a model that's tilted/rotated
 > around its own axis relative to what "upright" should look like (the
 > screenshot showed a relief rendered at a skewed diagonal angle).
 > **Corrected direction: build real model-rotation controls** — rotate
@@ -251,7 +251,7 @@ else here. Good candidate to ship independently of the bigger questions.
 
 **Verdict: confirmed and root-caused.**
 
-`SimulationView.tsx` has a single `useEffect` that rebuilds the *entire*
+`SimulationView.tsx` has a single `useEffect` that rebuilds the _entire_
 scene — camera, `OrbitControls`, mesh, everything — whenever
 `RenderSettings` changes as one object. `RenderSettings` bundles
 `pileStyle`/`fabricColorHex`/`lightingAzimuthDeg`/`lightingElevationDeg`
@@ -368,7 +368,7 @@ genuinely excluded from the mesh, not flattened to height 0), a
 sphere-shaped model should stop generating a false base slab — there's no
 longer a "floor" fused to it. Recommend genuinely holding this: try the
 result after #9 ships, and if the piece still isn't right — e.g. you want
-to remove the *lowest real height band*, not just true background — that's
+to remove the _lowest real height band_, not just true background — that's
 a smaller, distinct follow-up ("treat height-band 1 as void" toggle)
 worth scoping then, once it's clear it's still needed.
 

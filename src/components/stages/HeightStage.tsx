@@ -2,13 +2,14 @@ import { useMemo } from 'react';
 import type { HeightLevel } from '@/domain/types';
 import { mapHeightLevelToSetting, type CalibrationProfile } from '@/domain/calibration';
 import { findSmallRegions } from '@/domain/regionCleanup';
+import { minRegionPxForPreset, type MinRegionPreset } from '@/domain/pattern/minRegionPreset';
 
 interface Props {
   levels: HeightLevel[];
   heightIndex: Int16Array;
   width: number;
   height: number;
-  minRegionPx: number;
+  minRegionPreset: MinRegionPreset;
   profile: CalibrationProfile;
   onCalibrate: () => void;
 }
@@ -29,7 +30,7 @@ export function HeightStage({
   heightIndex,
   width,
   height,
-  minRegionPx,
+  minRegionPreset,
   profile,
   onCalibrate,
 }: Props): JSX.Element {
@@ -38,6 +39,11 @@ export function HeightStage({
     for (const v of heightIndex) if (v >= 0) c[v] = (c[v] ?? 0) + 1;
     return c;
   }, [heightIndex, levels.length]);
+
+  const minRegionPx = useMemo(
+    () => minRegionPxForPreset(minRegionPreset, width, height),
+    [minRegionPreset, width, height],
+  );
 
   const smallRegions = useMemo(
     () => findSmallRegions(heightIndex, width, height, minRegionPx),

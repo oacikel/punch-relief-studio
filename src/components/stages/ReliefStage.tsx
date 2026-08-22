@@ -1,4 +1,10 @@
 import type { ReliefSettings } from '@/domain/types';
+import {
+  MIN_REGION_PRESET_ORDER,
+  MIN_REGION_PRESET_LABELS,
+  MIN_REGION_PRESET_DESCRIPTIONS,
+  type MinRegionPreset,
+} from '@/domain/pattern/minRegionPreset';
 
 interface Props {
   settings: ReliefSettings;
@@ -60,16 +66,18 @@ export function ReliefStage({
         <h3>Punch detail</h3>
         <div className="field">
           <label htmlFor="min-region">Smallest punchable region</label>
-          <input
+          <select
             id="min-region"
-            type="number"
-            min={1}
-            value={settings.minRegionPx}
-            onChange={(e) => onChange({ minRegionPx: Number(e.target.value) })}
-          />
-          <p className="helper-text">
-            Removes tiny isolated areas that would be difficult to punch cleanly.
-          </p>
+            value={settings.minRegionPreset}
+            onChange={(e) => onChange({ minRegionPreset: e.target.value as MinRegionPreset })}
+          >
+            {MIN_REGION_PRESET_ORDER.map((preset) => (
+              <option key={preset} value={preset}>
+                {MIN_REGION_PRESET_LABELS[preset]}
+              </option>
+            ))}
+          </select>
+          <p className="helper-text">{MIN_REGION_PRESET_DESCRIPTIONS[settings.minRegionPreset]}</p>
         </div>
 
         <details className="advanced-controls">

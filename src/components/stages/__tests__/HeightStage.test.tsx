@@ -30,7 +30,7 @@ describe('HeightStage', () => {
         heightIndex={Int16Array.from([0, 1, 0, 1])}
         width={2}
         height={2}
-        minRegionPx={4}
+        minRegionPreset="balanced"
         profile={createDefaultProfile()}
         onCalibrate={vi.fn()}
       />,
@@ -49,7 +49,7 @@ describe('HeightStage', () => {
         heightIndex={Int16Array.from([0, 1, 0, 1])}
         width={2}
         height={2}
-        minRegionPx={4}
+        minRegionPreset="balanced"
         profile={profile}
         onCalibrate={vi.fn()}
       />,
@@ -68,7 +68,7 @@ describe('HeightStage', () => {
         heightIndex={Int16Array.from([0, 1, 0, 1])}
         width={2}
         height={2}
-        minRegionPx={4}
+        minRegionPreset="balanced"
         profile={createDefaultProfile()}
         onCalibrate={onCalibrate}
       />,

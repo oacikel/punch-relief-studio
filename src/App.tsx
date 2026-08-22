@@ -357,7 +357,7 @@ export default function App(): JSX.Element {
               heightIndex={state.processed.heightIndex}
               width={state.processed.width}
               height={state.processed.height}
-              minRegionPx={state.reliefSettings.minRegionPx}
+              minRegionPreset={state.reliefSettings.minRegionPreset}
               profile={state.calibrationProfile}
               onCalibrate={handleCalibrate}
             />

@@ -18,6 +18,7 @@ import {
 } from '@/domain/relief';
 import { cleanupTinyRegions } from '@/domain/regionCleanup';
 import { computeLevelBounds, quantize } from '@/domain/quantize';
+import { minRegionPxForPreset } from '@/domain/pattern/minRegionPreset';
 import type { ReliefSettings } from '@/domain/types';
 
 export interface ProcessRequest {
@@ -68,12 +69,8 @@ self.onmessage = (event: MessageEvent<ProcessRequest>) => {
       mask,
     );
     const { heightIndex } = quantize(field, mask, levels);
-    const cleaned = cleanupTinyRegions(
-      heightIndex,
-      msg.width,
-      msg.height,
-      msg.settings.minRegionPx,
-    );
+    const minRegionPx = minRegionPxForPreset(msg.settings.minRegionPreset, msg.width, msg.height);
+    const cleaned = cleanupTinyRegions(heightIndex, msg.width, msg.height, minRegionPx);
 
     let colorIndex: Int16Array | undefined;
     let palette: { r: number; g: number; b: number }[] | undefined;
@@ -85,12 +82,7 @@ self.onmessage = (event: MessageEvent<ProcessRequest>) => {
         msg.color.paletteSize,
         msg.color.seed,
       );
-      colorIndex = cleanupTinyRegions(
-        result.assignment,
-        msg.width,
-        msg.height,
-        msg.settings.minRegionPx,
-      );
+      colorIndex = cleanupTinyRegions(result.assignment, msg.width, msg.height, minRegionPx);
       palette = result.palette;
     }
 
