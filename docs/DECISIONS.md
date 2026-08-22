@@ -1480,8 +1480,9 @@ respects the viewport width and any wide descendant has to wrap or
 scroll within its own box instead of stretching the page. Verified
 locally with the same font-substitution simulation used in rounds 1-2
 (forcing `'Courier New', monospace` everywhere at 375px): zero overflow.
-See the PR for whether this round's CI run confirms it against the real
-environment that found the previous two rounds' gaps.
+**Confirmed against the real environment that found the previous two
+rounds' gaps** -- this round's CI run (`npm run test:e2e` on GitHub
+Actions) is green on both `chromium` and `mobile-narrow` (WebKit).
 
 **Why this took three rounds instead of one:** each round's diagnosis was
 correct as far as it looked, and each fix was a real, independent bug
