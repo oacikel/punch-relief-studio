@@ -116,6 +116,23 @@ test.describe('Print/PDF output (Iteration 02 Stage D)', () => {
     await expect(page.locator('.print-page')).toHaveCount(1);
   });
 
+  test('a tiny "Actual project size" pattern (below the default margin+overlap) does not crash the app (deeper Stage D regression)', async ({
+    page,
+  }) => {
+    // A second, deeper crash the same investigation found: computeTiling
+    // validated overlap against a margin-derived printable area
+    // unconditionally, even for 'actual-size', where no physical margin
+    // or overlap concept applies at all -- a small pattern like 1cm x 1cm
+    // tripped "overlap is too large for the printable page area". Fixed
+    // in printTiling.ts by short-circuiting on pageSize === 'actual-size'
+    // before that validation runs.
+    await page.getByLabel('Width (cm)').fill('1');
+    await page.getByLabel('Height (cm)').fill('1');
+    await page.locator('#page-size').selectOption('actual-size');
+    await expect(page.getByRole('heading', { name: 'Something went wrong' })).not.toBeVisible();
+    await expect(page.locator('.print-page')).toHaveCount(1);
+  });
+
   test('renders an actual PDF with the expected page count', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'PDF generation is Chromium-only in Playwright');
 

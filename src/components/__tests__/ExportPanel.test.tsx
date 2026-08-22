@@ -111,6 +111,38 @@ describe('ExportPanel print pages', () => {
     expect(pages).toHaveLength(1);
   });
 
+  it('renders exactly one print page for a tiny "actual-size" pattern (deeper Stage D regression)', () => {
+    // A second, deeper crash the same investigation found: a small
+    // actual-size pattern (here 1cm x 1cm) used to still throw --
+    // computeTiling validated overlap against a margin-derived printable
+    // area unconditionally, even for 'actual-size', where that check
+    // doesn't apply at all. Fixed in printTiling.ts by short-circuiting
+    // on pageSize before that validation. Reproduced live: Width=1cm,
+    // Height=1cm, "Actual project size" crashed the app with "overlap is
+    // too large for the printable page area".
+    render(
+      <ExportPanel
+        regionMap={makeRegionMap()}
+        legend={makeLegend()}
+        dimensions={{ ...baseDimensions, widthCm: 1, heightCm: 1 }}
+        onDimensionsChange={vi.fn()}
+        exportSettings={baseExportSettings({ pageSize: 'actual-size' })}
+        onExportSettingsChange={vi.fn()}
+        calibrationProfile={createDefaultProfile()}
+        savedProfiles={[]}
+        onCalibrationChange={vi.fn()}
+        onCalibrationSave={vi.fn()}
+        onCalibrationSelect={vi.fn()}
+        onSaveProjectJson={vi.fn()}
+        onLoadProjectJson={vi.fn()}
+        punchGuide={basePunchGuide()}
+      />,
+    );
+
+    const pages = document.querySelectorAll('.print-page');
+    expect(pages).toHaveLength(1);
+  });
+
   it('lets the user choose the pattern view used for export and print', async () => {
     const onExportSettingsChange = vi.fn();
     render(

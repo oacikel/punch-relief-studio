@@ -54,6 +54,42 @@ describe('computeTiling', () => {
   });
 
   /**
+   * Iteration 02 Stage D regression: a second, deeper crash the same
+   * investigation found. `computeTiling` used to compute
+   * `printableWidthCm`/`printableHeightCm` from `marginCm` and validate
+   * them against `overlapCm` *unconditionally*, even for `pageSize ===
+   * 'actual-size'` -- where margin/overlap are print-page concepts that
+   * don't apply (there is no physical page smaller than the pattern to
+   * tile across). A small actual-size pattern (e.g. a 1cm x 1cm swatch,
+   * smaller than the default 1cm margin x2 + 1cm overlap) tripped the
+   * "overlap is too large for the printable page area" RangeError,
+   * reproduced live via a headless Chromium session: setting Width=1cm,
+   * Height=1cm, then selecting "Actual project size" crashed the whole
+   * app past the top-level ErrorBoundary. Fixed by short-circuiting on
+   * `pageSize === 'actual-size'` before that validation runs at all.
+   */
+  it('never throws for a tiny actual-size pattern, even with the default margin and overlap', () => {
+    expect(() =>
+      computeTiling(1, 1, 'actual-size', 1, undefined, { widthCm: 1, heightCm: 1 }),
+    ).not.toThrow();
+    const result = computeTiling(1, 1, 'actual-size', 1, undefined, { widthCm: 1, heightCm: 1 });
+    expect(result.pages).toHaveLength(1);
+    expect(result.pages[0]).toMatchObject({ x0Cm: 0, y0Cm: 0, x1Cm: 1, y1Cm: 1 });
+  });
+
+  it('actual-size result ignores actualSizeCm/margin entirely for the returned page geometry, using the pattern dimensions directly', () => {
+    // actualSizeCm is accepted for API-compatibility/defensiveness (see
+    // src/components/ExportPanel.tsx) but the page is always sized to the
+    // pattern's own width/height, not to whatever actualSizeCm says --
+    // asserts this doesn't silently drift if a caller ever passes a
+    // mismatched actualSizeCm.
+    const result = computeTiling(5, 5, 'actual-size', 1, 1, { widthCm: 999, heightCm: 999 });
+    expect(result.pages[0]).toMatchObject({ x0Cm: 0, y0Cm: 0, x1Cm: 5, y1Cm: 5 });
+    expect(result.printableWidthCm).toBe(5);
+    expect(result.printableHeightCm).toBe(5);
+  });
+
+  /**
    * Iteration 02 Stage D: anchors the exact scenario this session's
    * manual print/PDF investigation reproduced in a real headless Chromium
    * session (60cm x 40cm pattern, A4 pages, the app's default 1cm
