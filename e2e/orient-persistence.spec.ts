@@ -123,6 +123,20 @@ test('the sample picker collapses once a model loads, and can be reopened to loa
  * spec now exercises the same shared-Viewport3D persistence guarantee
  * across Import -> Workspace, waiting for the live pill to settle instead
  * of clicking a button.
+ *
+ * Updated again for the Workspace two-column redesign (docs/DECISIONS.md):
+ * the former H1/H2/... coverage-percentage chip row (used here both as a
+ * "generation landed" readiness signal and as proof the level count
+ * genuinely changed) was removed. Replaced with the "Color by height"
+ * swatch table, kept in exact 1:1 sync with the generated level count by
+ * `resizeSwatches`/`PROCESSING_SUCCEEDED` (src/state/appState.ts) -- a
+ * genuine, not approximate, readiness+count signal. The chips' own
+ * per-level percentage breakdown (used previously to also assert the
+ * regenerated pattern had a real, non-degenerate distribution across
+ * bands, not just a level count) has no direct UI replacement now that
+ * the feature is gone -- that narrower claim is dropped here; the domain
+ * logic it exercised (`quantize()`'s "Balanced by shape" mode) remains
+ * covered by unit tests (src/domain/__tests__/quantize.test.ts).
  */
 test('camera orientation chosen on Import carries over to relief generation', async ({ page }) => {
   await page.goto('/');
@@ -131,14 +145,15 @@ test('camera orientation chosen on Import carries over to relief generation', as
 
   await page.getByRole('button', { name: 'top', exact: true }).click();
 
-  await page.getByRole('button', { name: '2. Workspace' }).click();
+  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
   await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
 
   // Live regeneration auto-fires on arrival (no manual "Generate relief"
-  // button anymore) -- wait for the first pass to actually land before
-  // reading a snapshot to diff against below.
-  await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
-  const before = await page.locator('.level-chip').allTextContents();
+  // button anymore). Switching to "Color by height" doubles as the wait
+  // for the first pass to land -- the default 4 swatch rows only appear
+  // once the first relief has actually finished generating.
+  await page.getByLabel('Color by height').check();
+  await expect(page.locator('.legend-table tbody tr')).toHaveCount(4, { timeout: 15_000 });
 
   // Labels/grouping updated in Iteration 02 Stage B -- see
   // docs/ITERATION_02_PLAN.md §5. "Height band spacing" (formerly
@@ -148,15 +163,10 @@ test('camera orientation chosen on Import carries over to relief generation', as
   await page.getByText('Advanced shape controls').click();
   await page.getByLabel('Height band spacing').selectOption('quantile');
 
-  // Poll for the chip list to actually change (8 chips instead of the
-  // default's 4, at minimum) rather than the live pill -- see the
-  // rotation test below for why polling the real effect is more robust
-  // than the pill for a debounce that can settle between assertions.
-  await expect(page.locator('.level-chip')).toHaveCount(8, { timeout: 15_000 });
-  const chips = await page.locator('.level-chip').allTextContents();
-  expect(chips).not.toEqual(before);
-  const nonZeroBands = chips.filter((text) => !/ 0\.0%$/.test(text.trim())).length;
-  expect(nonZeroBands).toBeGreaterThan(2);
+  // The swatch table growing to 8 rows is the proof the regeneration
+  // actually completed with the new level count, not just that the
+  // control accepted the input.
+  await expect(page.locator('.legend-table tbody tr')).toHaveCount(8, { timeout: 15_000 });
 });
 
 /**
@@ -171,6 +181,15 @@ test('camera orientation chosen on Import carries over to relief generation', as
  * shared state sees the current value regardless of its own mount/unmount
  * history. This test locks in that setting rotation on Import is visible
  * from Workspace's own copy of the controls.
+ *
+ * Updated for the Workspace two-column redesign (docs/DECISIONS.md):
+ * Workspace's own `RotationControls` copy lives inside `SimulationPanel`,
+ * which -- unlike the pre-redesign stacked layout -- is only mounted while
+ * the "Finished-piece simulation" tab is active (Pattern is the default
+ * active tab). The tab switch itself doesn't affect the underlying
+ * `AppState.modelRotationDeg` value, so clicking into the tab is just
+ * navigation to where the already-carried-over value is rendered, not a
+ * new precondition being tested.
  */
 test('model rotation chosen on Import carries over to the Workspace', async ({ page }) => {
   await page.goto('/');
@@ -182,9 +201,10 @@ test('model rotation chosen on Import carries over to the Workspace', async ({ p
   await rollInput.blur();
   await expect(rollInput).toHaveValue('45');
 
-  await page.getByRole('button', { name: '2. Workspace' }).click();
+  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
   await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
 
+  await page.getByRole('button', { name: 'Finished-piece simulation' }).click();
   await expect(page.getByLabel(/^Roll/)).toHaveValue('45');
 });
 
@@ -211,36 +231,55 @@ test('"Reset rotation" zeroes all three axes', async ({ page }) => {
  * purely cosmetic control -- the same guarantee `captureDepth` always had,
  * now proven from its new home too (see docs/DECISIONS.md's "Wrinkle A"
  * resolution).
+ *
+ * Updated for the Workspace two-column redesign (docs/DECISIONS.md): the
+ * former H1/H2/... coverage-percentage chip row (used here to detect that
+ * regeneration produced different content) was removed, and rotation
+ * controls now live behind the "Finished-piece simulation" tab rather than
+ * always being visible. Replaced with the Pattern panel's own `<img>`
+ * `src` (a fresh `blob:` URL, `usePatternSvgUrl.ts`) changing -- a new
+ * object URL is only created when `regionMap` changes identity, which only
+ * happens on a real, completed live-regeneration pass, so this still
+ * proves the effect (not just that the control accepted input) rather
+ * than merely proving pixel-identical visual difference.
  */
 test("rotating the model from Workspace's own controls changes the live-regenerated pattern", async ({
   page,
 }) => {
   await page.goto('/');
   await page.getByText('Concentric Ripple').click();
-  await page.getByRole('button', { name: '2. Workspace' }).click();
+  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
   await expect(page.getByText(/Live — updates as you adjust/)).toBeVisible({ timeout: 15_000 });
 
-  const before = await page.locator('.level-chip').allTextContents();
+  // Pattern is the default active tab -- its <img> is visible without any
+  // extra navigation.
+  const patternImg = page.getByAltText(/Punch-needle pattern/);
+  await expect(patternImg).toBeVisible({ timeout: 15_000 });
+  const before = await patternImg.getAttribute('src');
 
-  // Workspace's own rotation controls live in the Finished-piece
-  // simulation panel -- both Import's and Workspace's copies share an
-  // accessible name ("Pitch ..."), so scope to the one visible copy (only
-  // Workspace's is mounted while on the Workspace stage -- Import's is
-  // unmounted, not just hidden, per docs/DECISIONS.md). Uses Pitch, not
-  // Roll: the "Concentric Ripple" fixture is radially symmetric around
-  // the view axis, so a pure Roll (rotation around that same axis)
-  // produces byte-identical captured depth -- correct model behavior, not
-  // a bug, but a poor choice for proving rotation has an effect. Pitch
-  // tilts the model relative to the camera, which changes the depth
-  // capture for any shape, symmetric or not.
+  // Switch to the Finished-piece simulation tab, where Workspace's own
+  // rotation controls live -- both Import's and Workspace's copies share
+  // an accessible name ("Pitch ..."), so scope to the one visible copy
+  // (only Workspace's is mounted while on the Workspace stage -- Import's
+  // is unmounted, not just hidden, per docs/DECISIONS.md).
+  await page.getByRole('button', { name: 'Finished-piece simulation' }).click();
+
+  // Uses Pitch, not Roll: the "Concentric Ripple" fixture is radially
+  // symmetric around the view axis, so a pure Roll (rotation around that
+  // same axis) produces byte-identical captured depth -- correct model
+  // behavior, not a bug, but a poor choice for proving rotation has an
+  // effect. Pitch tilts the model relative to the camera, which changes
+  // the depth capture for any shape, symmetric or not.
   const pitchInput = page.getByLabel(/^Pitch/);
   await pitchInput.fill('45');
   await pitchInput.blur();
 
-  // Poll directly on the chip text changing rather than the live pill --
-  // the debounce+regeneration can complete fast enough between polls that
-  // a pill-based wait could trivially pass without ever observing the
-  // in-flight state. This asserts the *effect* (the pattern actually
-  // changed), which is what this test is really checking.
-  await expect(page.locator('.level-chip')).not.toHaveText(before, { timeout: 15_000 });
+  // Switch back to Pattern and poll for its <img> src to actually change,
+  // rather than the live pill -- the debounce+regeneration can complete
+  // fast enough between polls that a pill-based wait could trivially pass
+  // without ever observing the in-flight state. This asserts the *effect*
+  // (the pattern actually regenerated), which is what this test is really
+  // checking.
+  await page.getByRole('button', { name: 'Pattern' }).click();
+  await expect.poll(() => patternImg.getAttribute('src'), { timeout: 15_000 }).not.toBe(before);
 });

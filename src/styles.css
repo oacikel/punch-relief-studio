@@ -66,33 +66,44 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+/* `.app-shell` is a flex column (header, then the ambient `.model-bar`
+   when present, then `<main>`) rather than the former sidebar-nav CSS grid
+   (`220px 1fr`) -- there's no longer a left sidebar to reserve a column
+   for (see docs/DECISIONS.md). `min-height: 100vh` (not a fixed `height`)
+   on the BASE class -- Import (and any other stage without the
+   `workspace-layout` class) must keep scrolling the normal, page-level
+   way for content taller than one viewport. */
 .app-shell {
-  display: grid;
-  grid-template-columns: 220px 1fr;
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
 }
 
-@media (max-width: 720px) {
-  .app-shell {
-    /* Usability fix #5 (docs/DECISIONS.md): the true systemic root cause
-       behind this branch's whole mobile-overflow investigation. A bare
-       `1fr` grid track has an implicit `auto` (content-based) minimum, so
-       *any* descendant with a wide enough min-content -- a long
-       unbreakable string, a wide `<select>`, anything -- forces this
-       single mobile-width column (and therefore the whole page) wider
-       than the viewport, no matter how much `flex-wrap` gets added to
-       individual rows inside it (the two upstream fixes in this same
-       investigation both helped, but neither could fully close this
-       without also fixing the ancestor track). `minmax(0, 1fr)` removes
-       the auto-minimum, so the column actually respects the viewport
-       width and any wide descendant has to wrap/scroll within its own
-       box instead of stretching the page. */
-    grid-template-columns: minmax(0, 1fr);
-  }
+/* Workspace two-column redesign: `.app-shell--workspace` (applied by
+   App.tsx only while `workflow.currentStage === 'workspace'`, mirroring
+   the existing `main.workspace-layout` class toggle on the same
+   condition) pins the shell to exactly one viewport height and clips it,
+   so `main.workspace-layout` below can claim exactly the remaining space
+   via `flex: 1 1 auto; min-height: 0;` and its two columns can each be
+   independently, internally scrollable via `overflow-y: auto` -- with no
+   document-level scroll left over for either column to escape into.
+   `overflow: hidden` here is required, not decorative: without it, a
+   real, confirmed browser quirk around closed `<details>` content (Export
+   & print, collapsed by default) still contributes to `document
+   .documentElement.scrollHeight` even though it isn't painted and is
+   correctly contained by `.workspace-controls-col`'s own `overflow-y:
+   auto` -- found via real-browser `scrollHeight`/`window.scrollTo`
+   verification, not just CSS-property inspection, matching this
+   project's own established verification standard (see docs/DECISIONS.md
+   usability-fix history for prior examples of this same rigor). Scoped to
+   a modifier class rather than applied unconditionally to `.app-shell`,
+   specifically so Import's own normal page scroll is never touched. */
+.app-shell--workspace {
+  height: 100vh;
+  overflow: hidden;
 }
 
 .app-header {
-  grid-column: 1 / -1;
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
   display: flex;
@@ -105,6 +116,12 @@ select:focus-visible {
      375px width); this element sits on every page, not just Workspace. */
   flex-wrap: wrap;
   gap: var(--space-3);
+  /* While `.app-shell--workspace` is active (a definite `height: 100vh`,
+     see above), pin the header to its own natural content height so it
+     never shrinks to make room for `main.workspace-layout`'s flex-grow
+     below. A no-op on Import, where `.app-shell` has no fixed height for
+     this to matter against. */
+  flex-shrink: 0;
 }
 
 .app-header h1 {
@@ -118,53 +135,28 @@ select:focus-visible {
   font-size: 0.9rem;
 }
 
-.stage-nav {
-  padding: var(--space-4) var(--space-3);
-  border-right: 1px solid var(--color-border);
-}
-
-.stage-nav ol {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Ambient "current model" indicator (Workspace two-column redesign),
+   replacing the former `.stage-nav` sidebar -- a thin top bar, not a
+   wizard step control. `flex-wrap: wrap` from the start, matching the
+   lesson learned the hard way in usability fix #5 (docs/DECISIONS.md):
+   any new flex row at narrow widths, under non-macOS font-rendering
+   metrics, can overflow without it. */
+.model-bar {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex: none;
 }
 
-.stage-nav button {
-  width: 100%;
-  text-align: left;
-  border: none;
-  background: transparent;
-  padding: var(--space-2) var(--space-3);
-}
-
-.stage-nav button[aria-current='step'] {
-  background: var(--color-accent);
-  color: var(--color-accent-ink);
-  border-radius: var(--radius);
-}
-
-.stage-nav button:disabled {
+.model-bar__label {
+  margin: 0;
   color: var(--color-ink-muted);
-  cursor: not-allowed;
-}
-
-/* "Done" visual state (Iteration 03's combined-workspace change -- see
-   docs/DECISIONS.md): a decorative checkmark via ::after generated
-   content, not real text, so it never becomes part of the button's
-   accessible name ("1. Import" stays exactly that to assistive tech). */
-.stage-nav button.done::after {
-  content: ' ✓';
-  color: var(--color-accent);
-}
-
-.stage-nav__caption {
-  margin: 2px 0 var(--space-2);
-  padding: 0 var(--space-3);
-  font-size: 0.78rem;
-  color: var(--color-ink-muted);
+  font-size: 0.9rem;
 }
 
 .stage-panel {
@@ -323,39 +315,22 @@ select:focus-visible {
   margin-top: 0;
 }
 
-/* Usability fix #3 (docs/DECISIONS.md): a short "Jump to:" row near the
-   Workspace heading, one button per top-level rail section, so a section
-   further down a long rail is never more than one click away. */
-.rail-jump-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  margin-bottom: var(--space-3);
-}
-
-.rail-jump-nav button {
-  font-size: 0.78rem;
-  padding: 2px 10px;
-  border-radius: 999px;
-  /* Buttons don't reliably wrap their own text across engines/platforms
-     without this -- defensive hardening alongside the parent's
-     `flex-wrap: wrap` (which moves whole buttons to a new line, but can't
-     shrink a single button's text below one un-wrapped line on its own).
-     Same root cause investigated for the live-status pill below -- see
-     docs/DECISIONS.md's usability fix #5. */
-  white-space: normal;
-}
-
 /* Usability fix #3 (docs/DECISIONS.md): sticky mini-headers so scrolling
-   two sections deep into the rail still shows which section you're in.
-   Scoped to `.rail-section` (applied only to the 4 top-level rail groups
-   in ReliefControls.tsx/YarnColorsGroup.tsx) rather than every
-   `.control-group h3` -- YarnColorsGroup nests a second, non-rail-section
-   `.control-group` ("Color story palettes") inside it, and matching that
-   one too would let two headers both try to stick at `top: 0`
-   simultaneously and visually overlap once both containing blocks are
-   mid-scroll. `scroll-margin-top` gives the jump-nav's scrollIntoView a
-   little breathing room above each target. */
+   two sections deep into the rail still shows which section you're in --
+   kept through the Workspace two-column redesign (the rail jump-nav that
+   originally shipped alongside this was removed per explicit product-
+   owner feedback, but this smaller wayfinding aid was not objected to and
+   is cheap to keep working). Scoped to `.rail-section` (applied only to
+   the 4 top-level rail groups in ReliefControls.tsx/YarnColorsGroup.tsx)
+   rather than every `.control-group h3` -- YarnColorsGroup nests a second,
+   non-rail-section `.control-group` ("Color story palettes") inside it,
+   and matching that one too would let two headers both try to stick at
+   `top: 0` simultaneously and visually overlap once both containing
+   blocks are mid-scroll. Now that `.workspace-controls-col` is itself an
+   `overflow-y: auto` scroll container (see below), each `.rail-section >
+   h3` sticks relative to that column's own scrollport rather than the
+   document/viewport -- arguably more correct than before, not just
+   carried over unchanged. */
 .rail-section {
   scroll-margin-top: var(--space-2);
 }
@@ -384,51 +359,48 @@ select:focus-visible {
   margin-bottom: var(--space-3);
 }
 
-/* Sticky preview column (Iteration 02 Stage B, renamed from
-   `.relief-layout`/`.relief-controls-col`/`.relief-preview-col` in
-   Iteration 03's combined-workspace change now that "relief" is no longer
-   a distinct stage -- the mechanism itself is reused verbatim, see
-   docs/DECISIONS.md). A scrollable control rail on the left, a sticky
-   preview column pinned on the right so adjusting a control further down
-   the rail doesn't lose sight of its effect. Falls back to normal stacking
-   at the same width where `.app-shell` already collapses to one column,
-   since a sticky side-by-side layout doesn't make sense on a phone-width
-   screen. */
+/* True 50/50 two-column Workspace split (redesign on top of Iteration 02
+   Stage B's original sticky-preview mechanism, renamed
+   `.relief-layout`/`.relief-controls-col`/`.relief-preview-col` ->
+   `.workspace-layout`/`.workspace-controls-col`/`.workspace-preview-col`
+   in Iteration 03's combined-workspace change -- see docs/DECISIONS.md).
+   Both columns are capped to the viewport height with their own
+   independent scroll, so neither column's content can push the other, or
+   anything in the other, out of view.
+
+   This replaces the earlier single-sided `position: sticky` + `max-height`
+   trick (which relied on one column -- the rail -- reliably being the
+   *taller* sibling, so a CSS grid row's auto-sizing gave the shorter,
+   sticky-pinned column real slack to pin within). Applying that same
+   `position: sticky` trick to BOTH columns symmetrically does not work: if
+   both columns' natural content exceeds any shared cap (routinely true
+   here -- the rail alone measured 1444-2461px against an ~800px viewport
+   in the usability-fix-#1 investigation), the grid row's height becomes
+   that shared cap for both columns, leaving neither one any slack for
+   `position: sticky` to pin within, and shrinking the *document's own*
+   scrollable range to roughly one viewport height -- degenerate, not
+   fixed. Instead, `main.workspace-layout` itself claims a genuinely
+   bounded height (via `.app-shell--workspace`'s `height: 100vh; overflow:
+   hidden;` flex column above, and `flex: 1 1 auto; min-height: 0;` here)
+   and each column scrolls
+   *within* that fixed box via plain `overflow-y: auto` -- no
+   `position: sticky` needed at all, since there's no page-level scroll for
+   either column to need pinning against in the first place. */
 main.workspace-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: var(--space-4);
-  align-items: start;
-  padding: var(--space-4) var(--space-4) 0;
+  padding: var(--space-4);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
-main.workspace-layout > .workspace-controls-col {
-  grid-column: 1;
-  min-width: 0;
-}
-
+main.workspace-layout > .workspace-controls-col,
 main.workspace-layout > .workspace-preview-col {
-  grid-column: 2;
-  position: sticky;
-  top: var(--space-3);
-  align-self: start;
-  /* Usability fix #1 (docs/DECISIONS.md): a CSS grid row auto-sizes to the
-     *taller* of its two column children. Without a height cap here, the
-     preview column's own natural height (when it happens to exceed the
-     rail's -- true in the default/first-run state, before the rail has
-     grown from expanded disclosures/more swatches) *is* the row height,
-     leaving the column's own containing block zero taller than the column
-     itself -- no slack for `position: sticky` to pin within, so it just
-     scrolls in lockstep with the page instead of staying pinned. Capping
-     the column's own height here means its contribution to the grid row's
-     auto-sizing is always <= the viewport height, so the rail reliably
-     becomes the taller sibling for any rail content taller than that same
-     cap -- which covers every realistic control-rail height in this app,
-     from the default/light state up through the heaviest state exercised
-     in e2e/workspace.spec.ts. The column becomes independently scrollable
-     for its own contents (Pattern + Finished-piece simulation + Legend)
-     once they exceed that cap, rather than relying on page scroll. */
-  max-height: calc(100vh - 2 * var(--space-3));
+  min-width: 0;
+  height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
   display: flex;
@@ -436,20 +408,43 @@ main.workspace-layout > .workspace-preview-col {
   gap: var(--space-4);
 }
 
+/* Belt-and-braces for the two-pane independent-scroll mechanism above:
+   `App.tsx` toggles `body.workspace-scroll-lock` while on Workspace (see
+   its own doc comment) to explicitly stop `document.documentElement` from
+   reporting scrollable overflow past one viewport height -- confirmed via
+   real-browser verification to be needed even with `main.workspace-layout`
+   and `.app-shell--workspace` both already correctly bounded/clipped.
+   Scoped to the same desktop range the two-column layout itself requires
+   (mirrors `@media (max-width: 720px)` below) so it's a no-op at
+   mobile-narrow width, where the layout intentionally falls back to
+   normal single-column, page-scrolled stacking. */
+@media (min-width: 721px) {
+  body.workspace-scroll-lock {
+    overflow: hidden;
+  }
+}
+
 @media (max-width: 720px) {
+  /* Falls back to normal single-column stacking, page-scrolled, at the
+     same width `.app-shell` used to collapse its former sidebar -- a
+     fixed-height side-by-side split doesn't make sense on a phone-width
+     screen. Undoes `.app-shell--workspace`'s fixed height/clip back to the
+     base class's normal `min-height: 100vh`. */
+  .app-shell--workspace {
+    height: auto;
+    overflow: visible;
+  }
+
   main.workspace-layout {
     display: block;
+    flex: none;
+    overflow: visible;
     padding: 0;
   }
 
+  main.workspace-layout > .workspace-controls-col,
   main.workspace-layout > .workspace-preview-col {
-    position: static;
-    /* `position: static` alone does not neutralize `max-height`/
-       `overflow-y` above (unrelated properties) -- without this reset, a
-       phone-width single-stacked-column layout would trap the three
-       preview panels inside an artificial internal scrollbox capped to
-       viewport height instead of flowing normally with the page. */
-    max-height: none;
+    height: auto;
     overflow-y: visible;
   }
 }
@@ -494,8 +489,9 @@ main.workspace-layout > .workspace-preview-col {
   color: var(--color-accent);
 }
 
-/* Visual separation between the Pattern and Finished-piece-simulation
-   panels stacked in the sticky preview column. */
+/* Visual framing for whichever of Pattern / Finished-piece simulation is
+   the currently active tab in the preview column (Workspace two-column
+   redesign) -- only one is ever mounted at a time, see Workspace.tsx. */
 .workspace-panel {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -506,11 +502,22 @@ main.workspace-layout > .workspace-preview-col {
   margin-top: 0;
 }
 
-.level-chip {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: 2px 8px;
-  font-size: 0.8rem;
+/* Pattern / Finished-piece simulation tab switch (Workspace two-column
+   redesign) -- the direct fix for "I don't see that there's a live
+   finished-piece simulation without scrolling down": whichever tab is
+   active fills the entire preview column, never both stacked. See
+   docs/DECISIONS.md. */
+.workspace-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.workspace-tabs button[aria-pressed='true'] {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  border-color: var(--color-accent);
 }
 
 .visually-hidden {
@@ -597,7 +604,7 @@ main.workspace-layout > .workspace-preview-col {
      output. .export-panel/.export-controls stay listed for belt-and-braces
      even though .screen-only does not currently wrap them. */
   .app-header,
-  .stage-nav,
+  .model-bar,
   .screen-only,
   .export-panel,
   .export-controls {
@@ -608,20 +615,33 @@ main.workspace-layout > .workspace-preview-col {
     padding: 0;
   }
   /* Iteration 03's combined-workspace change: Export & print now lives
-     inside `main.workspace-layout` (a CSS grid with a 2nd column reserved
-     via `minmax(280px, 420px)` for the sticky preview -- see
-     docs/DECISIONS.md), unlike the old Preview stage, which was never a
-     grid page and let `.print-pages` flow at the page's full width.
-     Grid column tracks are still allocated by `grid-template-columns`
-     even when the item occupying them is `display:none` (its sibling
-     `.workspace-preview-col` is hidden by `.screen-only` above), so
-     without this reset, `.print-pages` -- a normal-flow child of the
-     grid's first column -- was squeezed into a too-narrow (in one found
-     case, zero-width) column instead of the full page width. Resetting
-     to plain block layout for print, the same way the `.stage-panel`
-     rule above already resets on-screen width/padding constraints. */
+     inside `main.workspace-layout` (a CSS grid, now with two `minmax(0,
+     1fr)` columns for the true 50/50 split -- see docs/DECISIONS.md),
+     unlike the old Preview stage, which was never a grid page and let
+     `.print-pages` flow at the page's full width. Grid column tracks are
+     still allocated by `grid-template-columns` even when the item
+     occupying them is `display:none` (its sibling `.workspace-preview-col`
+     is hidden by `.screen-only` above), so without this reset,
+     `.print-pages` -- a normal-flow child of the grid's first column --
+     was squeezed into a too-narrow (in one found case, zero-width) column
+     instead of the full page width. Also resets the on-screen fixed-
+     height/`overflow: hidden` two-pane mechanism (`flex`/`min-height`/
+     `overflow` on this same element, `.app-shell--workspace`'s `height:
+     100vh; overflow: hidden;`) back to plain block layout so print output
+     isn't clipped to one viewport height either -- the same reasoning as
+     the `.stage-panel` rule above, which already resets on-screen
+     width/padding constraints for print. */
+  .app-shell--workspace {
+    height: auto;
+    overflow: visible;
+  }
+  body.workspace-scroll-lock {
+    overflow: visible;
+  }
   main.workspace-layout {
     display: block;
+    flex: none;
+    overflow: visible;
     padding: 0;
   }
   .print-pages {

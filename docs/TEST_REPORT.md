@@ -449,6 +449,148 @@ assertion plan — all fixed before implementation), one against the
 finished diff afterward (found zero blocking issues). See the PR
 description for this branch for both passes' full findings.
 
+## Session 5: Workspace two-column redesign verification
+
+Branch `feat/workspace-two-column-redesign`, based on commit `1172745`
+(the merged "Workspace usability fixes" round). Run from the repository
+root, Node 22.16.0 (`$HOME/.nvm/versions/node/v22.16.0/bin` prepended to
+`PATH`), npm 10.9.2.
+
+### `npm install`
+
+Exit code 0, 461 packages, no fresh dependency additions this round.
+
+### `npm run verify` (`format` + `lint` + `typecheck` + `test` + `build`)
+
+All green, exit code 0:
+
+```
+> prettier --check .
+All matched files use Prettier code style!
+
+> eslint . --max-warnings=0
+(no output — 0 errors, 0 warnings)
+
+> tsc -b --noEmit
+(no output — 0 errors)
+
+> vitest run
+ Test Files  35 passed (35)
+      Tests  258 passed (258)
+
+> tsc -b && vite build
+✓ built in ~1.3s
+```
+
+`src/components/__tests__/Legend.test.tsx` was deleted (the `Legend`
+component it tested is deleted -- see `docs/DECISIONS.md`).
+`src/components/workspace/__tests__/Workspace.test.tsx` gained a new
+"ready state, preview tab switch" describe block (3 new tests) exercising
+the tab-switch default state and the removed jump-nav/Legend, deliberately
+never clicking into the Simulation tab (would construct a real
+`THREE.WebGLRenderer`, unavailable in jsdom -- see the file's own updated
+doc comment). `src/components/workspace/__tests__/ReliefControls.test.tsx`
+had its two coverage-chip tests replaced with one "no chip readout
+anywhere" test, and dropped the now-nonexistent `levels` prop from every
+render call.
+
+### Real-browser verification before the e2e suite was updated
+
+Per this task's own explicit requirement, the two-pane independent-scroll
+mechanism, the tab switch, the model bar, and the mobile fallback were all
+verified against a real running build (`npm run build`, served via a
+dedicated `vite preview` instance and driven through the browser
+automation tool) before any e2e spec was written or trusted, not inferred
+from reading CSS. This caught two real bugs neither `npm run test` nor
+casual CSS review would have surfaced:
+
+1. **`document.documentElement.scrollHeight` reporting scrollable overflow
+   beyond one viewport height** even though `.app-shell`, `#root`,
+   `body`, and every individual descendant measured correctly bounded in
+   isolation (`scrollHeight === clientHeight` on each). Bisected by
+   selectively hiding rail children via `element.style.display = 'none'`
+   in the live page until the contributing subtree was isolated. Fixed
+   with an explicit `body.workspace-scroll-lock` class (see
+   `docs/DECISIONS.md`) rather than continuing to chase the discrepancy
+   through the CSS cascade.
+2. **A leftover scroll position from Import carrying into Workspace**,
+   reproduced first via this same manual verification (`window.scrollTo`
+   moved the visible viewport even with the lock applied, because
+   `overflow: hidden` stops _further_ scrolling but doesn't reset an
+   existing position) and then again for real by the e2e suite itself
+   (see below) before being fixed with an explicit `window.scrollTo(0, 0)`
+   on entering the Workspace stage.
+
+Both fixes were re-verified in the same real-browser session (independent
+rail/preview `scrollTop` manipulation confirmed the other column never
+moves; `window.scrollTo`/real wheel-scroll gestures confirmed the page
+itself doesn't move at desktop width; a 390px-wide resize confirmed the
+mobile fallback still scrolls normally) before the e2e suite was touched.
+
+### `npx playwright test --project=chromium` / `--project=mobile-narrow`
+
+```
+chromium:       39 passed (14.6s)
+mobile-narrow:  38 passed, 1 skipped (13.8s)
+```
+
+The one skip is the pre-existing, intentional
+`test.skip(browserName !== 'chromium', ...)` in
+`e2e/print-emulation.spec.ts` (PDF generation is Chromium-only in
+Playwright), unrelated to this session's changes.
+
+`e2e/workspace.spec.ts` was substantially rewritten: the jump-nav test
+deleted (feature removed); the single-sided sticky-position tests replaced
+with independent-scroll tests exercising both columns in light and heavy
+states; a new true-50/50-width test; a new tab-switch test (only one of
+Pattern/Finished-piece-simulation content in the DOM at a time); the
+rail-section sticky-header test rewritten to scroll the rail's own
+`scrollTop` instead of `window.scrollTo` (the rail is no longer part of
+normal document flow at desktop width); and a new model-bar test (loaded
+model name shown, "Change" navigates back to Import without clearing the
+model). Every spec using `.level-chip` (a removed feature) as a readiness
+signal was updated to wait on the Pattern view group instead; the two
+spots using it as a genuine content-diff signal
+(`e2e/main-workflow.spec.ts`, `e2e/orient-persistence.spec.ts`) were
+replaced with the "Color by height" swatch-table row count (kept in exact
+sync with the generated level count by `resizeSwatches`) or the Pattern
+panel's `<img>` `src` attribute changing, not just a wait-swap -- see
+`docs/DECISIONS.md` for why each is a genuine, not approximate,
+replacement.
+
+Two real, additional bugs were found and fixed via this e2e run, beyond
+the two already found in manual verification above:
+
+3. **`axe-core`'s `aria-valid-attr-value` rule (critical impact)** on the
+   inactive tab button's `aria-controls`, which pointed at a tabpanel `id`
+   that doesn't exist in the DOM while that tab is inactive (only one
+   tabpanel is ever mounted). Fixed by removing `aria-controls` entirely
+   -- the `role="group"` + `aria-pressed` pattern doesn't require it.
+4. **`axe-core`'s `region` rule (moderate impact)** on `.model-bar__label`,
+   page content not contained by any landmark. Fixed with
+   `role="region" aria-label="Loaded model"` on `ModelBar`'s container.
+
+A fifth issue -- `e2e/orient-persistence.spec.ts`'s "model rotation
+carries over" test failing with "element not found" for `getByLabel(/^Roll/)`
+-- was a real, expected consequence of the redesign rather than a bug:
+Workspace's own rotation controls now live inside `SimulationPanel`,
+which is only mounted while the Finished-piece simulation tab is active
+(Pattern is the default tab). Fixed by adding the tab click before reading
+the control, not by changing app behavior.
+
+### Independent review passes
+
+Two independent, fresh-context `general-purpose` subagent reviews were run
+against this branch per this project's established process: one against
+the implementation plan before any code was written (found one blocking
+issue -- the plan's proposed symmetric reuse of the single-sided
+`position: sticky` mechanism for both columns doesn't work once both
+columns share a height cap, and the plan's own proposed regression test
+would have passed vacuously; see `docs/DECISIONS.md` for the real
+fixed-height layout built instead), one against the finished diff
+afterward ([outcome recorded once run -- see the PR description for this
+branch for the full findings]).
+
 ## Session 1 (prior, sandboxed): what was reviewed manually
 
 This MVP was originally built in a sandboxed session with no outbound

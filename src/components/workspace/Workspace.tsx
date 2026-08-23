@@ -16,7 +16,6 @@ import type {
   PunchGuideSettings,
   RotationDeg,
 } from '@/state/appState';
-import { Legend } from '@/components/Legend';
 import { ExportPanel } from '@/components/ExportPanel';
 import type { PatternView } from '@/export/svgPattern';
 import type { ProjectFile } from '@/domain/projectSchema';
@@ -24,6 +23,8 @@ import { ReliefControls } from '@/components/workspace/ReliefControls';
 import { YarnColorsGroup } from '@/components/workspace/YarnColorsGroup';
 import { PatternPanel } from '@/components/workspace/PatternPanel';
 import { SimulationPanel } from '@/components/workspace/SimulationPanel';
+
+type PreviewTab = 'pattern' | 'simulation';
 
 interface ProcessedForDisplay {
   levels: HeightLevel[];
@@ -69,20 +70,35 @@ interface Props {
 }
 
 /**
- * The combined Workspace: a persistent control rail (left) alongside a
- * sticky, always-visible preview column (right) with two stacked panels --
- * modeled on 3D-print slicer software (Cura, PrusaSlicer), replacing the
- * former Create relief / Height levels / Yarn colors / Preview wizard
- * stages (Iteration 03's combined-workspace change -- see
- * docs/ITERATION_03_PLAN.md #13 and docs/DECISIONS.md for the full
- * rationale and the two architectural wrinkles this resolves).
+ * The combined Workspace: a true 50/50 two-column split, both columns
+ * capped to the viewport height with their own independent scroll -- a
+ * control rail (left, every parameter control plus a collapsed Export &
+ * print disclosure at the bottom) and a preview column (right) that shows
+ * exactly one of "Pattern" or "Finished-piece simulation" at a time via a
+ * tab switch, never both stacked. Modeled on 3D-print slicer software
+ * (Cura's Prepare/Preview tabs, PrusaSlicer's persistent 3D view).
+ *
+ * This is a second redesign of the Workspace, on top of the original
+ * combined-workspace build (docs/ITERATION_03_PLAN.md #13) and its
+ * usability-fix round -- both shipped and are being reworked again here
+ * based on fresh, hands-on product-owner feedback: the previous stacked-
+ * panel layout meant "I don't see that there's a live finished-piece
+ * simulation without scrolling down, and I wouldn't have scrolled down if
+ * I didn't know it already existed there." The tab switch is the direct
+ * fix -- the simulation is one click away, never something requiring a
+ * scroll to discover. See docs/DECISIONS.md for the full rationale,
+ * including why the rail jump-nav, the H1/H2/... coverage chips, the
+ * Legend section, and the StageNav sidebar were all removed in the same
+ * pass per explicit product-owner decisions.
  *
  * `view`/`showGrid`/`mirrored` live here (not inside `PatternPanel`) as
  * plain `useState`, because `ExportPanel` -- a sibling in the rail, not a
  * child of `PatternPanel` -- needs to read the same on-screen values to
  * keep export/print matching whatever Preview is currently showing (the
  * Iteration 03 Round 1 "no duplicate controls" decision, carried forward
- * unchanged here).
+ * unchanged here). `previewTab` is local, uncontrolled state -- purely a
+ * display choice, never persisted, never affecting the underlying
+ * `regionMap`/`processed` data either tab renders from.
  */
 export function Workspace({
   reliefSettings,
@@ -117,20 +133,8 @@ export function Workspace({
   const [view, setView] = useState<PatternView>('combined');
   const [showGrid, setShowGrid] = useState(false);
   const [mirrored, setMirrored] = useState(false);
-  // Usability fix #4 (docs/DECISIONS.md): lifted out of ExportPanel so the
-  // jump-nav below can force the disclosure open from afar, not just
-  // toggle it in place.
-  const [exportOpen, setExportOpen] = useState(false);
+  const [previewTab, setPreviewTab] = useState<PreviewTab>('pattern');
   const { showOnScreenLabels, punchGuide } = patternViewSettings;
-
-  // Usability fix #3/#4: scrolls a rail section's heading to the top of
-  // the viewport. Plain `document.getElementById` rather than a ref map,
-  // since these ids are stable, unique DOM anchors the rail already needs
-  // for the sticky-mini-header CSS (`.rail-section`) -- no extra plumbing
-  // to wire a ref through each child component just for this.
-  const jumpTo = (id: string): void => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
 
   // Written as `regionMap && processed &&` (not a separate boolean) at each
   // use site below so TypeScript's control-flow narrowing actually applies
@@ -141,7 +145,8 @@ export function Workspace({
   // / `.relief-preview-col` pattern this reuses, renamed -- see
   // docs/DECISIONS.md), not a nested wrapper -- `main.workspace-layout`
   // (rendered by App.tsx) is the CSS grid parent, and it needs these two
-  // divs as direct children for the sticky-preview mechanism to apply.
+  // divs as direct children for the independent-scroll two-pane mechanism
+  // to apply.
   return (
     <Fragment>
       <div className="workspace-controls-col">
@@ -167,36 +172,6 @@ export function Workspace({
             </span>
           </div>
 
-          {/* Usability fix #3/#4 (docs/DECISIONS.md): a short jump-nav so
-              a section further down a long, fast-growing rail is never
-              more than one click away -- and, for "Export & print"
-              specifically, a persistent affordance so it's reachable
-              without a long scroll past every color swatch, since it's
-              otherwise the last, easy-to-forget thing in the rail. */}
-          <nav className="rail-jump-nav" aria-label="Jump to rail section">
-            <button type="button" onClick={() => jumpTo('rail-needle-pile')}>
-              Needle &amp; pile
-            </button>
-            <button type="button" onClick={() => jumpTo('rail-punch-detail')}>
-              Punch detail
-            </button>
-            <button type="button" onClick={() => jumpTo('rail-shape-interpretation')}>
-              Shape interpretation
-            </button>
-            <button type="button" onClick={() => jumpTo('rail-yarn-colors')}>
-              Yarn colors
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setExportOpen(true);
-                jumpTo('rail-export-print');
-              }}
-            >
-              Export &amp; print
-            </button>
-          </nav>
-
           {processingError && (
             <p role="alert" className="warning-banner">
               {processingError}
@@ -206,7 +181,6 @@ export function Workspace({
           <ReliefControls
             settings={reliefSettings}
             onChange={onReliefSettingsChange}
-            levels={processed?.levels ?? null}
             heightIndex={processed?.heightIndex ?? null}
             width={processed?.width ?? 0}
             height={processed?.height ?? 0}
@@ -226,6 +200,10 @@ export function Workspace({
         </div>
 
         {regionMap && processed ? (
+          // No controlled `open`/`onOpenChange` passed -- ExportPanel falls
+          // back to its own internal `useState` (the rail jump-nav that
+          // needed the controlled version to force this open from afar was
+          // removed in the same redesign; see docs/DECISIONS.md).
           <ExportPanel
             regionMap={regionMap}
             legend={legend}
@@ -240,13 +218,8 @@ export function Workspace({
             screenShowGrid={showGrid}
             screenMirrored={mirrored}
             screenShowLabels={showOnScreenLabels}
-            open={exportOpen}
-            onOpenChange={setExportOpen}
           />
         ) : (
-          // Same id as the real ExportPanel's <details> above -- the
-          // jump-nav's Export & print button needs a valid scroll target
-          // even before the first relief has generated.
           <div className="control-group screen-only" id="rail-export-print">
             <h3>Export &amp; print</h3>
             <p className="helper-text">
@@ -261,40 +234,80 @@ export function Workspace({
       <div className="workspace-preview-col screen-only">
         {regionMap && processed ? (
           <>
-            <PatternPanel
-              regionMap={regionMap}
-              legend={legend}
-              widthCm={dimensions.widthCm}
-              heightCm={dimensions.heightCm}
-              view={view}
-              onViewChange={setView}
-              showGrid={showGrid}
-              onShowGridChange={setShowGrid}
-              mirrored={mirrored}
-              onMirroredChange={setMirrored}
-              showOnScreenLabels={showOnScreenLabels}
-              onShowOnScreenLabelsChange={(show) =>
-                onPatternViewSettingsChange({ showOnScreenLabels: show })
-              }
-              punchGuide={punchGuide}
-              onPunchGuideChange={(patch) => onPatternViewSettingsChange({ punchGuide: patch })}
-            />
-            <SimulationPanel
-              regionMap={regionMap}
-              levels={processed.levels}
-              profile={profile}
-              widthCm={dimensions.widthCm}
-              heightCm={dimensions.heightCm}
-              renderSettings={renderSettings}
-              onRenderSettingsChange={onRenderSettingsChange}
-              legend={legend}
-              rotationDeg={rotationDeg}
-              onRotationChange={onRotationChange}
-            />
-            <div className="workspace-panel">
-              <h3>Legend</h3>
-              <Legend entries={legend} />
+            {/* Tab switch, not stacked panels -- the direct fix for the
+                product owner's core complaint (see the component doc
+                comment above). Reuses the same `role="group"` +
+                `aria-pressed` toggle-button convention `PatternPanel`'s own
+                "Pattern view" row already uses elsewhere in this file,
+                rather than inventing full ARIA tablist/tab/tabpanel
+                semantics this app has no other precedent for. Only one of
+                `PatternPanel`/`SimulationPanel` is ever mounted at a time
+                (a real conditional render, not CSS-hidden) -- `SimulationView`
+                already disposes its renderer/controls/geometry cleanly on
+                unmount, so mounting/unmounting it on every tab switch is
+                safe, and it sizes its fresh `WebGLRenderer` to whatever
+                height this column currently has on each mount. */}
+            {/* No `aria-controls` here, deliberately -- only one of the two
+                tabpanel divs below is ever mounted at a time (see above),
+                so an `aria-controls` value pointing at the currently-
+                unmounted one would reference a nonexistent id, which
+                axe-core's `aria-valid-attr-value` rule correctly flags as
+                a real violation (found via this feature's own e2e
+                accessibility sweep). `role="group"` + `aria-pressed`
+                already communicates the toggle relationship without it. */}
+            <div className="workspace-tabs" role="group" aria-label="Preview mode">
+              <button
+                type="button"
+                aria-pressed={previewTab === 'pattern'}
+                onClick={() => setPreviewTab('pattern')}
+              >
+                Pattern
+              </button>
+              <button
+                type="button"
+                aria-pressed={previewTab === 'simulation'}
+                onClick={() => setPreviewTab('simulation')}
+              >
+                Finished-piece simulation
+              </button>
             </div>
+            {previewTab === 'pattern' ? (
+              <div>
+                <PatternPanel
+                  regionMap={regionMap}
+                  legend={legend}
+                  widthCm={dimensions.widthCm}
+                  heightCm={dimensions.heightCm}
+                  view={view}
+                  onViewChange={setView}
+                  showGrid={showGrid}
+                  onShowGridChange={setShowGrid}
+                  mirrored={mirrored}
+                  onMirroredChange={setMirrored}
+                  showOnScreenLabels={showOnScreenLabels}
+                  onShowOnScreenLabelsChange={(show) =>
+                    onPatternViewSettingsChange({ showOnScreenLabels: show })
+                  }
+                  punchGuide={punchGuide}
+                  onPunchGuideChange={(patch) => onPatternViewSettingsChange({ punchGuide: patch })}
+                />
+              </div>
+            ) : (
+              <div>
+                <SimulationPanel
+                  regionMap={regionMap}
+                  levels={processed.levels}
+                  profile={profile}
+                  widthCm={dimensions.widthCm}
+                  heightCm={dimensions.heightCm}
+                  renderSettings={renderSettings}
+                  onRenderSettingsChange={onRenderSettingsChange}
+                  legend={legend}
+                  rotationDeg={rotationDeg}
+                  onRotationChange={onRotationChange}
+                />
+              </div>
+            )}
           </>
         ) : (
           <div className="workspace-panel" aria-live="polite">

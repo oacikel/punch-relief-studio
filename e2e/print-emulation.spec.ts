@@ -21,8 +21,10 @@ test.describe('Print/PDF output (Iteration 02 Stage D)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: '2. Workspace' }).click();
-    await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
+      timeout: 15_000,
+    });
     await page.getByLabel('Color by height').check();
 
     // Punch guide: Dots at a small spacing, so a realistic-density dot

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { HeightLevel, ReliefSettings } from '@/domain/types';
+import type { ReliefSettings } from '@/domain/types';
 import { findSmallRegions } from '@/domain/regionCleanup';
 import {
   MIN_REGION_PRESET_ORDER,
@@ -12,11 +12,6 @@ import {
 interface Props {
   settings: ReliefSettings;
   onChange: (patch: Partial<ReliefSettings>) => void;
-  /** Live per-level coverage readout, folded in from the former
-   * HeightStage.tsx (Iteration 03's combined-workspace change -- see
-   * docs/ITERATION_03_PLAN.md #13) -- `null` before the first relief has
-   * generated. */
-  levels: HeightLevel[] | null;
   heightIndex: Int16Array | null;
   width: number;
   height: number;
@@ -27,29 +22,26 @@ interface Props {
  * -- the former `ReliefStage.tsx` content verbatim, now rendered inline in
  * the Workspace rail instead of on its own page, with the manual "Generate
  * relief" button removed (live regeneration replaces it -- see
- * `src/hooks/useLiveRelief.ts`) and the former `HeightStage.tsx`'s
- * per-level coverage table folded into a small live chip readout directly
- * under the pile-heights slider, since it's really just live feedback for
- * that one control rather than its own destination. The small-region
- * warning (also from HeightStage.tsx) moves into "Punch detail" instead,
- * directly under the min-region preset that drives it -- keeping cause and
- * effect visually adjacent (a judgment call, see docs/DECISIONS.md).
+ * `src/hooks/useLiveRelief.ts`). The small-region warning (folded in from
+ * the former `HeightStage.tsx`) lives under "Punch detail", directly under
+ * the min-region preset that drives it -- keeping cause and effect visually
+ * adjacent (a judgment call, see docs/DECISIONS.md).
+ *
+ * The former per-level H1/H2/... coverage-percentage chip row (a live
+ * readout under the pile-heights slider) was removed in the Workspace
+ * two-column redesign, per explicit product-owner feedback that it
+ * "connects to nothing actionable" for a non-technical user -- see
+ * docs/ITERATION_03_PLAN.md and docs/DECISIONS.md. `levels` is no longer
+ * accepted as a prop: it was only ever used to build those chips --
+ * `findSmallRegions` below needs only `heightIndex`/`width`/`height`.
  */
 export function ReliefControls({
   settings,
   onChange,
-  levels,
   heightIndex,
   width,
   height,
 }: Props): JSX.Element {
-  const counts = useMemo(() => {
-    if (!levels || !heightIndex) return null;
-    const c = new Array(levels.length).fill(0) as number[];
-    for (const v of heightIndex) if (v >= 0) c[v] = (c[v] ?? 0) + 1;
-    return c;
-  }, [levels, heightIndex]);
-
   const minRegionPx = useMemo(
     () => minRegionPxForPreset(settings.minRegionPreset, width, height),
     [settings.minRegionPreset, width, height],
@@ -59,8 +51,6 @@ export function ReliefControls({
     () => (heightIndex ? findSmallRegions(heightIndex, width, height, minRegionPx) : []),
     [heightIndex, width, height, minRegionPx],
   );
-
-  const totalForeground = counts ? counts.reduce((a, b) => a + b, 0) || 1 : 1;
 
   return (
     <>
@@ -81,28 +71,6 @@ export function ReliefControls({
             this, some heights will share a setting.
           </p>
         </div>
-        {levels && counts && (
-          <ul
-            aria-label="Pile height coverage"
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 8,
-              margin: '8px 0 0',
-              padding: 0,
-              listStyle: 'none',
-            }}
-          >
-            {levels.map((level) => {
-              const share = ((counts[level.index] ?? 0) / totalForeground) * 100;
-              return (
-                <li key={level.index} className="level-chip">
-                  H{level.index + 1} {share.toFixed(1)}%
-                </li>
-              );
-            })}
-          </ul>
-        )}
       </div>
 
       <div className="control-group rail-section" id="rail-punch-detail">

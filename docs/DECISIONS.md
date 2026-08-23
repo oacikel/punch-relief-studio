@@ -1591,3 +1591,302 @@ this regression on CI, doing exactly the job it was written for.
 fixed a _different_, already-resolved mobile-overflow bug) is updated
 with a closing note pointing here, so this specific question doesn't get
 re-litigated a fourth time without new information.
+
+## Workspace two-column redesign (a second rework of the combined Workspace)
+
+Branch `feat/workspace-two-column-redesign`. This is a second, deliberate
+rework of the same Workspace area the "Iteration 03 -- Combined Workspace"
+section above and the "Workspace usability fixes" section just above this
+one already built and fixed once -- not a new feature, a redesign of an
+already-shipped one, based on the product owner actually using the
+just-shipped usability-fix round and giving fresh, structured feedback.
+The product owner's own words, direct quote, on the core problem: _"I
+don't see that there's a live finished-piece simulation without scrolling
+down, and I wouldn't have scrolled down if I didn't know it already
+existed there."_ A specific alternative layout was proposed, mocked up,
+iterated on with the product owner, and approved before any code was
+written, per this project's established process (draft plan, independent
+pre-implementation review, implementation, independent post-implementation
+review).
+
+### What changed, and the product owner's stated reasoning for each removal
+
+- **True 50/50 two-column split, both columns independently scrollable**
+  (`.workspace-controls-col`/`.workspace-preview-col`), replacing the
+  asymmetric `minmax(0, 1fr) minmax(280px, 420px)` grid + single-sided
+  `position: sticky` preview column from the original build.
+- **A Pattern / Finished-piece-simulation tab switch** in the right
+  column, replacing the two panels stacked vertically. This is the direct
+  fix for the product owner's quote above -- the simulation is now one
+  click away and its tab button is always visible, never something
+  requiring a scroll to discover exists.
+- **The H1/H2/H3/H4 pile-height coverage-percentage chip row removed
+  entirely** (not hidden, not moved) from `ReliefControls.tsx`. Product
+  owner's stated reasoning: it "connects to nothing actionable" and they
+  "wouldn't understand it as a newbie" -- i.e. a percentage breakdown with
+  no unit a non-technical crafter can act on. The pile-heights slider
+  itself, and the small-region warning under "Punch detail", are
+  unaffected.
+- **The Legend section removed entirely** (`Legend.tsx` deleted, its one
+  render call in `Workspace.tsx` removed). Product owner's stated
+  reasoning included "there is no symbols" -- see the dedicated finding
+  below, which is a real, separate discovery made while implementing this
+  removal, not fixed here per explicit task scope (removal, not repair).
+- **The rail jump-nav pill row removed** (`.rail-jump-nav`, added in the
+  prior usability-fix round). Product owner's words: "nice thought, but
+  unnecessary." The sticky per-section mini-headers from the same prior
+  round (`.rail-section > h3 { position: sticky; top: 0; }`) were kept --
+  a separate, smaller wayfinding aid the product owner didn't object to,
+  and cheap to keep working under the new layout (see the CSS section
+  below for why it arguably works more correctly now, not just carried
+  over).
+- **The heavy `StageNav` sidebar removed**, replaced by a thin ambient
+  "current model" top bar (`ModelBar.tsx`) with a "Change" action -- see
+  its own decision entry below.
+
+### Finding, not fixed here: the "symbol" CLAUDE.md requires was never a visual glyph
+
+While removing the Legend section, `symbolForHeight()`
+(`src/domain/regionId.ts`) was traced through every consumer. It returns a
+descriptive **word** ("circle", "triangle", "diamond", ...), not a visual
+glyph/icon. Grepped every call site: `src/domain/pattern/legend.ts` puts
+that word on `LegendEntry.symbol`; the **only** place that word was ever
+rendered on screen was `Legend.tsx`'s "Symbol" table column -- the exact
+section this redesign removes. `src/export/svgPattern.ts` imports
+`symbolForHeight` but only re-exports it (never draws it into the actual
+pattern SVG); the pattern's own on-canvas labels are only the `C{n}-H{n}`
+text ID (`buildLabels`/`placeLabels`), which does satisfy CLAUDE.md's
+"never rely on color alone" rule via distinguishing text, just not via
+anything a user would actually recognize as "a symbol." After this
+removal, `symbolForHeight()`'s word is still computed by `buildLegend()`
+(the function, and `LegendEntry.symbol`, are both untouched -- see the
+type-vs-component distinction below) but rendered nowhere in the app.
+**This is reported, not fixed** -- the product owner's "there is no
+symbols" complaint may well be about exactly this gap, but the task at
+hand was removing the Legend section the product owner asked to have
+removed, not silently building a new visual-glyph feature as a side
+effect. If real visual symbols (distinct glyph shapes per height, not
+color, not a text word) are wanted, that's a follow-up worth its own
+scoping.
+
+### `LegendEntry` (the type) vs. `Legend` (the component): kept vs. removed
+
+Only the rendered `Legend` component and its one call site
+(`Workspace.tsx`) are removed. `LegendEntry` (`src/domain/pattern/legend.ts`)
+and `buildLegend()` are untouched -- confirmed via grep that `LegendEntry`
+is genuinely still consumed by `PatternCanvas.tsx`, `ExportPanel.tsx`,
+`SimulationView.tsx`, `SimulationPanel.tsx`, `svgPattern.ts`,
+`buildReliefMesh.ts`, and `usePatternSvgUrl.ts` -- the pattern SVG,
+export/print, and the finished-piece simulation's per-region vertex
+coloring all still depend on this data. Removing the type would have been
+a real regression, not a cleanup; only the rendered `<Legend>` table went.
+
+### The preview-column tab switch: `aria-pressed` group, not full ARIA tabs
+
+`Workspace.tsx`'s "Pattern" / "Finished-piece simulation" switch is two
+plain `<button aria-pressed>` elements inside `role="group"`, matching the
+exact convention `PatternPanel.tsx`'s own "Pattern view"
+(combined/color-only/height-only/contour) row already uses elsewhere in
+this same file -- not a full ARIA `tablist`/`tab`/`tabpanel` pattern with
+roving tabindex/arrow-key navigation, which this app has no other
+precedent for.
+**`aria-controls` was tried and removed.** The first implementation gave
+each button `aria-controls="workspace-tabpanel-<name>"` pointing at the
+corresponding tabpanel `<div>`'s id. Only one of `PatternPanel`/
+`SimulationPanel` is ever mounted at a time (a real conditional render,
+chosen so `SimulationView`'s `WebGLRenderer` isn't kept alive off-screen
+for no reason -- it already disposes cleanly on unmount), so the
+_inactive_ button's `aria-controls` value pointed at an id that did not
+exist in the DOM. axe-core's `aria-valid-attr-value` rule (`cat.aria`,
+`wcag412`, critical impact) correctly flagged this as a real violation --
+found by this feature's own e2e accessibility sweep
+(`e2e/accessibility.spec.ts`), not a hypothetical. Fixed by removing
+`aria-controls` entirely: `role="group"` + `aria-pressed` alone already
+communicates the toggle relationship, and it's the same shape this app's
+own axe sweep already treats as clean for the Pattern-view buttons.
+
+### Two-pane independent scroll: a real fixed-height layout, not a symmetric reuse of the old sticky trick
+
+**The problem the first draft plan got wrong, caught by independent
+review before implementation.** The original single-sided sticky-preview
+mechanism (Iteration 02 Stage B, "kept the sticky preview column pinned"
+usability fix above) worked because a CSS grid row auto-sizes to the
+_taller_ of its two column children -- the rail was reliably taller, so
+the shorter, `position: sticky`-pinned preview column always had slack to
+pin within. The first implementation draft proposed applying that same
+`position: sticky` + `max-height` treatment symmetrically to _both_
+columns for the new true-50/50 layout. An independent fresh-context
+review (this task's required pre-implementation plan review) caught that
+this doesn't work: once both columns share the same height cap, and both
+columns' real content routinely exceeds any realistic cap (the rail alone
+was already measured at 1444-2461px against an ~800px viewport in the
+prior usability-fix round), the grid row's height becomes that shared cap
+for _both_ columns, leaving neither one any slack for `position: sticky`
+to pin within -- and shrinks the _document's_ own scrollable range to
+roughly one viewport height, which would have made the reviewer's own
+proposed regression test (reusing `[300, 600]`/`[300, 900]` scroll targets
+from the original single-sided test) pass vacuously, since out-of-range
+`window.scrollTo` calls silently clamp.
+
+**What was actually built instead:** a genuine fixed-height flex/grid
+layout, no `position: sticky` anywhere.
+`.app-shell--workspace` (a modifier class `App.tsx` applies only while
+`workflow.currentStage === 'workspace'`, mirroring the existing
+`main.workspace-layout` class toggle on the same condition) pins the
+shell to `height: 100vh; overflow: hidden;`. `main.workspace-layout`
+becomes a flex item (`flex: 1 1 auto; min-height: 0;`) claiming exactly
+the remaining space below the header/model-bar, _and_ a grid container in
+its own right (`grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+grid-template-rows: minmax(0, 1fr); overflow: hidden;`) so its single row
+track is itself allowed to shrink to the available space rather than
+auto-sizing to content. Each column (`.workspace-controls-col`/
+`.workspace-preview-col`) gets `height: 100%; overflow-y: auto;` -- a
+plain, independently-scrollable box, no sticky positioning needed at all,
+since there's no page-level scroll for either column to need pinning
+against in the first place. The base (non-`--workspace`) `.app-shell`
+class stays `min-height: 100vh` with no fixed height/overflow, so Import
+(and any future non-Workspace stage) keeps scrolling the normal,
+page-level way -- confirmed via real-browser verification, not assumed.
+
+**`body.workspace-scroll-lock`, and why `overflow: hidden` alone wasn't
+enough.** Real-browser verification (not just CSS-property inspection, at
+this task's own explicit insistence) found that even with `.app-shell`
+and `main.workspace-layout` both correctly bounded and clipped,
+`document.documentElement.scrollHeight` still reported, and
+`window.scrollTo`/`Element.scrollIntoView`-style programmatic scrolling
+could still act on, scrollable overflow beyond one viewport height --
+every individual descendant (`.app-shell`, `#root`, `body`,
+`.workspace-controls-col`) measured correctly bounded in isolation, but
+`document.documentElement`'s own reported scrollable range did not match.
+Rather than continuing to chase this specific cross-engine
+`documentElement`-vs-`body` scrollHeight discrepancy through the CSS
+cascade, `App.tsx` explicitly toggles a `body.workspace-scroll-lock` class
+(mirroring the standard "modal locks body scroll" pattern) whenever
+`workflow.currentStage === 'workspace'`, with the actual `overflow:
+hidden` declaration scoped in `styles.css` inside `@media (min-width:
+721px)` -- the same desktop range the two-column layout itself requires,
+so it's a no-op at the mobile-narrow breakpoint, where the layout falls
+back to normal single-column, page-scrolled stacking (confirmed this
+doesn't trap that fallback's content).
+**A second, related real bug found the same way:** `overflow: hidden`
+stops _further_ scrolling, it does not reset a scroll position the page
+already has. Import legitimately scrolls the page as an ordinary side
+effect of navigating it (e.g. bringing "Continue to Workspace" into view
+before a click), so by the time a user reaches Workspace the document can
+already be scrolled some way down -- and since the whole two-column layout
+always starts at document `y=0`, without a reset it would render
+effectively above the visible viewport, appearing blank. Reproduced for
+real (not hypothesized) via this feature's own e2e suite -- one
+`e2e/workspace.spec.ts` test failed with a heading measured at `top:
+-409px` immediately after navigating to Workspace, root-caused to exactly
+this. Fixed with an explicit `window.scrollTo(0, 0)` in the same
+`useEffect` that applies the `workspace-scroll-lock` class, run on every
+transition into the Workspace stage.
+
+### Ambient "current model" top bar, replacing the `StageNav` sidebar
+
+**Decision:** `src/components/ModelBar.tsx`, a thin bar rendered only
+while `workflow.currentStage === 'workspace'` (there's nothing to
+"change" while already on Import), showing the loaded model's name (the
+existing `sourceKind`/`sampleId`/`sourceFilename`-derived
+`loadedModelLabel` `App.tsx` already computes for `ImportStage`'s
+collapsed-picker summary -- reused as a prop, not re-derived) plus a
+"Change" button that dispatches `GO_TO_STAGE import`.
+**Why framed as ambient state with a direct action, not a "back" step:**
+explicit reasoning carried over from the product-owner mockup review --
+the whole point of collapsing the 5-stage wizard to 2 stages
+(Import/Workspace) was moving away from the wizard mental model; a
+"back"-labeled button would reintroduce exactly that framing. The
+approved analogy is 3D-print slicer software showing the loaded file name
+with an always-available "Open" action, not a page-transition control.
+Concretely this means: no "1. Import" / "2. Workspace" step-indicator
+language, no `aria-current="step"`, no disabled/enabled step-gating logic
+-- just a name and a button. Clicking "Change" does not clear or reset
+the loaded model; `ImportStage.tsx`'s existing collapsed-picker/reopen
+behavior (from the prior usability-fix round, untouched by this task)
+already handles "swap to a different model" once back on Import.
+**`role="region"` was required, not decorative.** axe-core's "region"
+best-practice rule (`cat.keyboard`, moderate impact) flagged
+`.model-bar__label` as page content not contained by any landmark --
+`.model-bar` sits as a plain sibling of `<header>`/`<main>`, in neither.
+Found by this feature's own e2e accessibility sweep, fixed with
+`role="region" aria-label="Loaded model"` on the bar's own container.
+**`StageNav.tsx` deleted outright**, not deprecated -- confirmed via grep
+it had no dedicated test file and its only importer was `App.tsx`.
+`workflow.ts`'s `WORKFLOW_STAGES = ['import', 'workspace']` two-stage
+structure is completely unchanged -- this is a presentational
+replacement for how the app navigates between the same two stages, not a
+change to whether Import remains a distinct step.
+
+### `ReliefControls.tsx`'s `levels` prop removed, not just its chip JSX
+
+Removing the coverage-chip `<ul>` block left the `levels: HeightLevel[] |
+null` prop entirely unused inside `ReliefControls.tsx` -- the
+small-region warning (`findSmallRegions`) only ever needed
+`heightIndex`/`width`/`height`/`minRegionPx`, never `levels`. Removed
+from the component's `Props` interface (and the corresponding
+`Workspace.tsx` call site) rather than left as dead plumbing, a genuine
+signature simplification directly required by the removal, not
+unrequested scope creep.
+
+### e2e signal replacements for the removed coverage chips
+
+Several existing e2e tests used `.level-chip` both as a "first live
+regeneration has landed" readiness signal and, in a few cases, as a
+genuine content-diff assertion (proving a setting change produced
+different generated output, not just that the control accepted input).
+Since the feature is gone, each use needed a real replacement, not a
+blind deletion:
+
+- **Readiness signal** (most call sites): replaced with
+  `page.getByRole('group', { name: 'Pattern view' })` becoming visible --
+  gated by the identical `regionMap && processed` condition the chips
+  used to signal, and visible immediately since Pattern is the default
+  active preview tab.
+- **Level-count-changed signal** (`e2e/main-workflow.spec.ts`,
+  `e2e/orient-persistence.spec.ts`): replaced with the "Color by height"
+  swatch table's row count. `resizeSwatches`/`PROCESSING_SUCCEEDED`
+  (`src/state/appState.ts`) keeps by-height swatches in _exact_ 1:1 sync
+  with the generated level count -- a genuine, not approximate,
+  replacement signal, confirmed by reading that reducer case rather than
+  assumed.
+- **"Rotation actually changed the regenerated pattern" signal**
+  (`e2e/orient-persistence.spec.ts`): replaced with the Pattern panel's
+  own `<img>` `src` attribute changing. `usePatternSvgUrl.ts` creates a
+  fresh `blob:` object URL only when `regionMap` changes identity, which
+  only happens on a real, completed live-regeneration pass -- this still
+  proves the _effect_ (a genuine new generation landed), even though,
+  like the chip-percentage comparison it replaces, it doesn't strictly
+  prove _visually_ different output.
+- **Dropped, not replaced:** the former chip-based `nonZeroBands` check
+  (asserting "Balanced by shape" quantization produces a real,
+  non-degenerate distribution across bands, not just a level count) has
+  no UI-level replacement now that the chips are gone. That narrower claim
+  is dropped from e2e coverage; the underlying `quantize()` behavior it
+  exercised remains covered by `src/domain/__tests__/quantize.test.ts`.
+
+### Rotation controls: relocated in scope, mechanism untouched
+
+Per this task's explicit scope, the Roll/Pitch/Yaw rotation mechanism
+(`AppState.modelRotationDeg`, `RotationControls.tsx`, the lifted-state
+design from the original combined-workspace build) was not touched --
+only _where_ `SimulationPanel`'s copy renders changed, from "always
+visible, stacked below Pattern" to "visible only while the Finished-piece
+simulation tab is active." Two e2e tests that read Workspace's own
+`getByLabel(/^Roll/)` immediately after navigating there needed one added
+line each (`page.getByRole('button', { name: 'Finished-piece
+simulation' }).click()`) before that control is reachable --
+a real, expected consequence of the tab switch, not a mechanism change.
+
+### Real-browser verification, per this task's own explicit requirement
+
+Every claim above about the two-pane scroll mechanism, the tab switch,
+the model bar, and the mobile fallback was verified against a real
+running build (`npm run build && npx vite preview`) via the browser
+automation tool, not inferred from reading CSS -- including the specific
+`documentElement.scrollHeight` discrepancy and the leftover-scroll-
+position bug, both of which a CSS-only review would not have caught
+(the first has no visible symptom in DevTools' Elements panel; the
+second only manifests as a real, reproducible test failure with a
+specific negative `top` value, not something obvious from source
+inspection alone).

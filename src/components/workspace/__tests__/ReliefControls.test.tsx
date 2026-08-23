@@ -3,24 +3,19 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ReliefControls } from '../ReliefControls';
 import { DEFAULT_RELIEF_SETTINGS } from '@/domain/types';
-import type { HeightLevel } from '@/domain/types';
-import { normalizedDepth } from '@/domain/units';
-
-function makeLevels(count: number): HeightLevel[] {
-  return Array.from({ length: count }, (_, i) => ({
-    index: i,
-    lowerBound: normalizedDepth(i / count),
-    upperBound: normalizedDepth((i + 1) / count),
-  }));
-}
 
 /**
  * Combined-workspace change (docs/ITERATION_03_PLAN.md #13): `ReliefControls`
  * replaces `ReliefStage` (Needle & pile / Punch detail / Shape
  * interpretation groups, no manual "Generate relief" button) and absorbs
- * `HeightStage`'s per-level coverage readout as live chips plus its
- * small-region warning (moved here, under "Punch detail" -- see
- * docs/DECISIONS.md).
+ * `HeightStage`'s small-region warning (moved here, under "Punch detail" --
+ * see docs/DECISIONS.md).
+ *
+ * The Workspace two-column redesign removed the former live H1/H2/...
+ * pile-height coverage-percentage chip row entirely, per explicit
+ * product-owner feedback that it "connects to nothing actionable" for a
+ * non-technical user -- see docs/DECISIONS.md. `levels` is no longer a
+ * prop `ReliefControls` accepts.
  */
 describe('ReliefControls', () => {
   it('renders the Basic controls with their accessible names, and no Generate button', () => {
@@ -28,7 +23,6 @@ describe('ReliefControls', () => {
       <ReliefControls
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
-        levels={null}
         heightIndex={null}
         width={0}
         height={0}
@@ -48,7 +42,6 @@ describe('ReliefControls', () => {
       <ReliefControls
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
-        levels={null}
         heightIndex={null}
         width={0}
         height={0}
@@ -64,7 +57,6 @@ describe('ReliefControls', () => {
       <ReliefControls
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
-        levels={null}
         heightIndex={null}
         width={0}
         height={0}
@@ -75,38 +67,21 @@ describe('ReliefControls', () => {
     expect(screen.getByLabelText('Height band spacing')).toBeVisible();
   });
 
-  it('shows no coverage chips before a relief has generated (levels is null)', () => {
+  it('has no pile-height coverage chip readout anywhere (removed in the Workspace redesign)', () => {
     render(
       <ReliefControls
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
-        levels={null}
-        heightIndex={null}
-        width={0}
-        height={0}
-      />,
-    );
-    expect(screen.queryByLabelText('Pile height coverage')).not.toBeInTheDocument();
-  });
-
-  it('shows a live coverage chip per level once a relief has generated', () => {
-    const levels = makeLevels(2);
-    render(
-      <ReliefControls
-        settings={DEFAULT_RELIEF_SETTINGS}
-        onChange={vi.fn()}
-        levels={levels}
         heightIndex={Int16Array.from([0, 1, 0, 1])}
         width={2}
         height={2}
       />,
     );
-    expect(screen.getByText('H1 50.0%')).toBeInTheDocument();
-    expect(screen.getByText('H2 50.0%')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Pile height coverage')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^H1 /)).not.toBeInTheDocument();
   });
 
   it('shows the small-region warning under Punch detail when tiny regions exist', () => {
-    const levels = makeLevels(2);
     // A single isolated foreground pixel among a much larger canvas, with
     // an aggressive ('bold') min-region preset, should count as "too
     // small" and produce the warning -- 100x100 at 'bold' (0.08%) rounds
@@ -119,7 +94,6 @@ describe('ReliefControls', () => {
       <ReliefControls
         settings={{ ...DEFAULT_RELIEF_SETTINGS, minRegionPreset: 'bold' }}
         onChange={vi.fn()}
-        levels={levels}
         heightIndex={heightIndex}
         width={width}
         height={height}
@@ -133,7 +107,6 @@ describe('ReliefControls', () => {
       <ReliefControls
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
-        levels={null}
         heightIndex={null}
         width={0}
         height={0}

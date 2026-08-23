@@ -76,7 +76,7 @@ test.describe('Accessibility sweep (Iteration 03 Round 2 #5)', () => {
   test('Workspace stage, immediately on arrival', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: '2. Workspace' }).click();
+    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
     await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
     await expectNoViolations(page);
   });
@@ -84,16 +84,20 @@ test.describe('Accessibility sweep (Iteration 03 Round 2 #5)', () => {
   test('Workspace stage, after live regeneration has produced a result', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: '2. Workspace' }).click();
-    await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
+      timeout: 15_000,
+    });
     await expectNoViolations(page);
   });
 
   test('Workspace stage, including the opened Export & print panel', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: '2. Workspace' }).click();
-    await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
+      timeout: 15_000,
+    });
 
     await page.locator('.export-panel summary').click();
     await expect(page.locator('.export-panel[open]')).toBeVisible();
