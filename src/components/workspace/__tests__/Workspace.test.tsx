@@ -75,15 +75,15 @@ function baseProps() {
 }
 
 describe('Workspace', () => {
-  it('shows the rail heading with a "Live" pill when idle', () => {
+  it('shows the rail heading with no status pill when idle', () => {
     render(<Workspace {...baseProps()} />);
     expect(screen.getByRole('heading', { name: 'Workspace' })).toBeInTheDocument();
-    expect(screen.getByText(/Live — updates as you adjust/)).toBeInTheDocument();
+    expect(screen.queryByText(/Processing…/)).not.toBeInTheDocument();
   });
 
   it('shows a "Processing…" pill while a live generation is in flight', () => {
     render(<Workspace {...baseProps()} processing={true} />);
-    expect(screen.getByText(/Processing…/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Processing…/).length).toBeGreaterThan(0);
   });
 
   it('shows the processing error banner when present', () => {

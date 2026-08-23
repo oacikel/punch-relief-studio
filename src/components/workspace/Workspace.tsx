@@ -162,14 +162,14 @@ export function Workspace({
         <div className="screen-only">
           <div className="workspace-rail-heading">
             <h2>Workspace</h2>
-            <span
-              className={
-                processing ? 'live-status-pill live-status-pill--processing' : 'live-status-pill'
-              }
-              aria-live="polite"
-            >
-              {processing ? '● Processing…' : '● Live — updates as you adjust'}
+            <span className="visually-hidden" aria-live="polite">
+              {processing ? 'Processing…' : ''}
             </span>
+            {processing && (
+              <span className="live-status-pill live-status-pill--processing" aria-hidden="true">
+                ● Processing…
+              </span>
+            )}
           </div>
 
           {processingError && (

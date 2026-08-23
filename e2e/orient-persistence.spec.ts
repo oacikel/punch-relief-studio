@@ -279,10 +279,10 @@ test("rotating the model from Workspace's own controls changes the live-regenera
   await page.goto('/');
   await page.getByText('Concentric Ripple').click();
   await page.getByRole('button', { name: 'Continue to Workspace' }).click();
-  await expect(page.getByText(/Live — updates as you adjust/)).toBeVisible({ timeout: 15_000 });
 
   // Pattern is the default active tab -- its <img> is visible without any
-  // extra navigation.
+  // extra navigation. Waiting for it also confirms the initial live
+  // generation has finished (no separate idle status pill to wait on).
   const patternImg = page.getByAltText(/Punch-needle pattern/);
   await expect(patternImg).toBeVisible({ timeout: 15_000 });
   const before = await patternSvgContent(page);
