@@ -167,6 +167,8 @@ export default function App(): JSX.Element {
       height: captured.height,
       emptyValue: captured.emptyValue,
       settings: state.reliefSettings,
+      needleGeometry: state.needleGeometry,
+      patternDimensions: state.patternDimensions,
       // exactOptionalPropertyTypes forbids `color: undefined` -- omit the
       // key entirely rather than assigning an undefined value to it.
       ...(captured.color && state.colorMode === 'source-material'
@@ -180,7 +182,13 @@ export default function App(): JSX.Element {
           }
         : {}),
     }),
-    [state.reliefSettings, state.colorMode, state.paletteSize],
+    [
+      state.reliefSettings,
+      state.colorMode,
+      state.paletteSize,
+      state.needleGeometry,
+      state.patternDimensions,
+    ],
   );
 
   useLiveRelief({
@@ -188,6 +196,15 @@ export default function App(): JSX.Element {
     reliefSettings: state.reliefSettings,
     rotationDeg: state.modelRotationDeg,
     viewNonce,
+    needleGeometry: state.needleGeometry,
+    // Passed by reference, not reconstructed inline -- useLiveRelief's
+    // effect dependency array compares this by reference, and
+    // state.patternDimensions is already a stable object that only changes
+    // identity on an actual SET_PATTERN_DIMENSIONS dispatch (see
+    // appState.ts's reducer). A freshly-built `{widthCm, heightCm}`
+    // literal here would change identity on every render and defeat that
+    // comparison, re-debouncing on every unrelated re-render.
+    patternDimensions: state.patternDimensions,
     captureColor: state.colorMode === 'source-material',
     capture: captureFromViewport,
     buildProcessArgs,
@@ -300,6 +317,7 @@ export default function App(): JSX.Element {
       // straightening is a per-import adjustment, not project data (see
       // docs/DECISIONS.md).
       exportSettings: { ...state.exportSettings, punchGuide: state.patternViewSettings.punchGuide },
+      needleGeometry: state.needleGeometry,
     };
     downloadText(serializeProject(project), projectFilename('punch-relief'), 'application/json');
   };
@@ -320,6 +338,13 @@ export default function App(): JSX.Element {
     dispatch({ type: 'SET_CALIBRATION_PROFILE', profile: project.calibrationProfile });
     dispatch({ type: 'SET_PATTERN_DIMENSIONS', dimensions: project.patternDimensions });
     dispatch({ type: 'SET_RENDER_SETTINGS', settings: project.renderSettings });
+    // Iteration 04 schema decision: old (pre-Iteration-04) project files
+    // never have `needleGeometry` -- default explicitly to "not set" rather
+    // than trusting `??` alone. See docs/ITERATION_04_PLAN.md §7.
+    dispatch({
+      type: 'SET_NEEDLE_GEOMETRY',
+      geometry: project.needleGeometry ?? { diameterMm: 0, throwMm: 0 },
+    });
     // `ExportSettings` (AppState) has no `punchGuide` field -- it lives
     // separately on `patternViewSettings` (see below) -- so pick only the
     // fields `ExportSettings` actually declares, rather than spreading the
@@ -511,6 +536,10 @@ export default function App(): JSX.Element {
               rotationDeg={state.modelRotationDeg}
               onRotationChange={(patch) =>
                 dispatch({ type: 'SET_MODEL_ROTATION', rotation: patch })
+              }
+              needleGeometry={state.needleGeometry}
+              onNeedleGeometryChange={(patch) =>
+                dispatch({ type: 'SET_NEEDLE_GEOMETRY', geometry: patch })
               }
               processing={state.processing}
               processingError={state.processingError}

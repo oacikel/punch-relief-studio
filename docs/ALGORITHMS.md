@@ -56,6 +56,44 @@ borders the most of their pixels; components with no non-background
 neighbor are left alone (no data loss) and reported by `findSmallRegions`
 so the UI can warn the user rather than silently deleting geometry.
 
+## Needle-geometry width constraint (`src/domain/pattern/needleGeometry.ts`)
+
+Optional, off by default (`diameterMm`/`throwMm` both `0`). When a user
+enters real needle diameter and throw (mm), each pile-height level gets a
+derived loop height (linear interpolation between `diameterMm`, the
+shortest possible loop, and `throwMm * 0.5`, the "practically usable"
+tallest loop) and a minimum region width driven by that loop height's
+_ratio_ to the diameter -- `MIN_WIDTH_MULTIPLIER_SHORT` (~1.4x) at ratio 1
+(loop height equals the diameter, the physical floor), linearly down to
+`MIN_WIDTH_MULTIPLIER_TALL` (~1x) once the ratio reaches
+`LOOP_HEIGHT_RATIO_CAP` (2.5) -- a shorter loop needs a proportionally wider
+region to read as a clean punched shape, and this single number is
+deliberately the only compensation surfaced anywhere (no separate
+"double-pass" indicator; see `docs/ITERATION_04_PLAN.md` §1 for why).
+Ratio-based rather than level-index-based on purpose: an earlier version
+derived the multiplier from the same level-index fraction the loop-height
+interpolation itself uses, which made `throwMm`'s actual magnitude cancel
+out of the result -- see `docs/DECISIONS.md`'s "Needle-width multiplier:
+ratio-based, not level-index-based" for the bug and the real-needle-spec
+trace that found it.
+
+Converted to a pixel width (`minWidthPxForLevel`) via the pattern's
+physical `widthCm`/`heightCm` and enforced in `processing.worker.ts`, after
+the existing `minRegionPreset` cleanup pass, by `applyNeedleWidthOpening`
+(`src/domain/regionCleanup.ts`) -- shapes `heightIndex` directly during
+generation, not a post-hoc warning. This is a genuine local-thickness
+check (a per-level morphological opening: erode each level's mask by
+roughly half the minimum width via a Chebyshev distance transform, dilate
+the survivors back out, then multi-source-BFS-reassign whatever didn't
+survive to whichever kept pixel -- any level -- is nearest), not a
+whole-region pixel-_area_ check -- deliberately replacing an earlier
+area-based version (`minWidthAreaPxForLevel`/`cleanupTinyRegionsByLevel`)
+that could pass a region with a thin neck or spike as long as its _total_
+area cleared the bar. See `docs/DECISIONS.md`'s "Needle-width floor: from
+area check to local-thickness opening" for the full account, and
+`docs/LIMITATIONS.md` for the approximations this version still carries
+(Chebyshev, not Euclidean, distance).
+
 ## Color quantization (`src/domain/color/colorQuantize.ts`)
 
 sRGB -> linear -> CIE XYZ (D65) -> CIE Lab, a standard perceptually-uniform

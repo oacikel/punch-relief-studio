@@ -484,9 +484,63 @@ main.workspace-layout > .workspace-preview-col {
   white-space: nowrap;
 }
 
+/* Regeneration overlay over the preview column's currently-mounted panel
+   (Iteration 04 follow-up) -- the rail heading's small status pill above
+   is easy to miss while looking at the pattern itself, especially for a
+   change (needle geometry, pile-height count) whose regeneration can take
+   a moment. `.workspace-preview-content` is the positioning context; see
+   Workspace.tsx for why the overlay itself is `aria-hidden`. */
+.workspace-preview-content {
+  position: relative;
+}
+
+.workspace-processing-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: rgba(246, 241, 231, 0.85);
+  color: var(--color-ink-muted);
+  font-size: 0.95rem;
+  border-radius: var(--radius);
+  z-index: 5;
+}
+
+.workspace-processing-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  animation: workspace-processing-spin 0.8s linear infinite;
+}
+
+@keyframes workspace-processing-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-processing-spinner {
+    animation: none;
+  }
+}
+
 .live-status-pill--processing {
   background: #fbe9dd;
-  color: var(--color-accent);
+  /* Not var(--color-accent) (#b5563c) -- against this pill's #fbe9dd
+     background that's only a 4.08:1 contrast ratio, below WCAG AA's 4.5:1
+     text minimum (axe-core color-contrast, caught by
+     e2e/accessibility.spec.ts's Workspace sweep when the live-regen debounce
+     is slow enough to still show "Processing..." at sweep time -- a real,
+     pre-existing bug from the Workspace two-column redesign, not
+     conditional on anything). #954429 is the same accent hue, darkened
+     just enough for 5.68:1, comfortably clearing the threshold. */
+  color: #954429;
 }
 
 /* Visual framing for whichever of Pattern / Finished-piece simulation is

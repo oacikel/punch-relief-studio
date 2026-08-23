@@ -86,3 +86,18 @@ describe('parseProjectFile punch guide field (Iteration 02 Stage C)', () => {
     expect(parsed.exportSettings.punchGuide).toEqual({ mode: 'dots', spacingCm: 1.5 });
   });
 });
+
+describe('parseProjectFile needleGeometry field (Iteration 04)', () => {
+  it('accepts an old-style (pre-Iteration-04) project with no needleGeometry key at all', () => {
+    const project = makeValidProject();
+    expect('needleGeometry' in project).toBe(false);
+    const parsed = parseProjectFile(project);
+    expect(parsed.needleGeometry).toBeUndefined();
+  });
+
+  it('accepts and round-trips a project whose needleGeometry is set', () => {
+    const project = { ...makeValidProject(), needleGeometry: { diameterMm: 2, throwMm: 40 } };
+    const parsed = parseProjectFile(project);
+    expect(parsed.needleGeometry).toEqual({ diameterMm: 2, throwMm: 40 });
+  });
+});

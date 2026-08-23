@@ -8,6 +8,7 @@ import { downloadSvg, svgToPngBlob, downloadBlob } from '@/export/download';
 import { computeTiling, cmToCssPx } from '@/export/printTiling';
 import { withExtension } from '@/domain/filenameSanitize';
 import { usePatternSvgUrl } from '@/hooks/usePatternSvgUrl';
+import { DecimalNumberInput } from '@/components/DecimalNumberInput';
 import type { ProjectFile } from '@/domain/projectSchema';
 
 interface Props {
@@ -198,14 +199,11 @@ export function ExportPanel({
         <div className="export-controls">
           <div className="field">
             <label htmlFor="width-cm">Width (cm)</label>
-            <input
+            <DecimalNumberInput
               id="width-cm"
-              type="number"
-              min={1}
               value={dimensions.widthCm}
-              onChange={(e) => {
-                const widthCm = Number(e.target.value);
-                if (!Number.isFinite(widthCm) || widthCm <= 0) return; // ignore empty/zero/negative input rather than propagating NaN
+              onChange={(widthCm) => {
+                if (widthCm === null || !Number.isFinite(widthCm) || widthCm <= 0) return; // ignore empty/zero/negative input rather than propagating it
                 const heightCm =
                   dimensions.lockAspect && dimensions.widthCm > 0
                     ? (widthCm / dimensions.widthCm) * dimensions.heightCm
@@ -216,12 +214,13 @@ export function ExportPanel({
           </div>
           <div className="field">
             <label htmlFor="height-cm">Height (cm)</label>
-            <input
+            <DecimalNumberInput
               id="height-cm"
-              type="number"
-              min={1}
               value={dimensions.heightCm}
-              onChange={(e) => onDimensionsChange({ heightCm: Number(e.target.value) })}
+              onChange={(heightCm) => {
+                if (heightCm === null || !Number.isFinite(heightCm) || heightCm <= 0) return;
+                onDimensionsChange({ heightCm });
+              }}
             />
           </div>
           <label>

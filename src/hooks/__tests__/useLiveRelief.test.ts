@@ -45,6 +45,8 @@ function baseOptions(overrides: Partial<UseLiveReliefOptions> = {}): UseLiveReli
     reliefSettings: { ...DEFAULT_RELIEF_SETTINGS },
     rotationDeg: { ...ZERO_ROTATION },
     viewNonce: 0,
+    needleGeometry: { diameterMm: 0, throwMm: 0 },
+    patternDimensions: { widthCm: 20, heightCm: 20 },
     captureColor: false,
     capture: vi.fn(() => FAKE_CAPTURED),
     buildProcessArgs: vi.fn(() => ({
@@ -53,6 +55,8 @@ function baseOptions(overrides: Partial<UseLiveReliefOptions> = {}): UseLiveReli
       height: FAKE_CAPTURED.height,
       emptyValue: FAKE_CAPTURED.emptyValue,
       settings: DEFAULT_RELIEF_SETTINGS,
+      needleGeometry: { diameterMm: 0, throwMm: 0 },
+      patternDimensions: { widthCm: 20, heightCm: 20 },
     })),
     process: vi.fn(() => Promise.resolve(makeResponse('r'))),
     onStart: vi.fn(),
@@ -218,6 +222,34 @@ describe('useLiveRelief', () => {
 
     // Simulate a standard-view button click: only viewNonce changes.
     rerender({ ...options, viewNonce: options.viewNonce + 1 });
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(options.capture).toHaveBeenCalledTimes(2);
+  });
+
+  it('re-triggers on a needleGeometry change alone, independent of reliefSettings', async () => {
+    const options = baseOptions();
+    const { rerender } = renderHook((opts: UseLiveReliefOptions) => useLiveRelief(opts), {
+      initialProps: options,
+    });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(options.capture).toHaveBeenCalledTimes(1);
+
+    rerender({ ...options, needleGeometry: { diameterMm: 2, throwMm: 40 } });
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(options.capture).toHaveBeenCalledTimes(2);
+  });
+
+  it('re-triggers on a patternDimensions change alone, independent of reliefSettings', async () => {
+    const options = baseOptions();
+    const { rerender } = renderHook((opts: UseLiveReliefOptions) => useLiveRelief(opts), {
+      initialProps: options,
+    });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(options.capture).toHaveBeenCalledTimes(1);
+
+    rerender({ ...options, patternDimensions: { widthCm: 30, heightCm: 30 } });
     await vi.advanceTimersByTimeAsync(300);
 
     expect(options.capture).toHaveBeenCalledTimes(2);

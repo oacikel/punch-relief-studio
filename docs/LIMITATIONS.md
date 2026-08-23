@@ -36,6 +36,30 @@
 
 ## Implementation-level (this MVP build)
 
+- **Needle-geometry width floor uses a Chebyshev (chessboard), not
+  Euclidean, distance transform** (Iteration 04,
+  `applyNeedleWidthOpening` in `src/domain/regionCleanup.ts`). The
+  floor is now a genuine local-thickness check (a per-level morphological
+  opening -- superseding an earlier, weaker area-only check that could
+  pass a region with a thin neck or spike as long as its _total_ area
+  cleared the bar; see `docs/DECISIONS.md`). The remaining approximation
+  is the distance metric itself: Chebyshev distance models the needle's
+  footprint as a square, not a circle, so the enforced minimum width can
+  differ slightly by direction (diagonal vs. axis-aligned) rather than
+  being perfectly round. A true Euclidean distance transform would remove
+  that skew; not attempted, since Chebyshev is `O(width*height)` with a
+  simple, easily-verified two-pass algorithm, and the directional skew is
+  a few pixels at most at this raster resolution -- the existing
+  `minRegionPreset` control and `smoothRelief`'s box-blur-not-bilateral
+  approximation are both precedents for accepting a cheaper, honestly-
+  documented approximation over an exact one here.
+  The needle-diameter/throw-to-minimum-width multiplier itself (1x-1.4x,
+  retuned twice already after real-needle testing against a 2.2mm/40mm
+  spec -- see docs/DECISIONS.md) is also a stated approximation from the
+  product owner's own experience, not a measured constant -- expected to
+  keep being adjusted as more real-world punching data comes in (see
+  `docs/ITERATION_04_PLAN.md` §6).
+
 - **Simplified edge-preserving smoothing.** `smoothRelief` blends a box blur
   with the original value, reducing (not eliminating) blur across strong
   edges -- not a true bilateral filter.

@@ -2,9 +2,8 @@ import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
 import type { PatternView } from '@/export/svgPattern';
 import { PatternCanvas } from '@/components/PatternCanvas';
+import { DecimalNumberInput } from '@/components/DecimalNumberInput';
 import {
-  MIN_PUNCH_GUIDE_SPACING_CM,
-  MAX_PUNCH_GUIDE_SPACING_CM,
   clampPunchGuideSpacingCm,
   type PunchGuideMode,
   type PunchGuideSettings,
@@ -104,15 +103,11 @@ export function PatternPanel({
       {punchGuide.mode === 'dots' && (
         <div className="field">
           <label htmlFor="punch-guide-spacing">Dot spacing (cm)</label>
-          <input
+          <DecimalNumberInput
             id="punch-guide-spacing"
-            type="number"
-            min={MIN_PUNCH_GUIDE_SPACING_CM}
-            max={MAX_PUNCH_GUIDE_SPACING_CM}
-            step={0.1}
             value={punchGuide.spacingCm}
-            onChange={(e) =>
-              onPunchGuideChange({ spacingCm: clampPunchGuideSpacingCm(Number(e.target.value)) })
+            onChange={(spacingCm) =>
+              onPunchGuideChange({ spacingCm: clampPunchGuideSpacingCm(spacingCm ?? NaN) })
             }
           />
         </div>

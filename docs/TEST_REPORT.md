@@ -606,6 +606,185 @@ mechanism, the mobile fallback, the `LegendEntry`/`Legend` split, the
 out-of-scope files staying untouched, the other e2e tests) was
 independently re-verified as correct.
 
+## Session 6: Iteration 04 needle-geometry verification (pre-rebase run)
+
+**Note: this session's `npm run verify`/e2e run below was executed
+_before_ discovering and rebasing onto the Workspace two-column redesign
+(Session 5, `origin/main`'s `b87c370`) — this local `main` checkout was
+stale and missing that push. The commands below and their green results
+are preserved for the record of what was actually run, but they exercised
+the pre-redesign UI; after the rebase, `npm run verify` was re-run once
+more (see the note at the end of this section) to confirm the
+needle-geometry feature still verifies clean against the current
+`ReliefControls.tsx`/`App.tsx`/`useLiveRelief.ts`.**
+
+Run from the repository root, Node 18.20.0, npm 10.5.0 (`node_modules`
+already present in this environment — no `npm install` needed). Covers the
+needle-geometry width-constraint feature (docs/ITERATION_04_PLAN.md): new
+`src/domain/pattern/needleGeometry.ts`, `cleanupTinyRegionsByLevel` in
+`src/domain/regionCleanup.ts`, `AppState.needleGeometry`, the worker/
+`useLiveRelief`/`ProcessArgs` wiring, the two new "Needle & Pile" rail
+fields, and the optional `ProjectFile.needleGeometry` persistence field.
+
+### `npm run verify` (`format && lint && typecheck && test && build`)
+
+First run: `prettier --check` flagged 4 files (my own new/edited files,
+never run through `--write`) — fixed with `npx prettier --write` on exactly
+those 4 files, no content change. Second run, clean:
+
+```
+Checking formatting...
+All matched files use Prettier code style!
+
+> lint
+> eslint . --max-warnings=0
+(no output -- zero warnings/errors)
+
+> typecheck
+> tsc -b --noEmit
+(no output -- zero errors)
+
+> test
+> vitest run
+ Test Files  37 passed (37)
+      Tests  285 passed (285)
+   Duration  3.23s
+
+> build
+> tsc -b && vite build
+✓ 88 modules transformed.
+✓ built in 1.48s
+```
+
+One real bug caught by this run, not a tooling false-positive: the first
+`cleanupTinyRegionsByLevel` test (`src/domain/__tests__/regionCleanup.test.ts`)
+had a wrong hand-computed expectation — `[5, 0, 0, 5]` assumed the two
+single-pixel `5`-value components at each end would be left alone, but
+they're each adjacent to a valid (non-background) neighbor and below the
+threshold, so `cleanupTinyRegionsByLevel` correctly reassigns them (matching
+`cleanupTinyRegions`'s own long-established behavior for the same shape).
+Fixed by rewriting the test fixture (two components, both at or above
+threshold) rather than changing the implementation — the implementation's
+actual output was correct throughout; only my test's prediction was wrong.
+
+The pre-existing "chunks larger than 500kB" build warning is unrelated to
+this change (present before this session too, per the vite output shape)
+and out of scope for this iteration.
+
+### `npx playwright test --project=chromium` / `--project=mobile-narrow`
+
+This environment's default Node (18.20.0) is below Playwright's minimum
+(20+); re-ran with `nvm use 22` (same fix Session 2 used), no code changes
+needed.
+
+```
+chromium:       38 passed (20.4s)
+mobile-narrow:  37 passed, 1 skipped (15.3s)
+```
+
+The one skip is the same pre-existing, intentional Chromium-only PDF-
+generation skip noted in Session 4. No spec needed updating for this
+feature — the two new "Needle & Pile" fields default to blank/disabled, so
+every existing spec's Workspace assertions (including the chip/coverage
+checks in `e2e/workspace.spec.ts`) pass unchanged with the new fields
+present but inert. No new e2e coverage was added specifically for the
+needle-geometry constraint itself (its effect on generated region shape is
+exercised at the unit level, per CLAUDE.md's domain-layer testability
+requirement — `src/domain/pattern/needleGeometry.ts` and
+`cleanupTinyRegionsByLevel` are pure and fully covered there); a future
+session could add a dedicated e2e spec if the on-screen effect of setting
+a needle diameter needs its own regression coverage.
+
+### Post-rebase re-verification
+
+The `main` checkout used above was, at the time, one commit **behind**
+`origin/main` — missing the "Workspace two-column redesign" push (Session
+5, `b87c370`), a large concurrent UI rework touching exactly the files
+this feature also edits (`App.tsx`, `ReliefControls.tsx`, `Workspace.tsx`,
+`useLiveRelief.ts`). Discovered when the product owner tried the running
+preview and correctly flagged it as an old UI. Resolved by stashing the
+uncommitted needle-geometry work, fast-forwarding `main` to the real
+`origin/main` (safe -- local `main` had no unique commits), and
+reapplying the stash: the domain/worker/hooks layer
+(`needleGeometry.ts`, `regionCleanup.ts`, `appState.ts`,
+`processing.worker.ts`, `useProcessingWorker.ts`, `projectSchema.ts`)
+merged with zero conflicts (untouched by the redesign); `App.tsx`,
+`useLiveRelief.ts`(+test), `ReliefControls.tsx`(+test), and three docs had
+real conflicts, hand-resolved by re-integrating the needle-geometry
+additions against the redesign's current structure (e.g. dropping the
+now-removed per-level coverage-chip block `ReliefControls.tsx` no longer
+has, combining `viewNonce` and `needleGeometry`/`patternDimensions` as
+parallel `useLiveRelief` triggers rather than one replacing the other).
+
+Full `npm run verify` (format/lint/typecheck/test/build): clean after one
+Prettier auto-format pass. **286 tests** (up from 285 -- the redesign
+added its own new `Workspace.test.tsx` cases), all green.
+
+`npx playwright test --project=chromium` (post-rebase): **1 of 40 failed**
+on the first full-suite run -- `e2e/accessibility.spec.ts`'s "Workspace
+stage, immediately on arrival" -- but passed every time run in isolation
+or at lower parallelism. Root-caused, not dismissed as flaky: axe-core's
+`color-contrast` rule flagged `.live-status-pill--processing`'s text
+(`#b5563c` on `#fbe9dd`, 4.08:1, below WCAG AA's 4.5:1 minimum) --
+**a real, pre-existing bug from the Workspace two-column redesign**, not
+anything introduced by this feature. It only surfaces when the axe sweep
+happens to catch the page while `useLiveRelief`'s debounce+worker
+round-trip is still showing "Processing…", which is timing/load-dependent
+(reproducible under full 6-worker parallel load, not under a lighter
+run) -- explaining why Session 5's own verification never caught it.
+Fixed directly (`src/styles.css`): darkened the pill's processing-state
+text color to `#954429` (same accent hue, 5.68:1 contrast, comfortable
+margin above the 4.5:1 threshold), scoped to that one rule only --
+`var(--color-accent)` itself is untouched since it's used elsewhere
+against different backgrounds that already pass. Re-ran
+`--project=chromium` **twice more** after the fix: **40/40 both times**.
+`--project=mobile-narrow`: **39 passed, 1 skipped** (the same pre-existing
+Chromium-only PDF skip). `npm run verify` re-run once more after the CSS
+change: clean.
+
+## Session 7: needle-width floor rewrite (area check -> local-thickness opening)
+
+Same environment as Session 6 (Node 18.20.0, npm 10.5.0). Covers the
+`applyNeedleWidthOpening`/`chebyshevDistanceTransform` rewrite
+(`src/domain/regionCleanup.ts`) that replaced the earlier area-based
+`cleanupTinyRegionsByLevel`/`minWidthAreaPxForLevel` (see
+`docs/DECISIONS.md`'s "Needle-width floor: from area check to local-
+thickness opening"), plus the new "Fine Ridges" built-in sample
+(`src/domain/samples/fineRidges.ts`) and the Workspace regeneration
+overlay (`.workspace-processing-overlay`, `src/styles.css`/`Workspace.tsx`).
+
+### `npm run verify`
+
+Clean after one Prettier auto-format pass (new test file wasn't run
+through `--write` before the first check). **291 tests** (up from 286 --
+5 net new: 4 in `regionCleanup.test.ts` replacing the 3 removed
+`cleanupTinyRegionsByLevel` cases, 1 new `Workspace.test.tsx` overlay
+test; `needleGeometry.test.ts` stayed at 15, its area-based tests renamed
+in place to the linear-width equivalents), typecheck, lint, build all
+clean.
+
+The `applyNeedleWidthOpening` regression test (a solid 5x5 block with a
+1px-wide, 3-long spike attached, flanked the spike's whole length by a
+different level) was hand-derived by tracing exact Chebyshev distances
+before running it, specifically to avoid an ambiguous (order-dependent)
+assertion -- the spike's middle and tip cells were verified to have their
+flanking-level neighbor strictly closer (BFS distance 1, both directly
+adjacent) than any path back through the also-too-thin spike to the
+block's real core, so the outcome is unambiguous regardless of BFS
+traversal-order details. It passed first run, confirming the hand
+derivation and the implementation agree.
+
+### Live verification against the actual bug report
+
+The product owner's original complaint ("even if the individual height
+levels work, the combined area view would still need to obey our region
+rules") was reproduced and confirmed fixed via the running app (see
+below) using the new "Fine Ridges" sample and a real needle-diameter
+value -- thin ridge tips that survived the old area-based check (their
+component's _total_ area, including the wide base they're attached to,
+cleared the threshold) are now correctly absorbed into neighboring
+regions.
+
 ## Session 1 (prior, sandboxed): what was reviewed manually
 
 This MVP was originally built in a sandboxed session with no outbound

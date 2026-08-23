@@ -6,6 +6,7 @@
  */
 import type { ColorMode, ReliefSettings } from './types';
 import type { CalibrationProfile } from './calibration';
+import type { NeedleGeometry } from './pattern/needleGeometry';
 
 export const PROJECT_SCHEMA_VERSION = 1 as const;
 
@@ -50,6 +51,13 @@ export interface ProjectFile {
      * docs/DECISIONS.md for the (a)-vs-(b) reasoning. */
     punchGuide?: { mode: 'none' | 'dots'; spacingCm: number };
   };
+  /** Iteration 04 (docs/ITERATION_04_PLAN.md). Optional and defaulted at
+   * load time to "not set" (`{diameterMm: 0, throwMm: 0}`), same precedent
+   * as `exportSettings.punchGuide` above -- a single additive, safely-
+   * defaulted field, no `PROJECT_SCHEMA_VERSION` bump. A pre-Iteration-04
+   * project file simply has no needle-geometry constraint applied on
+   * reload, matching its original behavior exactly. */
+  needleGeometry?: NeedleGeometry;
 }
 
 export class UnsupportedSchemaVersionError extends Error {

@@ -15,6 +15,7 @@ import type {
   PatternViewSettings,
   PunchGuideSettings,
   RotationDeg,
+  NeedleGeometry,
 } from '@/state/appState';
 import { ExportPanel } from '@/components/ExportPanel';
 import type { PatternView } from '@/export/svgPattern';
@@ -63,6 +64,8 @@ interface Props {
   }) => void;
   rotationDeg: RotationDeg;
   onRotationChange: (patch: Partial<RotationDeg>) => void;
+  needleGeometry: NeedleGeometry;
+  onNeedleGeometryChange: (patch: Partial<NeedleGeometry>) => void;
   /** Real in-flight state from `useLiveRelief` (via `AppState.processing`)
    * -- drives the rail heading's live-status pill. */
   processing: boolean;
@@ -127,6 +130,8 @@ export function Workspace({
   onPatternViewSettingsChange,
   rotationDeg,
   onRotationChange,
+  needleGeometry,
+  onNeedleGeometryChange,
   processing,
   processingError,
 }: Props): JSX.Element {
@@ -184,6 +189,8 @@ export function Workspace({
             heightIndex={processed?.heightIndex ?? null}
             width={processed?.width ?? 0}
             height={processed?.height ?? 0}
+            needleGeometry={needleGeometry}
+            onNeedleGeometryChange={onNeedleGeometryChange}
           />
 
           <YarnColorsGroup
@@ -271,43 +278,64 @@ export function Workspace({
                 Finished-piece simulation
               </button>
             </div>
-            {previewTab === 'pattern' ? (
-              <div>
-                <PatternPanel
-                  regionMap={regionMap}
-                  legend={legend}
-                  widthCm={dimensions.widthCm}
-                  heightCm={dimensions.heightCm}
-                  view={view}
-                  onViewChange={setView}
-                  showGrid={showGrid}
-                  onShowGridChange={setShowGrid}
-                  mirrored={mirrored}
-                  onMirroredChange={setMirrored}
-                  showOnScreenLabels={showOnScreenLabels}
-                  onShowOnScreenLabelsChange={(show) =>
-                    onPatternViewSettingsChange({ showOnScreenLabels: show })
-                  }
-                  punchGuide={punchGuide}
-                  onPunchGuideChange={(patch) => onPatternViewSettingsChange({ punchGuide: patch })}
-                />
-              </div>
-            ) : (
-              <div>
-                <SimulationPanel
-                  regionMap={regionMap}
-                  levels={processed.levels}
-                  profile={profile}
-                  widthCm={dimensions.widthCm}
-                  heightCm={dimensions.heightCm}
-                  renderSettings={renderSettings}
-                  onRenderSettingsChange={onRenderSettingsChange}
-                  legend={legend}
-                  rotationDeg={rotationDeg}
-                  onRotationChange={onRotationChange}
-                />
-              </div>
-            )}
+            {/* `.workspace-preview-content` is the positioning context for
+                the processing overlay below -- it wraps whichever panel is
+                mounted so the overlay covers exactly the pattern/simulation
+                area, not the tab buttons above it. The overlay is purely
+                visual (`aria-hidden`): the rail heading's `aria-live` span
+                already announces "Processing…" to screen readers (see
+                above), so this doesn't duplicate that announcement, it just
+                gives sighted users an equivalent, more visible cue that a
+                regeneration triggered by a rail control (e.g. raising pile
+                heights or setting needle geometry) is still in flight
+                rather than looking like the input was ignored. */}
+            <div className="workspace-preview-content">
+              {previewTab === 'pattern' ? (
+                <div>
+                  <PatternPanel
+                    regionMap={regionMap}
+                    legend={legend}
+                    widthCm={dimensions.widthCm}
+                    heightCm={dimensions.heightCm}
+                    view={view}
+                    onViewChange={setView}
+                    showGrid={showGrid}
+                    onShowGridChange={setShowGrid}
+                    mirrored={mirrored}
+                    onMirroredChange={setMirrored}
+                    showOnScreenLabels={showOnScreenLabels}
+                    onShowOnScreenLabelsChange={(show) =>
+                      onPatternViewSettingsChange({ showOnScreenLabels: show })
+                    }
+                    punchGuide={punchGuide}
+                    onPunchGuideChange={(patch) =>
+                      onPatternViewSettingsChange({ punchGuide: patch })
+                    }
+                  />
+                </div>
+              ) : (
+                <div>
+                  <SimulationPanel
+                    regionMap={regionMap}
+                    levels={processed.levels}
+                    profile={profile}
+                    widthCm={dimensions.widthCm}
+                    heightCm={dimensions.heightCm}
+                    renderSettings={renderSettings}
+                    onRenderSettingsChange={onRenderSettingsChange}
+                    legend={legend}
+                    rotationDeg={rotationDeg}
+                    onRotationChange={onRotationChange}
+                  />
+                </div>
+              )}
+              {processing && (
+                <div className="workspace-processing-overlay" aria-hidden="true">
+                  <span className="workspace-processing-spinner" />
+                  <span>Regenerating…</span>
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <div className="workspace-panel" aria-live="polite">

@@ -3,11 +3,14 @@
  * docs/ITERATION_03_PLAN.md #13), replacing the old manual "Generate
  * relief" button. Debounces relief-generation-affecting setting changes
  * (pile heights, min-region preset, relief depth, smoothing, raise-near-
- * surfaces, quantization mode, edge preservation, model rotation, and the
- * camera's chosen viewpoint -- standard-view button clicks and settled
- * OrbitControls orbit/pan/zoom, both surfaced via `viewNonce` -- NOT yarn
- * color/palette/view-mode/grid/label/pile-style/lighting changes, which
- * only affect rendering and never reach this hook) into a single
+ * surfaces, quantization mode, edge preservation, model rotation, the
+ * camera's chosen viewpoint (standard-view button clicks and settled
+ * OrbitControls orbit/pan/zoom, both surfaced via `viewNonce`), needle
+ * diameter/throw, and physical pattern Width/Height (the last two join this
+ * list per docs/ITERATION_04_PLAN.md -- the needle-geometry width floor
+ * needs physical scale to convert its mm inputs into raster pixels) --
+ * NOT yarn color/palette/view-mode/grid/label/pile-style/lighting changes,
+ * which only affect rendering and never reach this hook) into a single
  * capture+worker-process cycle, and guards against a slower, stale
  * request overwriting a newer one's result. See docs/DECISIONS.md for the
  * debounce interval's justification and the generation-counter design
@@ -28,7 +31,7 @@ import type { DepthCaptureResult } from '@/three/depthCapture';
 import type { ProcessArgs } from '@/hooks/useProcessingWorker';
 import type { ProcessResponse } from '@/workers/processing.worker';
 import type { ReliefSettings } from '@/domain/types';
-import type { RotationDeg } from '@/state/appState';
+import type { NeedleGeometry, RotationDeg } from '@/state/appState';
 
 /** ~196ms was the one clean, uncontended measurement of a worst-case
  * (12 pile heights, 256px capture) full capture+worker round trip taken
@@ -62,6 +65,12 @@ export interface UseLiveReliefOptions {
    * value's reference/primitive identity matters (a plain incrementing
    * counter), same as `reliefSettings`/`rotationDeg` below. */
   viewNonce: number;
+  /** Needle-geometry width floor inputs (docs/ITERATION_04_PLAN.md) --
+   * `needleGeometry` defaults to "unset" (0,0), which disables the
+   * constraint; `patternDimensions` supplies the physical scale needed to
+   * convert `needleGeometry`'s mm values into raster pixels. */
+  needleGeometry: NeedleGeometry;
+  patternDimensions: { widthCm: number; heightCm: number };
   /** Whether the *next* triggered generation should ask for source-material
    * color capture -- read fresh at fire time via a ref-to-latest-options
    * pattern, deliberately not itself a trigger (see file-level doc
@@ -125,8 +134,9 @@ export function useLiveRelief(options: UseLiveReliefOptions): void {
     }, debounceMs);
 
     return () => clearTimeout(timeoutId);
-    // reliefSettings/rotationDeg/viewNonce are the actual regen-affecting
-    // triggers (reliefSettings/rotationDeg compared by reference -- every
+    // reliefSettings/rotationDeg/viewNonce/needleGeometry/patternDimensions
+    // are the actual regen-affecting triggers (reliefSettings/rotationDeg/
+    // needleGeometry/patternDimensions compared by reference -- every
     // dispatch that changes them produces a new object, per appState.ts's
     // reducer; viewNonce is a plain incrementing counter bumped by the
     // caller on every real camera-orientation change -- see the field's
@@ -135,5 +145,12 @@ export function useLiveRelief(options: UseLiveReliefOptions): void {
     // optionsRef.current, deliberately excluded from deps -- see the
     // comment on optionsRef above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options.hasModel, options.reliefSettings, options.rotationDeg, options.viewNonce]);
+  }, [
+    options.hasModel,
+    options.reliefSettings,
+    options.rotationDeg,
+    options.viewNonce,
+    options.needleGeometry,
+    options.patternDimensions,
+  ]);
 }

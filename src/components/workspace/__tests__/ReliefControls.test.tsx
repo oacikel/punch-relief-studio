@@ -23,6 +23,8 @@ describe('ReliefControls', () => {
       <ReliefControls
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
+        needleGeometry={{ diameterMm: 0, throwMm: 0 }}
+        onNeedleGeometryChange={vi.fn()}
         heightIndex={null}
         width={0}
         height={0}
@@ -42,6 +44,8 @@ describe('ReliefControls', () => {
       <ReliefControls
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
+        needleGeometry={{ diameterMm: 0, throwMm: 0 }}
+        onNeedleGeometryChange={vi.fn()}
         heightIndex={null}
         width={0}
         height={0}
@@ -57,6 +61,8 @@ describe('ReliefControls', () => {
       <ReliefControls
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
+        needleGeometry={{ diameterMm: 0, throwMm: 0 }}
+        onNeedleGeometryChange={vi.fn()}
         heightIndex={null}
         width={0}
         height={0}
@@ -72,6 +78,8 @@ describe('ReliefControls', () => {
       <ReliefControls
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
+        needleGeometry={{ diameterMm: 0, throwMm: 0 }}
+        onNeedleGeometryChange={vi.fn()}
         heightIndex={Int16Array.from([0, 1, 0, 1])}
         width={2}
         height={2}
@@ -94,6 +102,8 @@ describe('ReliefControls', () => {
       <ReliefControls
         settings={{ ...DEFAULT_RELIEF_SETTINGS, minRegionPreset: 'bold' }}
         onChange={vi.fn()}
+        needleGeometry={{ diameterMm: 0, throwMm: 0 }}
+        onNeedleGeometryChange={vi.fn()}
         heightIndex={heightIndex}
         width={width}
         height={height}
@@ -102,11 +112,68 @@ describe('ReliefControls', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/smaller than the minimum punchable size/);
   });
 
+  it('renders the needle diameter/throw fields, blank by default', () => {
+    render(
+      <ReliefControls
+        settings={DEFAULT_RELIEF_SETTINGS}
+        onChange={vi.fn()}
+        needleGeometry={{ diameterMm: 0, throwMm: 0 }}
+        onNeedleGeometryChange={vi.fn()}
+        heightIndex={null}
+        width={0}
+        height={0}
+      />,
+    );
+    const diameter = screen.getByLabelText('Needle diameter (mm)') as HTMLInputElement;
+    const throwField = screen.getByLabelText(
+      'Needle throw / shaft length (mm)',
+    ) as HTMLInputElement;
+    expect(diameter.value).toBe('');
+    expect(throwField.value).toBe('');
+  });
+
+  it('shows the current needle diameter/throw values when set', () => {
+    render(
+      <ReliefControls
+        settings={DEFAULT_RELIEF_SETTINGS}
+        onChange={vi.fn()}
+        needleGeometry={{ diameterMm: 2, throwMm: 40 }}
+        onNeedleGeometryChange={vi.fn()}
+        heightIndex={null}
+        width={0}
+        height={0}
+      />,
+    );
+    expect((screen.getByLabelText('Needle diameter (mm)') as HTMLInputElement).value).toBe('2');
+    expect(
+      (screen.getByLabelText('Needle throw / shaft length (mm)') as HTMLInputElement).value,
+    ).toBe('40');
+  });
+
+  it('calls onNeedleGeometryChange with only the changed field', async () => {
+    const onNeedleGeometryChange = vi.fn();
+    render(
+      <ReliefControls
+        settings={DEFAULT_RELIEF_SETTINGS}
+        onChange={vi.fn()}
+        needleGeometry={{ diameterMm: 0, throwMm: 0 }}
+        onNeedleGeometryChange={onNeedleGeometryChange}
+        heightIndex={null}
+        width={0}
+        height={0}
+      />,
+    );
+    await userEvent.type(screen.getByLabelText('Needle diameter (mm)'), '2');
+    expect(onNeedleGeometryChange).toHaveBeenLastCalledWith({ diameterMm: 2 });
+  });
+
   it('has no "Detail resolution" control anywhere', () => {
     render(
       <ReliefControls
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
+        needleGeometry={{ diameterMm: 0, throwMm: 0 }}
+        onNeedleGeometryChange={vi.fn()}
         heightIndex={null}
         width={0}
         height={0}

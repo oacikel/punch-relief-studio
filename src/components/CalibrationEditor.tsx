@@ -13,6 +13,7 @@ import { cm } from '@/domain/units';
 import { generateCalibrationStrip } from '@/domain/calibrationStrip';
 import { downloadSvg } from '@/export/download';
 import { exportCalibrationProfile } from '@/export/calibrationExport';
+import { DecimalNumberInput } from '@/components/DecimalNumberInput';
 
 interface Props {
   profile: CalibrationProfile;
@@ -161,16 +162,13 @@ export function CalibrationEditor({
                 <label className="visually-hidden" htmlFor={`height-${s.settingNumber}`}>
                   Measured height in centimetres for setting {s.settingNumber}
                 </label>
-                <input
+                <DecimalNumberInput
                   id={`height-${s.settingNumber}`}
-                  type="number"
-                  step="0.05"
-                  min="0"
                   placeholder="not measured"
-                  value={s.measuredHeightCm ?? ''}
-                  onChange={(e) =>
+                  value={s.measuredHeightCm}
+                  onChange={(v) =>
                     updateSetting(s.settingNumber, {
-                      measuredHeightCm: e.target.value === '' ? null : cm(Number(e.target.value)),
+                      measuredHeightCm: v === null ? null : cm(v),
                     })
                   }
                 />

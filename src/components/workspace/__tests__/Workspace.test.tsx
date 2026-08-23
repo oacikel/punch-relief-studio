@@ -69,6 +69,8 @@ function baseProps() {
     onPatternViewSettingsChange: vi.fn(),
     rotationDeg: ZERO_ROTATION,
     onRotationChange: vi.fn(),
+    needleGeometry: { diameterMm: 0, throwMm: 0 },
+    onNeedleGeometryChange: vi.fn(),
     processing: false,
     processingError: null,
   };
@@ -190,6 +192,14 @@ describe('Workspace (ready state, preview tab switch)', () => {
   it('has no Legend section anywhere (removed in the Workspace two-column redesign)', () => {
     render(<Workspace {...readyProps()} />);
     expect(screen.queryByRole('heading', { name: 'Legend' })).not.toBeInTheDocument();
+  });
+
+  it('shows a regenerating overlay over the preview panel while processing, hidden when idle', () => {
+    const { rerender } = render(<Workspace {...readyProps()} processing={false} />);
+    expect(screen.queryByText('Regenerating…')).not.toBeInTheDocument();
+
+    rerender(<Workspace {...readyProps()} processing={true} />);
+    expect(screen.getByText('Regenerating…')).toBeInTheDocument();
   });
 
   // Deliberately NOT tested here: clicking the "Finished-piece simulation"

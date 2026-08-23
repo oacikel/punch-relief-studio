@@ -1904,3 +1904,336 @@ position bug, both of which a CSS-only review would not have caught
 second only manifests as a real, reproducible test failure with a
 specific negative `top` value, not something obvious from source
 inspection alone).
+
+## Iteration 04 — Needle-Geometry Width Constraint
+
+Full model, architecture, and rationale in `docs/ITERATION_04_PLAN.md`,
+arrived at through direct chat discussion with the product owner rather
+than a written proposal round-trip (recorded there per this project's
+"never silently guess on a thin spec" rule). Summarized here per this
+file's own running-log convention; see the plan doc for the complete
+account, including the numeric derivation.
+
+**Decision:** two new direct-mm-input fields (`needleGeometry.diameterMm`/
+`.throwMm`, default `{0, 0}` = disabled) drive a per-pile-height-level
+minimum region width, enforced by _reshaping_ `heightIndex` during
+generation (a new `cleanupTinyRegionsByLevel` in
+`src/domain/regionCleanup.ts`, generalizing `cleanupTinyRegions` to a
+per-component threshold function) rather than surfacing a warning.
+
+**Alternatives considered and rejected, in order:**
+
+1. Wiring these into `CalibrationProfile` instead of new standalone
+   fields — rejected because calibration's UI has no current entry point
+   anywhere in the app (Iteration 03 Round 1), and the product owner's
+   stated intent is a future, more general "user model" for this kind of
+   data; two plain fields are a cheaper, easier-to-migrate stepping stone.
+2. A separate "requires double-pass" indicator (chip suffix or warning
+   text) alongside the width floor — explicitly rejected by the product
+   owner ("users don't need to know that... the pattern's width will be
+   information enough"). The short-loop compensation that would otherwise
+   call for a double pass is folded entirely into the width-multiplier
+   formula; there is no pass-count concept anywhere in the code.
+3. Reporting violations as a warning banner (the `findSmallRegions`
+   precedent) instead of merging them away automatically — explicitly
+   rejected by the product owner ("It's not a warning, the pattern should
+   be shaped accordingly").
+
+**Real trade-off accepted, not hidden:** converting the mm floor into a
+pixel threshold needs the pattern's physical `widthCm`/`heightCm`, which
+`minRegionPreset` (Iteration 03 #1) deliberately kept _out_ of the relief-
+generation pipeline because it wasn't available there. This decision wires
+`AppState.patternDimensions` and the new `needleGeometry` into the Worker
+payload and `useLiveRelief`'s trigger list, meaning **editing the
+pattern's physical Width/Height now triggers live regeneration**, joining
+pile-height count and rotation on that list — confirmed acceptable with
+the product owner directly (physical size was always independent of the
+model, so this adds a new regeneration trigger without adding a new
+coupling to the model itself).
+
+**Simplification carried over, not newly introduced:** the width floor is
+an _area_ check (reusing the `minRegionPreset` convention), not a true
+local-thickness/morphological-erosion check. A long, thin, elongated
+region can satisfy an area floor while still having a too-narrow
+cross-section somewhere along its length — the same known shape-class gap
+already documented for region-label placement (Iteration 03 Round 2 #4).
+Flagged in `docs/LIMITATIONS.md`, not fixed this iteration.
+
+### Local `main` was stale; rebased onto the concurrent Workspace two-column redesign
+
+**What happened:** this feature was built and initially verified against a
+local `main` checkout that was one commit behind `origin/main`, missing
+the "Workspace two-column redesign" (the section above, `b87c370`) --
+pushed from a separate, concurrent session. Both changes touched the same
+core files (`App.tsx`, `ReliefControls.tsx`, `Workspace.tsx`,
+`useLiveRelief.ts`). Caught when the product owner tried the running
+preview and correctly identified it as showing an old UI.
+
+**Resolution:** stashed the uncommitted needle-geometry work, fast-forwarded
+`main` to the real `origin/main` (safe -- no unique local commits to lose),
+reapplied the stash, and hand-resolved the resulting conflicts by
+re-integrating the needle-geometry additions against the redesign's
+current structure rather than reverting either side. The domain/worker/
+hooks layer merged with zero conflicts (the redesign never touched those
+files). Full account, including the color-contrast bug found and fixed
+during post-rebase re-verification, in `docs/TEST_REPORT.md`'s "Post-rebase
+re-verification" section.
+
+**Why this matters going forward:** a local checkout can silently drift
+behind `origin/main` when other sessions/worktrees push directly (this
+repo has several `.claude/worktrees/` entries and long-lived feature
+branches, per `git branch -a` -- see `docs/ARCHITECTURE.md`/this file's own
+history for that pattern). `git fetch && git log main..origin/main` is a
+cheap check worth running before starting substantial UI work, not just
+before opening a PR.
+
+## Needle-width floor: from area check to local-thickness opening
+
+**Problem, found by the product owner testing the shipped Iteration 04
+feature against a real, detailed model:** "even if the individual height
+levels work, the combined area view would still need to obey our region
+rules. Right now it doesn't seem to be the case." Root cause:
+`applyNeedleWidthOpening`'s original implementation (`minWidthAreaPxForLevel`
+
+- `cleanupTinyRegionsByLevel`, both since removed) enforced the floor as a
+  whole-connected-component pixel _area_ threshold -- the same convention
+  `minRegionPreset` already used. Area is not width: a region can have
+  plenty of total area while still having a neck or spike narrower than the
+  needle allows (a thin protrusion off an otherwise-large blob), which an
+  area count never catches. This was a known, explicitly-documented trade-off
+  at the time (`docs/LIMITATIONS.md`, "checks pixel area, not true local
+  width/thickness") -- deferred, not accidental -- but it produced a visibly
+  wrong result on an intricate model (fine ridges/spikes), so it was fixed
+  directly rather than left deferred once demonstrated.
+
+**Decision:** replace the area check with a genuine per-level local-
+thickness check -- a morphological _opening_:
+
+1. `chebyshevDistanceTransform` (`src/domain/regionCleanup.ts`) -- a
+   standard two-pass chamfer distance transform, giving every pixel its
+   Chebyshev (chessboard, 8-connected) distance to the nearest differing
+   pixel. `O(width*height)`, no iteration.
+2. `applyNeedleWidthOpening` -- per level with a positive radius: erode
+   (keep only pixels whose distance exceeds the radius), dilate the
+   survivors back out by the same radius but never past that level's own
+   footprint, and collect whatever the level's own pixels didn't end up in
+   after that round-trip as "too thin." Every too-thin pixel (across every
+   level, in one pass) is then reassigned by a single multi-source BFS
+   "region growing" flood from all pixels that _did_ survive their own
+   level's opening -- each too-thin pixel takes the value of whichever
+   survivor (any level) is nearest, so a narrow neck reads as an extension
+   of whichever side it's actually closest to, and a fully isolated thin
+   sliver (no surviving pixels anywhere in its own component) gets
+   entirely absorbed into its nearest real neighbor, same end result as
+   the old `cleanupTinyRegions` for that specific case.
+
+**Alternative considered:** keep the area check but also add a separate,
+additional local-thickness pass layered on top (belt-and-braces). Rejected
+-- the area check added nothing the opening-based check doesn't already
+subsume (any component too small in area is, by construction, too small in
+some direction too), so running both would be redundant complexity, not
+extra safety.
+
+**Why Chebyshev distance, not Euclidean:** a true Euclidean distance
+transform is solvable in linear time (e.g. Felzenszwalb-Huttenlocher) but
+meaningfully more code to get right; Chebyshev distance is a simple, well-
+understood two-pass DP with no separate algorithm to source or verify
+against a reference implementation, at the cost of modeling the needle's
+footprint as a square rather than a circle (a few pixels of directional
+skew at this raster resolution, not a shape-correctness issue). Documented
+as a deliberate, honest approximation in `docs/LIMITATIONS.md`, matching
+this codebase's existing precedent (`smoothRelief`'s box-blur-not-
+bilateral-filter trade-off).
+
+**Verification:** the regression this fix targets is directly covered by
+a new test (`src/domain/__tests__/regionCleanup.test.ts`,
+`applyNeedleWidthOpening` > "absorbs a thin spike into its flanking region
+even though the attached blob is large") -- a solid 5x5 block with a
+1px-wide, 3-long spike attached, where the spike's tip cells are
+hand-verified to be strictly closer (by BFS distance) to the flanking
+level than back through the also-thin spike to the block, so the outcome
+is unambiguous rather than order-dependent. A new built-in sample,
+"Fine Ridges" (`src/domain/samples/fineRidges.ts`) -- thin radiating
+ridges over concentric rings, deliberately intricate with a wide range of
+local feature widths -- was added for hands-on/e2e verification against a
+real depth-capture, not just a hand-built raster fixture.
+
+## Needle-width multiplier: ratio-based, not level-index-based (bug fix)
+
+**Found by the product owner testing real needle numbers** (2.2mm
+diameter, 40mm throw -- a genuinely generous ratio) against a real skull
+model: the pattern came out far coarser than a comparable hand-punched
+piece they'd already proven achievable with this exact needle. Tracing the
+formula by hand surfaced a real bug, not just a constant needing
+retuning: `minWidthMmForLevel`'s multiplier was derived from `t =
+(loopHeight - minHeight) / range`, and `loopHeight` itself was computed as
+`minHeight + range * (levelIndex / (levelCount - 1))` -- substituting one
+into the other, `t` collapses algebraically back to exactly `levelIndex /
+(levelCount - 1)`, the same fraction `loopHeightMmForLevel` already used.
+**`throwMm`'s actual magnitude cancelled out of the result entirely**,
+except for gating the degenerate-range fallback. A needle with a very
+generous throw-to-diameter ratio (like the real one that surfaced this)
+got no benefit from that generosity beyond the single top level.
+
+**Fix:** compute the multiplier from the loop-height-to-diameter _ratio_
+(`loopHeightMmForLevel(...) / diameterMm`) instead of re-deriving the same
+level-index fraction. A new constant, `LOOP_HEIGHT_RATIO_CAP` (4), is the
+ratio at or above which a loop counts as fully "tall" (the lenient
+multiplier) -- below it, linear interpolation between `_SHORT` (ratio 1,
+loop height equals the needle diameter, the physical floor) and `_TALL`.
+For the real spec that surfaced this (2.2mm/40mm, 5 levels), 3 of 5 levels
+now reach the full lenient multiplier instead of being spread thin
+linearly across the whole index range -- see the "matches a hand-computed
+trace for a real needle spec" test in `needleGeometry.test.ts` for the
+exact before/after numbers. The degenerate-range fallback still works
+without a separate code path: when the range collapses (`throwMm * 0.5 <=
+diameterMm`), `loopHeightMmForLevel` returns `diameterMm` for every level,
+so the ratio is always exactly 1 and the multiplier is always `_SHORT` --
+the same conservative outcome as before, now falling out of the ratio
+formula naturally rather than a separate branch.
+
+**Left open, deliberately:** two other candidate causes of "the pattern
+still looks coarser than expected" were raised in the same conversation
+and are _not_ addressed by this fix:
+
+- The pattern's physical Width/Height setting materially changes how
+  aggressive the same real-mm floor becomes (a smaller physical piece
+  means the same needle eats a bigger fraction of the raster) -- this is
+  physically correct behavior, not a bug, but the product owner's exact
+  setting for their test case wasn't confirmed.
+- The reference example of "achievable fine detail" they provided (a hand-
+  drawn template with flower/heart motifs) demonstrates fine _color_-
+  region boundaries, not height-relief detail -- `applyNeedleWidthOpening`
+  only ever runs against `heightIndex`, never `colorIndex` (see the
+  Iteration 04 plan, "pile height/loop height has no meaning for a color
+  region"). If color detail at this needle's real limits also needs
+  enforcing, that's a different, not-yet-scoped extension, not something
+  this fix touches.
+
+## Needle-width opening: fallback pass for "no survivors anywhere" (bug fix)
+
+**Reported directly by the product owner**, re-testing after the ratio-
+based multiplier fix: "the larger the diameter, the more detailed the
+pattern seems to get. It should be the opposite." Real bug, not a
+perception issue -- `applyNeedleWidthOpening`'s region-growing pass only
+had one way to resolve a too-thin pixel: multi-source BFS outward from
+pixels that survived their own level's _erosion_. A large enough radius
+(diameter) can leave a level -- or, in the extreme, every level in the
+whole raster -- with zero erosion survivors anywhere: nothing deep enough
+to seed the flood at all. With no seed, the BFS queue starts empty and the
+whole pass is a silent no-op, so an aggressively large diameter could
+produce a pattern _less_ simplified than a moderate one that still left a
+few real survivors to grow from -- exactly backwards from what "bigger
+needle, less detail possible" should mean.
+
+**Fix:** a second pass after the BFS. Any pixel the BFS never reached
+(still sitting at its original, too-thin value) is grouped into connected
+components and reassigned via simple border-majority against whatever's
+adjacent -- the same rule `cleanupTinyRegions` already uses, with no
+"was this neighbor already resolved" gating (an earlier draft of this fix
+restricted it to already-BFS-resolved neighbors, which turned out to still
+be a no-op in the literally-everything-is-too-thin case, since nothing had
+been resolved by the BFS to border against -- caught by hand-tracing a
+`[0,0,1,1]`-style minimal case before trusting the fix). Repeated up to 20
+rounds (matching `cleanupTinyRegions`' own guard) since resolving one
+component can newly border another; a component that never borders
+anything at all (fully enclosed by other unresolved pixels, no path out)
+keeps its original value, the same no-data-loss fallback every merge
+function in this file already uses.
+
+**Verification:** a new sweep test
+(`applyNeedleWidthOpening` > "a larger radius never produces a
+less-simplified result than a smaller one, across a wide sweep") runs the
+same shape across radii from 0 to 1000 and asserts the amount of
+level-0 pixels remaining never _increases_ as the radius grows -- this is
+the property that failed before the fix and is what actually rules out a
+recurrence, not just a single before/after snapshot.
+
+## Needle-width constants retuned after real-needle testing (2.2mm/40mm)
+
+Product owner, after confirming the ratio-based fix and the "no
+survivors" fix both behave in the right _direction_: "2,2 mm diameter
+should be able to have more details available." Not a structural bug this
+time -- the shape of the formula is confirmed correct, just the two
+placeholder constants (`MIN_WIDTH_MULTIPLIER_SHORT`,
+`LOOP_HEIGHT_RATIO_CAP`) were still too conservative for a needle this
+fine. Lowered `MIN_WIDTH_MULTIPLIER_SHORT` 2.5 -> 1.75 and
+`LOOP_HEIGHT_RATIO_CAP` 4 -> 2.5 (`src/domain/pattern/needleGeometry.ts`).
+For the exact spec that prompted this (2.2mm/40mm, 5 levels), only the
+single shortest pile-height level now carries any width penalty at all
+(3.85mm instead of the previous 5.5mm); every other level sits at the
+pure 1x-diameter physical floor (2.2mm) instead of a mix of 2.2-3.275mm.
+Both constants remain explicitly labeled placeholders, not measured
+values -- per docs/ITERATION_04_PLAN.md §6, exposing them as real tunable
+UI controls (rather than editing source) is deferred until the product
+owner has enough hands-on experience to know which knob they actually
+want to reach for.
+
+## Locale-decimal input bug: `type="number"` silently rejects a comma decimal
+
+**Reported by the product owner** ("can it be that the decimal points are
+not calculated?"), alongside a further request to lower
+`MIN_WIDTH_MULTIPLIER_SHORT` again. Root cause, found by checking the
+actual input markup: every numeric field in this app used `<input
+type="number">`. Per the HTML spec, that input type's value sanitization
+algorithm requires a **period** as the decimal separator regardless of
+browser/OS locale -- typing "2,2" (standard decimal notation in Turkish
+and most of continental Europe) leaves the field showing "2,2" on screen
+while `input.value` silently reads back as `""` (invalid). Fed through the
+bare `Number(e.target.value) || 0` every one of these fields used, that
+became `0`, not an error -- a needle-diameter field that visually looked
+set was silently disabling the whole constraint it drives. This explained
+the "huge difference between 2,2 and 1,9, almost nothing from 1,9 to 1,4"
+symptom directly: whichever of those parsed as a valid number activated
+the constraint; whichever didn't silently read as 0/off.
+
+**Scope:** not just the two needle fields -- `grep 'type="number"'` found
+six affected inputs across the app: needle diameter/throw
+(`ReliefControls.tsx`), pattern Width/Height cm (`ExportPanel.tsx`), punch
+guide dot spacing (`PatternPanel.tsx`), and calibration measured height
+(`CalibrationEditor.tsx`, currently unreachable via any UI entry point per
+the Iteration 03 Round 1 decision, but still fixed since the domain/editor
+component itself is untouched-but-real code, not dead code). All six
+shared the identical bug, so all six were fixed in the same pass rather
+than leaving five latent copies of a bug just found in the sixth.
+
+**Fix:**
+
+- `src/domain/numberInput.ts` -- `parseLocaleNumber(raw)`, a pure function
+  accepting either `.` or `,` as the decimal separator, returning `NaN`
+  (not a silent `0`) for anything still unparseable.
+- `src/components/DecimalNumberInput.tsx` -- a shared `type="text"
+inputMode="decimal"` replacement for `type="number"`, since `type="text"`
+  never blocks or sanitizes keystrokes the way `type="number"` does. A
+  naive swap to `type="text"` alone would have broken typing entirely,
+  though: a fully-controlled input re-renders with the last _committed_
+  value on every keystroke, which would wipe an in-progress "2," back to
+  "2" before the second digit lands. The component owns a local text
+  buffer, committing upward via `onChange` only once the buffered text
+  actually parses, and re-syncs from an external `value` change only when
+  that change didn't originate from its own last commit (checked by
+  reparsing the current buffer and comparing) -- so loading a saved
+  project updates the field, but the field doesn't fight the user's own
+  in-progress typing.
+- `value`/`onChange` are `number | null`, with `null` meaning "empty" --
+  deliberately never overloaded onto `0`, since some of these fields (the
+  calibration measured-height one specifically) treat `0` as a real,
+  distinct measured value, not "unset."
+
+**Verification:** `src/domain/__tests__/numberInput.test.ts` and
+`src/components/__tests__/DecimalNumberInput.test.tsx` cover the parser
+and the buffering/re-sync behavior directly, including a test that types
+"2,2" through a real `useState`-backed parent (not a mock) and asserts the
+field still shows "2,2" after the round-trip through a live `onChange` ->
+prop update, the exact case a naive implementation would get wrong.
+
+## MIN_WIDTH_MULTIPLIER_SHORT lowered again, 1.75 -> 1.4
+
+Explicit further feedback in the same message that reported the locale
+bug above ("I still think that we can decrease MIN_WIDTH_MULTIPLIER even
+further"). Applied as requested, but flagged in the constant's own doc
+comment that some of the data motivating this second reduction may have
+been corrupted by the locale bug rather than reflecting the constant
+itself still being wrong -- worth the product owner re-checking against a
+now-actually-correctly-parsed baseline rather than treating this as
+fully settled.

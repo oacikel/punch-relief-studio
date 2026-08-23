@@ -1,3 +1,4 @@
+import { FINE_RIDGES_SAMPLE_ID, generateFineRidgesSample } from './fineRidges';
 import { GEOMETRIC_STEPS_SAMPLE_ID, generateGeometricStepsSample } from './geometricSteps';
 import { RIPPLE_SAMPLE_ID, generateRippleSample } from './ripple';
 import { ROUNDED_RELIEF_SAMPLE_ID, generateRoundedReliefSample } from './roundedRelief';
@@ -28,6 +29,13 @@ export const BUILTIN_SAMPLES: SampleDefinition[] = [
     name: 'Geometric Steps',
     description: 'Concentric square terraces with hard edges -- easy to inspect height boundaries.',
     generate: generateGeometricStepsSample,
+  },
+  {
+    id: FINE_RIDGES_SAMPLE_ID,
+    name: 'Fine Ridges',
+    description:
+      'Thin radiating ridges over concentric rings -- intricate, varying feature widths, good for stress-testing needle-width and detail settings.',
+    generate: generateFineRidgesSample,
   },
 ];
 

@@ -9,6 +9,7 @@ import type {
   ProcessRequest,
   ProcessResponse,
 } from '@/workers/processing.worker';
+import type { NeedleGeometry } from '@/domain/pattern/needleGeometry';
 import type { ReliefSettings } from '@/domain/types';
 
 export interface ProcessArgs {
@@ -17,6 +18,8 @@ export interface ProcessArgs {
   height: number;
   emptyValue: number;
   settings: ReliefSettings;
+  needleGeometry: NeedleGeometry;
+  patternDimensions: { widthCm: number; heightCm: number };
   color?: { data: Uint8ClampedArray; channels: 3 | 4; paletteSize: number; seed: number };
 }
 

@@ -13,6 +13,9 @@ import {
   DEFAULT_PUNCH_GUIDE_SPACING_CM,
   type PunchGuideSettings,
 } from '@/domain/pattern/punchGuide';
+import { DEFAULT_NEEDLE_GEOMETRY, type NeedleGeometry } from '@/domain/pattern/needleGeometry';
+
+export type { NeedleGeometry } from '@/domain/pattern/needleGeometry';
 
 export type { PunchGuideMode, PunchGuideSettings } from '@/domain/pattern/punchGuide';
 
@@ -117,6 +120,11 @@ export interface AppState {
   exportSettings: ExportSettings;
   patternViewSettings: PatternViewSettings;
   modelRotationDeg: RotationDeg;
+  /** Needle diameter/throw, direct mm input (docs/ITERATION_04_PLAN.md) --
+   * drives the needle-geometry width floor during relief generation.
+   * Default `{diameterMm: 0, throwMm: 0}` means "not set," which disables
+   * the constraint entirely rather than applying a fabricated floor. */
+  needleGeometry: NeedleGeometry;
 }
 
 export type AppAction =
@@ -138,7 +146,8 @@ export type AppAction =
       showOnScreenLabels?: boolean;
       punchGuide?: Partial<PunchGuideSettings>;
     }
-  | { type: 'SET_MODEL_ROTATION'; rotation: Partial<RotationDeg> };
+  | { type: 'SET_MODEL_ROTATION'; rotation: Partial<RotationDeg> }
+  | { type: 'SET_NEEDLE_GEOMETRY'; geometry: Partial<NeedleGeometry> };
 
 export const DEFAULT_SINGLE_COLOR: RgbColor = { r: 139, g: 90, b: 60 };
 
@@ -227,6 +236,7 @@ export function initialAppState(): AppState {
       punchGuide: { mode: 'none', spacingCm: DEFAULT_PUNCH_GUIDE_SPACING_CM },
     },
     modelRotationDeg: { ...ZERO_ROTATION },
+    needleGeometry: { ...DEFAULT_NEEDLE_GEOMETRY },
   };
 }
 
@@ -303,6 +313,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     case 'SET_MODEL_ROTATION':
       return { ...state, modelRotationDeg: { ...state.modelRotationDeg, ...action.rotation } };
+    case 'SET_NEEDLE_GEOMETRY':
+      return { ...state, needleGeometry: { ...state.needleGeometry, ...action.geometry } };
     default:
       return state;
   }

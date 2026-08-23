@@ -39,6 +39,19 @@ describe('appReducer', () => {
     expect(state.processing).toBe(false);
     expect(state.processingError).toBe('boom');
   });
+
+  it('defaults needleGeometry to "not set" (0, 0)', () => {
+    const state = initialAppState();
+    expect(state.needleGeometry).toEqual({ diameterMm: 0, throwMm: 0 });
+  });
+
+  it('SET_NEEDLE_GEOMETRY merges rather than replaces', () => {
+    let state = initialAppState();
+    state = appReducer(state, { type: 'SET_NEEDLE_GEOMETRY', geometry: { diameterMm: 2 } });
+    expect(state.needleGeometry).toEqual({ diameterMm: 2, throwMm: 0 });
+    state = appReducer(state, { type: 'SET_NEEDLE_GEOMETRY', geometry: { throwMm: 40 } });
+    expect(state.needleGeometry).toEqual({ diameterMm: 2, throwMm: 40 });
+  });
 });
 
 describe('patternViewSettings (Iteration 02 Stage C)', () => {

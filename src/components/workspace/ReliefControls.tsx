@@ -8,6 +8,8 @@ import {
   minRegionPxForPreset,
   type MinRegionPreset,
 } from '@/domain/pattern/minRegionPreset';
+import { DecimalNumberInput } from '@/components/DecimalNumberInput';
+import type { NeedleGeometry } from '@/state/appState';
 
 interface Props {
   settings: ReliefSettings;
@@ -15,6 +17,12 @@ interface Props {
   heightIndex: Int16Array | null;
   width: number;
   height: number;
+  /** Needle diameter/throw, direct mm input (docs/ITERATION_04_PLAN.md) --
+   * drives the needle-geometry width floor that shapes the pattern during
+   * generation. `{diameterMm: 0, throwMm: 0}` (the default) means "not
+   * set," which disables the constraint entirely. */
+  needleGeometry: NeedleGeometry;
+  onNeedleGeometryChange: (patch: Partial<NeedleGeometry>) => void;
 }
 
 /**
@@ -34,6 +42,13 @@ interface Props {
  * docs/ITERATION_03_PLAN.md and docs/DECISIONS.md. `levels` is no longer
  * accepted as a prop: it was only ever used to build those chips --
  * `findSmallRegions` below needs only `heightIndex`/`width`/`height`.
+ *
+ * "Needle & pile" also gained two optional mm inputs (Iteration 04,
+ * docs/ITERATION_04_PLAN.md): needle diameter/throw drive a needle-
+ * geometry width floor that reshapes narrow regions during generation.
+ * No warning banner and no per-region/per-level indicator for this one --
+ * per explicit product-owner direction, the reshaped pattern is the only
+ * signal surfaced.
  */
 export function ReliefControls({
   settings,
@@ -41,6 +56,8 @@ export function ReliefControls({
   heightIndex,
   width,
   height,
+  needleGeometry,
+  onNeedleGeometryChange,
 }: Props): JSX.Element {
   const minRegionPx = useMemo(
     () => minRegionPxForPreset(settings.minRegionPreset, width, height),
@@ -69,6 +86,29 @@ export function ReliefControls({
           <p className="helper-text">
             How many distinct heights this pattern uses. If your needle has fewer settings than
             this, some heights will share a setting.
+          </p>
+        </div>
+
+        <div className="field">
+          <label htmlFor="needle-diameter">Needle diameter (mm)</label>
+          <DecimalNumberInput
+            id="needle-diameter"
+            value={needleGeometry.diameterMm === 0 ? null : needleGeometry.diameterMm}
+            placeholder="Not set"
+            onChange={(diameterMm) => onNeedleGeometryChange({ diameterMm: diameterMm ?? 0 })}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="needle-throw">Needle throw / shaft length (mm)</label>
+          <DecimalNumberInput
+            id="needle-throw"
+            value={needleGeometry.throwMm === 0 ? null : needleGeometry.throwMm}
+            placeholder="Not set"
+            onChange={(throwMm) => onNeedleGeometryChange({ throwMm: throwMm ?? 0 })}
+          />
+          <p className="helper-text">
+            Both optional. When set, narrow regions are automatically widened to whatever your
+            needle can actually punch cleanly at each pile height.
           </p>
         </div>
       </div>
