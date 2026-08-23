@@ -30,6 +30,20 @@ export default function App(): JSX.Element {
   const [state, dispatch] = useReducer(appReducer, undefined, initialAppState);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [importWarning, setImportWarning] = useState<string | null>(null);
+  // Bumped whenever the 3D viewport's camera is reoriented for a
+  // user-driven reason (a standard-view button click, or a settled
+  // OrbitControls orbit/pan/zoom) -- see `Viewport3D`'s `onViewChange`
+  // prop and `useLiveRelief`'s `viewNonce` option. `applyStandardView`/
+  // `OrbitControls` mutate the Three.js camera imperatively with no React
+  // state of their own, so without this, `useLiveRelief` (which only
+  // re-triggers on `hasModel`/`reliefSettings`/`rotationDeg` changing)
+  // never learns the camera moved -- see docs/DECISIONS.md for the full
+  // bug account this closes. `useCallback([])` keeps the identity stable
+  // across renders; `Viewport3D` also holds its own ref to the latest
+  // value regardless (belt-and-braces -- see that component's own doc
+  // comment), so this only needs to be "stable enough," not perfectly so.
+  const [viewNonce, setViewNonce] = useState(0);
+  const onViewChange = useCallback(() => setViewNonce((n) => n + 1), []);
   const viewportHandle = useRef<Viewport3DHandle | null>(null);
   const { process } = useProcessingWorker();
 
@@ -173,6 +187,7 @@ export default function App(): JSX.Element {
     hasModel: workflow.hasModel,
     reliefSettings: state.reliefSettings,
     rotationDeg: state.modelRotationDeg,
+    viewNonce,
     captureColor: state.colorMode === 'source-material',
     capture: captureFromViewport,
     buildProcessArgs,
@@ -425,6 +440,7 @@ export default function App(): JSX.Element {
                   onRotationChange={(patch) =>
                     dispatch({ type: 'SET_MODEL_ROTATION', rotation: patch })
                   }
+                  onViewChange={onViewChange}
                   showControls={workflow.currentStage === 'import'}
                 />
               </div>

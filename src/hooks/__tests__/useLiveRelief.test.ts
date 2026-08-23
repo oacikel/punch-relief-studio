@@ -44,6 +44,7 @@ function baseOptions(overrides: Partial<UseLiveReliefOptions> = {}): UseLiveReli
     hasModel: true,
     reliefSettings: { ...DEFAULT_RELIEF_SETTINGS },
     rotationDeg: { ...ZERO_ROTATION },
+    viewNonce: 0,
     captureColor: false,
     capture: vi.fn(() => FAKE_CAPTURED),
     buildProcessArgs: vi.fn(() => ({
@@ -193,6 +194,30 @@ describe('useLiveRelief', () => {
     expect(options.capture).toHaveBeenCalledTimes(1);
 
     rerender({ ...options, rotationDeg: { roll: 45, pitch: 0, yaw: 0 } });
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(options.capture).toHaveBeenCalledTimes(2);
+  });
+
+  // Regression test: `viewNonce` is the signal that closes the "clicking a
+  // standard-view button never re-captures" bug (docs/DECISIONS.md) --
+  // `Viewport3D`'s `goToView`/OrbitControls mutate the Three.js camera with
+  // no React state of their own, so `App.tsx` bumps this plain counter on
+  // every user-driven camera-orientation change and feeds it through here,
+  // the same way `rotationDeg` already covers mesh straightening. Without
+  // this field in the effect's dependency array, a `viewNonce`-only change
+  // (reliefSettings/rotationDeg untouched) would never re-trigger a
+  // capture -- exactly reproducing the diagnosed bug at the unit level.
+  it('re-triggers on a viewNonce change alone, independent of reliefSettings/rotationDeg', async () => {
+    const options = baseOptions();
+    const { rerender } = renderHook((opts: UseLiveReliefOptions) => useLiveRelief(opts), {
+      initialProps: options,
+    });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(options.capture).toHaveBeenCalledTimes(1);
+
+    // Simulate a standard-view button click: only viewNonce changes.
+    rerender({ ...options, viewNonce: options.viewNonce + 1 });
     await vi.advanceTimersByTimeAsync(300);
 
     expect(options.capture).toHaveBeenCalledTimes(2);

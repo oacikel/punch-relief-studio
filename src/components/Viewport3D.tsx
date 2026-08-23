@@ -36,6 +36,19 @@ interface Props {
    * Z, pitch -> object-space X, yaw -> object-space Y. */
   rotationDeg: RotationDeg;
   onRotationChange: (patch: Partial<RotationDeg>) => void;
+  /** Fired whenever the camera's chosen viewpoint changes for a user-driven
+   * reason -- a standard-view button click (`goToView`, synchronous, no
+   * debounce needed for a single discrete click) or a settled OrbitControls
+   * drag/pan/zoom (debounced internally, see the 'change' listener in the
+   * main setup effect below). This is the camera-orientation analogue of
+   * `onRotationChange`/`AppState.modelRotationDeg`: `useLiveRelief` has no
+   * other way to observe that the *camera* (as opposed to the mesh) has
+   * been reoriented, since `applyStandardView`/`OrbitControls` mutate the
+   * Three.js camera imperatively with zero React state involved. The
+   * caller is expected to bump a counter (e.g. `AppState`-external
+   * `viewNonce`) and pass it into `useLiveRelief`'s deps -- see
+   * docs/DECISIONS.md. */
+  onViewChange: () => void;
   /** When false (Workspace stage, where this same instance stays mounted
    * only to keep `capture()` working -- see docs/DECISIONS.md), the
    * standard-view buttons and rotation sliders are not rendered at all
@@ -64,6 +77,7 @@ export function Viewport3D({
   onReady,
   rotationDeg,
   onRotationChange,
+  onViewChange,
   showControls = true,
 }: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -72,6 +86,16 @@ export function Viewport3D({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const meshRef = useRef<THREE.Mesh | null>(null);
   const radiusRef = useRef(6);
+  // Always-fresh ref to the latest onViewChange, read by the OrbitControls
+  // 'change' listener registered once inside the main (deps-`[]`) setup
+  // effect below -- that listener's closure is created at mount and must
+  // never go stale, the same reason `useLiveRelief.ts`'s own `optionsRef`
+  // exists. `App.tsx` passes a `useCallback`-stabilized `onViewChange`
+  // (safe on its own, since it only wraps the referentially-stable
+  // `useState` setter), but this ref removes the dependency on that
+  // stability being preserved by a future edit.
+  const onViewChangeRef = useRef(onViewChange);
+  onViewChangeRef.current = onViewChange;
   // The geometry's own local-space bounding box (post centering/scale, pre
   // any straightening rotation) -- kept so `refit` can re-derive an exact
   // 2D-projected content extent for whatever direction the camera/mesh are
@@ -152,6 +176,46 @@ export function Viewport3D({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
+    // Free orbit/pan/zoom via OrbitControls is the other user-driven way
+    // (alongside `goToView`'s standard-view buttons) the camera's chosen
+    // viewpoint changes -- `useLiveRelief` needs to hear about this the
+    // same way it hears about `rotationDeg` changes, via `onViewChange`
+    // (see the Props doc comment above). OrbitControls fires its own
+    // 'change' event on every real camera-state update it makes, including
+    // continuously throughout `enableDamping`'s post-release inertia decay
+    // -- NOT just once at 'end' (pointerup), which fires *before* damping
+    // has finished settling. Debouncing on trailing 'change' silence
+    // (instead of firing on every single 'change') is what avoids
+    // regenerating on every animation-frame tick of a drag while still
+    // correctly waiting for damping to fully settle before committing the
+    // view-changed signal, regardless of how long that decay takes.
+    // 250ms was chosen to be comfortably longer than one frame's gap
+    // during active dragging/damping (so it never fires mid-gesture) while
+    // adding only modest extra latency on top of useLiveRelief's own 300ms
+    // debounce once the bump does land -- an engineering judgment call,
+    // not re-derived from a formula, same spirit as that 300ms constant
+    // (see docs/DECISIONS.md).
+    //
+    // Note this listener also fires from this component's own internal,
+    // non-user-driven camera writes (e.g. the geometry-load effect's
+    // `applyStandardView(camera, 'front', ...)` below, and the mount-time
+    // `applyStandardView` above) -- those are harmless redundant bumps:
+    // `refit()` alone (frustum-only, no camera position/orientation
+    // change) never triggers 'change', and any case where this fires
+    // without real user input is already covered by `hasModel`/
+    // `rotationDeg` changing at the same moment, so the extra bump just
+    // causes a byte-identical, already-scheduled regeneration rather than
+    // a new one.
+    let viewChangeTimeoutId: ReturnType<typeof setTimeout> | undefined;
+    const handleControlsChange = (): void => {
+      if (viewChangeTimeoutId !== undefined) clearTimeout(viewChangeTimeoutId);
+      viewChangeTimeoutId = setTimeout(() => {
+        viewChangeTimeoutId = undefined;
+        onViewChangeRef.current();
+      }, 250);
+    };
+    controls.addEventListener('change', handleControlsChange);
+
     let frame = 0;
     const animate = (): void => {
       controls.update();
@@ -215,6 +279,8 @@ export function Viewport3D({
     return () => {
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
+      if (viewChangeTimeoutId !== undefined) clearTimeout(viewChangeTimeoutId);
+      controls.removeEventListener('change', handleControlsChange);
       controls.dispose();
       renderer.dispose();
       container.removeChild(renderer.domElement);
@@ -289,6 +355,11 @@ export function Viewport3D({
     if (!camera) return;
     applyStandardView(camera, view, radiusRef.current * 3);
     refit();
+    // A single discrete click, unlike free orbit-drag -- no debounce
+    // needed, fire the view-changed signal immediately so a subsequent
+    // "Continue to Workspace" click doesn't race it (see Props doc
+    // comment for `onViewChange` and docs/DECISIONS.md).
+    onViewChange();
   };
 
   const setRotationAxis = (axis: keyof RotationDeg, value: number): void => {

@@ -314,3 +314,85 @@ test("rotating the model from Workspace's own controls changes the live-regenera
   await page.getByRole('button', { name: 'Pattern' }).click();
   await expect.poll(() => patternSvgContent(page), { timeout: 15_000 }).not.toBe(before);
 });
+
+/**
+ * Regression test for the "clicking a standard-view button never
+ * re-triggers relief regeneration" bug (found via manual testing of the
+ * Workspace two-column redesign, root-caused and fixed in the same commit
+ * as this test).
+ *
+ * Root cause: `Viewport3D.tsx`'s `goToView(view)` (the standard-view button
+ * handler) mutated the Three.js camera via `applyStandardView()` purely
+ * imperatively -- no React state involved at all. Meanwhile
+ * `src/hooks/useLiveRelief.ts`'s effect only re-triggered a capture+
+ * regenerate cycle when `hasModel`/`reliefSettings`/`rotationDeg` changed
+ * (its dependency array), none of which change when a standard-view button
+ * is clicked. So clicking e.g. "top" never triggered a new capture -- the
+ * generated pattern kept reflecting whatever camera orientation was active
+ * at the *first* auto-triggered generation (the mount-time default 'front'
+ * view) -- unless the user *also* happened to touch a
+ * `reliefSettings`/`rotationDeg` control afterward (which incidentally
+ * re-captured from the camera's by-then-correct current orientation,
+ * masking the bug). This is exactly why the pre-existing "camera
+ * orientation chosen on Import carries over to relief generation" test
+ * above never caught this: it clicks "top", but then *also* changes
+ * "Number of pile heights" and "Height band spacing" before asserting
+ * anything, both genuine `reliefSettings` triggers that mask the gap.
+ *
+ * Fix: `Viewport3D` gained an `onViewChange` prop, called synchronously
+ * from `goToView` (a standard-view button click) and -- debounced, via an
+ * OrbitControls `'change'` listener -- after a free orbit/pan/zoom drag
+ * settles. `App.tsx` wires this to a plain `viewNonce` counter
+ * (`useState`), passed into `useLiveRelief`'s options and added to its
+ * effect's dependency array alongside `reliefSettings`/`rotationDeg` --
+ * see `src/hooks/useLiveRelief.ts` and docs/DECISIONS.md.
+ *
+ * This test isolates the exact gap: click "top" and continue to Workspace
+ * with *no* other relief-settings/rotation touch in between, then confirm
+ * the regenerated pattern's actual SVG content differs from what the same
+ * sample produces via the plain default front view -- proving the pattern
+ * genuinely reflects the chosen standard view, not just that some
+ * unrelated later change happened to mask the bug.
+ */
+test('clicking a standard-view button alone (no other setting touched) changes the regenerated pattern to reflect that view', async ({
+  page,
+}) => {
+  // Baseline: default front view, reached with zero standard-view/rotation
+  // interaction, so this is guaranteed to be "the front-view sliver" the
+  // bug incorrectly kept producing regardless of which view was selected.
+  await page.goto('/');
+  await page.getByText('Concentric Ripple').click();
+  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+  await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+  await expect(page.getByAltText(/Punch-needle pattern/)).toBeVisible({ timeout: 15_000 });
+  // Let the initial live-generation debounce chain fully settle before
+  // reading -- reading too early risks capturing a transient blob that's
+  // about to be replaced by the same generation's own eventual result.
+  await page.waitForTimeout(1000);
+  const frontContent = await patternSvgContent(page);
+  expect(frontContent).not.toBeNull();
+
+  // The actual repro: a fresh load of the same sample, clicking "top"
+  // before continuing -- and, critically, touching nothing else
+  // (reliefSettings/rotationDeg) that could incidentally mask the bug the
+  // way the older "camera orientation ... carries over" test above does.
+  await page.goto('/');
+  await page.getByText('Concentric Ripple').click();
+  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+  await page.getByRole('button', { name: 'top', exact: true }).click();
+  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+  await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+  await expect(page.getByAltText(/Punch-needle pattern/)).toBeVisible({ timeout: 15_000 });
+
+  // Poll rather than a fixed wait: the fix's debounce chain (goToView's
+  // synchronous `onViewChange` -> `useLiveRelief`'s 300ms) means the
+  // top-view capture can land some time after the pattern <img> first
+  // appears, which may initially still show the front-view generation
+  // auto-triggered by `hasModel` becoming true (before "top" was even
+  // clicked). This asserts the actual regenerated content eventually
+  // differs from the front-view baseline -- the concentric-rings top-down
+  // capture, not the thin front-view sliver -- not just that *some*
+  // content is present.
+  await expect.poll(() => patternSvgContent(page), { timeout: 15_000 }).not.toBe(frontContent);
+});

@@ -3,9 +3,11 @@
  * docs/ITERATION_03_PLAN.md #13), replacing the old manual "Generate
  * relief" button. Debounces relief-generation-affecting setting changes
  * (pile heights, min-region preset, relief depth, smoothing, raise-near-
- * surfaces, quantization mode, edge preservation, and model rotation --
- * NOT yarn color/palette/view-mode/grid/label/pile-style/lighting changes,
- * which only affect rendering and never reach this hook) into a single
+ * surfaces, quantization mode, edge preservation, model rotation, and the
+ * camera's chosen viewpoint -- standard-view button clicks and settled
+ * OrbitControls orbit/pan/zoom, both surfaced via `viewNonce` -- NOT yarn
+ * color/palette/view-mode/grid/label/pile-style/lighting changes, which
+ * only affect rendering and never reach this hook) into a single
  * capture+worker-process cycle, and guards against a slower, stale
  * request overwriting a newer one's result. See docs/DECISIONS.md for the
  * debounce interval's justification and the generation-counter design
@@ -43,6 +45,23 @@ export interface UseLiveReliefOptions {
   hasModel: boolean;
   reliefSettings: ReliefSettings;
   rotationDeg: RotationDeg;
+  /** Bumped by the caller whenever the *camera's* chosen viewpoint changes
+   * for a user-driven reason -- a `Viewport3D` standard-view button click,
+   * or a settled OrbitControls orbit/pan/zoom (see `Viewport3D`'s
+   * `onViewChange` prop, which the caller wires to this via e.g. a small
+   * `useState` counter). This is the camera-orientation analogue of
+   * `rotationDeg`: `applyStandardView`/`OrbitControls` mutate the Three.js
+   * camera imperatively with no React state of their own, so without this
+   * field, selecting a standard view (or free-orbiting to a new angle)
+   * would never re-trigger a capture -- the generated relief would keep
+   * reflecting whatever orientation was active at the *previous* trigger
+   * (often just the mount-time default 'front' view) until some unrelated
+   * `reliefSettings`/`rotationDeg` change incidentally re-captured from
+   * the camera's current (by-then-correct) orientation. See
+   * docs/DECISIONS.md for the full account of this bug and fix. Only the
+   * value's reference/primitive identity matters (a plain incrementing
+   * counter), same as `reliefSettings`/`rotationDeg` below. */
+  viewNonce: number;
   /** Whether the *next* triggered generation should ask for source-material
    * color capture -- read fresh at fire time via a ref-to-latest-options
    * pattern, deliberately not itself a trigger (see file-level doc
@@ -106,12 +125,15 @@ export function useLiveRelief(options: UseLiveReliefOptions): void {
     }, debounceMs);
 
     return () => clearTimeout(timeoutId);
-    // reliefSettings/rotationDeg are the actual regen-affecting triggers
-    // (compared by reference -- every dispatch that changes them produces
-    // a new object, per appState.ts's reducer, so this is a correct and
-    // sufficient dependency list). Everything else this effect reads goes
-    // through optionsRef.current, deliberately excluded from deps -- see
-    // the comment on optionsRef above.
+    // reliefSettings/rotationDeg/viewNonce are the actual regen-affecting
+    // triggers (reliefSettings/rotationDeg compared by reference -- every
+    // dispatch that changes them produces a new object, per appState.ts's
+    // reducer; viewNonce is a plain incrementing counter bumped by the
+    // caller on every real camera-orientation change -- see the field's
+    // doc comment above -- so this is a correct and sufficient dependency
+    // list). Everything else this effect reads goes through
+    // optionsRef.current, deliberately excluded from deps -- see the
+    // comment on optionsRef above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options.hasModel, options.reliefSettings, options.rotationDeg]);
+  }, [options.hasModel, options.reliefSettings, options.rotationDeg, options.viewNonce]);
 }
