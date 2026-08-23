@@ -32,6 +32,21 @@ interface Props {
   screenShowGrid: boolean;
   screenMirrored: boolean;
   screenShowLabels: boolean;
+  /** Usability fix #4 (docs/DECISIONS.md): optional controlled open state
+   * for the disclosure, so the rail's jump-nav can open this panel from
+   * afar (it's otherwise the last, easy-to-forget thing in a long rail).
+   * Both omitted -- the default -- falls back to the panel's own
+   * `useState`, exactly as before, so existing callers/tests that don't
+   * care about this keep working unchanged. Pass both together or
+   * neither -- passing only `open` without `onOpenChange` pins the
+   * disclosure to that fixed value (clicks still fire, but they update an
+   * internal state the display no longer reads), and passing only
+   * `onOpenChange` without `open` observes toggle clicks but never
+   * actually opens/closes anything, since `open` still falls back to
+   * internal state. Neither half-applied combination is likely to be what
+   * a future caller wants. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -66,9 +81,13 @@ export function ExportPanel({
   screenShowGrid,
   screenMirrored,
   screenShowLabels,
+  open: openProp,
+  onOpenChange,
 }: Props): JSX.Element {
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [internalDetailsOpen, setInternalDetailsOpen] = useState(false);
+  const detailsOpen = openProp ?? internalDetailsOpen;
+  const setDetailsOpen = onOpenChange ?? setInternalDetailsOpen;
 
   // Guard against a cleared/invalid width producing NaN/Infinity, which
   // would otherwise propagate into the tiling math and SVG dimensions
@@ -170,6 +189,7 @@ export function ExportPanel({
   return (
     <>
       <details
+        id="rail-export-print"
         className="export-panel"
         open={detailsOpen}
         onToggle={(e) => setDetailsOpen(e.currentTarget.open)}

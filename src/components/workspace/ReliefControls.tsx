@@ -64,7 +64,7 @@ export function ReliefControls({
 
   return (
     <>
-      <div className="control-group">
+      <div className="control-group rail-section" id="rail-needle-pile">
         <h3>Needle &amp; pile</h3>
         <div className="field">
           <label htmlFor="levels">Number of pile heights ({settings.levels})</label>
@@ -105,7 +105,7 @@ export function ReliefControls({
         )}
       </div>
 
-      <div className="control-group">
+      <div className="control-group rail-section" id="rail-punch-detail">
         <h3>Punch detail</h3>
         <div className="field">
           <label htmlFor="min-region">Smallest punchable region</label>
@@ -131,7 +131,7 @@ export function ReliefControls({
         )}
       </div>
 
-      <div className="control-group">
+      <div className="control-group rail-section" id="rail-shape-interpretation">
         <h3>Shape interpretation</h3>
         <div className="field">
           <label htmlFor="intensity">Relief depth</label>

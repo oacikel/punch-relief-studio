@@ -1131,3 +1131,463 @@ had to be worked around with an explicit `src`-path scope before the real
 fix was made. Fixed by
 adding `'.claude/worktrees/**'` to the exclude list -- a narrow, one-line
 fix with no effect on any worktree's own copy of this same config file.
+
+## Workspace usability fixes (post-Iteration-03 audit)
+
+A separate hands-on usability audit of the just-shipped combined-Workspace
+redesign (see the section above), using a real 74MB STL file rather than a
+synthetic sample, found five concrete, precisely root-caused problems.
+Fixed on branch `feat/workspace-usability-fixes`, one commit per item
+below. All five were re-verified against the actual code before a fix was
+proposed (line numbers/values in the audit were treated as recent but not
+authoritative), and the sticky-preview and viewport-order fixes were
+confirmed working in a real running browser (`getBoundingClientRect`/
+`getComputedStyle` measurements), not just inferred from reading CSS.
+
+### 1. Sticky preview column: independent scroll boundary, not a shorter-sibling accident
+
+**Decision:** `main.workspace-layout > .workspace-preview-col`
+(`src/styles.css`) gets `max-height: calc(100vh - 2 * var(--space-3));
+overflow-y: auto; overscroll-behavior: contain;`, reset to `max-height:
+none; overflow-y: visible;` alongside the existing `position: static` in
+the `@media (max-width: 720px)` mobile fallback.
+
+**Root cause:** a CSS grid row auto-sizes to the _taller_ of its two
+column children's natural content height. `.workspace-preview-col`'s
+`position: sticky` had no explicit height cap, so in the default/light
+state (4 pile levels, single color, nothing expanded -- what every new
+user sees first) the preview column's own natural height exceeded the
+rail's, meaning the preview column's natural height _was_ the row height
+-- leaving the column's own containing block zero taller than the column
+itself, so `position: sticky` had no slack to pin within and the column
+just scrolled in lockstep with the page. It only worked once heavier use
+(more pile levels, an open disclosure, more swatches) grew the rail past
+the preview column's natural height by accident.
+
+**Why a height cap fixes both states, not just relocates the bug:**
+capping the column's own height means its contribution to the grid row's
+auto-sizing is always `<= 100vh - 32px`, so the rail (which only grows
+from a modest baseline) reliably becomes the taller sibling for any
+realistic rail content -- confirmed against a running build at both the
+light state (rail ~1444px) and a heavy state (12 pile levels, "Advanced
+shape controls" open, color-by-height with 12 swatches; rail ~2461px):
+both pinned correctly, `getBoundingClientRect().top` staying at the
+pinned `16px` across multiple scroll positions in each state. The column
+becomes independently scrollable for its own contents (Pattern +
+Finished-piece simulation + Legend) once they exceed the cap, rather than
+relying on page scroll -- a deliberate, common pattern (this is the same
+"cap + own scrollbar" shape as, e.g., a sidebar in most IDEs), not merely
+a workaround.
+
+**Alternative considered:** pinning only the Pattern panel specifically
+(since that's what most rail controls actually affect) and letting
+Simulation/Legend scroll beneath it inside the column. Rejected as more
+complex (a second nested sticky/scroll boundary, more surface area for
+the Three.js canvas's own resize handling to interact badly with) for no
+clear benefit over capping the whole column, which already keeps all
+three panels reachable via one predictable scroll gesture.
+
+**Test strengthened, not just re-passed:** `e2e/workspace.spec.ts`'s
+sticky-position test previously only asserted `getComputedStyle(el)
+.position === 'sticky'` -- true the entire time the bug shipped, since it
+only checks the CSS declaration exists, not that the element visually
+stays pinned during a real scroll. Replaced with two new tests (light
+state, heavy state) that scroll the page and assert
+`getBoundingClientRect().top` stays within 2px of the pinned `top` value
+at each scroll position, per the task's explicit requirement that a
+state-dependent bug needs both states covered, not just one.
+
+### 2. Import viewport moved above the fold: a real DOM reorder, not CSS `order`
+
+**Decision:** in `src/App.tsx`, `ImportOrientSection` (heading,
+explanatory text, "Continue to Workspace" button) is rendered in a new
+top-level JSX conditional slot placed _after_ the Viewport3D conditional
+block, instead of nested inside the earlier `workflow.currentStage ===
+'import'` fragment (which rendered it _before_ Viewport3D). Viewport3D's
+own conditional block is completely untouched -- same source position,
+same guard condition.
+
+**Root cause:** on the Import stage, `<main>` has no flex/grid layout
+class, so DOM order is visual order. The prior order (ImportStage samples/
+dropzone -> warning -> orient heading/text/button -> Viewport3D) meant a
+user could reach and click "Continue to Workspace" -- fully visible above
+the fold -- without the 3D viewport they're meant to orient ever
+scrolling into view (confirmed by the audit at 1440x900: viewport top at
+929.6px, entirely below a 900px-tall window).
+
+**Why a real DOM reorder instead of the brief's suggested CSS `order`:**
+the "never remount across Import <-> Workspace" invariant this must
+preserve (`e2e/orient-persistence.spec.ts`, and the original sticky-
+preview entry above) only requires that Viewport3D's _own_ JSX slot stay
+positionally stable among `<main>`'s children across renders -- it does
+not require `ImportOrientSection` to stay adjacent to or before it. Since
+Viewport3D's block was always a separate, later sibling from
+`ImportOrientSection`'s original nested position (not literally adjacent
+in the source), moving only `ImportOrientSection` to a new slot after it
+changes visual, DOM, _and_ tab order together, consistently -- with no
+CSS needed. This is a strictly better outcome than CSS `order` would have
+given: CSS `order` reorders visual position while leaving tab order at
+the old DOM position, a real keyboard-user mismatch (WCAG 2.4.3 focus-
+order territory) that this approach avoids entirely by not needing it.
+
+**Verified working in a real browser** (not just inferred from JSX): at
+1440x900 with the "Concentric Ripple" sample, the 3D viewport (dark
+canvas) now starts at `top: 723px` -- visible without any scrolling --
+versus the pre-fix baseline of `929.6px` (below the fold). A screenshot at
+this viewport shows the canvas visible immediately beneath "Or import your
+own."
+
+**Trade-off flagged, not silently accepted:** the "Orient the model"
+heading now reads, in DOM/tab order, _after_ the viewport it describes --
+a minor inversion of the usual "heading precedes its content" convention.
+The viewport has its own independent `aria-label="3D model viewport"` /
+`role="img"` (`Viewport3D.tsx`), so it isn't orphaned or unlabeled for a
+screen-reader user, just encountered in a different order. A version that
+splits `ImportOrientSection` into a heading/intro half (rendered before
+Viewport3D) and a button-only half (rendered after) would give strictly
+better heading-before-content order at the cost of a real component split
+and more test churn (`src/components/__tests__/ImportStage.test.tsx`
+currently renders `ImportOrientSection` as one unit) -- not done here,
+left as a possible future refinement if this specific ordering nuance
+becomes a real complaint rather than a theoretical one.
+
+**Test coverage:** `e2e/orient-persistence.spec.ts` gained a new test
+asserting the viewport's `getBoundingClientRect().top` is `< 900` (visible
+without scrolling) and less than the Continue button's `top` (viewport
+genuinely precedes the button visually), at a realistic 1440x900 window --
+not an artificially tall test window, which would trivially mask the bug.
+The three pre-existing orientation-persistence tests in that file pass
+unmodified in their actual assertions.
+
+### 2b. Follow-up: the DOM reorder alone didn't fix the root cause -- the sample picker's ~700px was the real problem
+
+**Decision:** in `src/components/stages/ImportStage.tsx`, the "Try a
+built-in sample" cards and "Or import your own" drop zone are now wrapped
+in a native `<details className="import-picker">`, with `open={!hasModel}`
+(a new `hasModel: boolean` prop, fed from the same `workflow.hasModel`
+signal that already gates `ImportOrientSection` in `App.tsx` -- no new
+"has a model" concept invented). A one-line `<summary>` reads "Choose a
+model to import" before any model is loaded, or "Model loaded: {name} --
+choose a different file" once one is (the label comes from a new
+`loadedModelLabel` prop `App.tsx` derives from the existing
+`sourceKind`/`sampleId`/`sourceFilename` fields `SET_SOURCE` already
+writes).
+
+**Root cause the #2 entry above missed:** reordering `ImportOrientSection`
+to render after `Viewport3D` fixed _relative_ order, but every element
+involved -- sample cards, drop zone, viewport, orient heading/button --
+was still fully rendered and visible either way. `ImportStage`'s own
+content (`<h2>Import a model</h2>` down through the sample cards and drop
+zone) occupies roughly the first ~700px of vertical space _regardless_ of
+whether a model is loaded, since nothing in that component ever reacted to
+`workflow.hasModel`. So the #2 fix's own verified number, `viewport top:
+723px`, was itself the symptom: at 1440x900 that's already at the fold,
+and the "Orient the model" heading / "Continue to Workspace" button --
+sitting textually _after_ the viewport in the new order -- landed at
+`1713px` / `1835px`, considerably deeper below the fold than _before_ the
+#2 fix (when the unfixed bug only hid the viewport, not the text/button,
+which used to be the first thing visible). Net effect of #2 alone: the
+viewport went from fully hidden to barely peeking in, while the primary
+CTA went from immediately visible to deeply buried -- not a real
+improvement a user would feel.
+
+**Why collapse via `<details>` rather than remove/relocate the picker:** a
+user does need a way to load a _different_ model without restarting the
+app, so hiding the picker outright (or only via `display:none` with no
+way back) was rejected. `<details>`/`<summary>` gives that for free: native
+keyboard/screen-reader semantics, an already-proven pattern in this exact
+codebase (`ExportPanel`'s own `.export-panel[open]` disclosure, swept by
+the same axe-core accessibility spec), and no new interactive-widget code
+to write or test from scratch.
+
+**Why `open={!hasModel}` doesn't fight the user's own clicks:** React only
+touches a DOM attribute when the _value_ it's given actually changes
+between renders. `!hasModel` flips exactly once, from `true` to `false`,
+the moment a model finishes loading -- forcing the collapse at that
+instant, which is the desired behavior. On every render afterward (as long
+as `hasModel` stays `true`), the prop value is unchanged, so React leaves
+the attribute alone and a user's own native expand/re-collapse clicks on
+`<summary>` stick. This is deliberately _not_ a fully controlled
+component -- no `useState` was added to track open/closed -- since the
+one transition that matters (load -> collapse) is exactly what a derived,
+un-memoized boolean already gives for free.
+
+**Verified working in a real browser** at 1440x900 after loading
+Concentric Ripple: `.viewport-container` top went from `723px` (#2 alone)
+to `~272px` (comfortably above the fold); `"Orient the model"` heading
+went from `1713px` to `~1260px`; `"Continue to Workspace"` went from
+`1835px` to `~1381px`. The heading/button remain below a 900px fold at
+this window size -- not because of the sample picker (now collapsed to a
+single summary line) but because `Viewport3D`'s own "Standard views" +
+"Straighten model" control panel (shown only on Import, unrelated to this
+regression, pre-existing before this whole PR) is tall in its own right.
+Closing that remaining gap would mean reducing `Viewport3D`'s rendered
+height on Import, a materially different and riskier change to a shared,
+already load-bearing component (its no-remount guarantee is exercised by
+every test in `e2e/orient-persistence.spec.ts`) -- left as a possible
+future refinement, not bundled into this follow-up.
+
+**Re-import still works:** re-clicking the collapsed summary reopens the
+`<details>` natively, and picking a different sample or dropping a
+different file behaves exactly as before -- covered by both a component
+test (`src/components/__tests__/ImportStage.test.tsx`) and an e2e test
+(`e2e/orient-persistence.spec.ts`) that reopen the picker and swap from
+Concentric Ripple to Geometric Steps.
+
+**Test coverage:** `src/components/__tests__/ImportStage.test.tsx` gained
+a `describe('collapsing the picker once a model is loaded', …)` block
+(open-by-default before load, closed-by-default after, reopen + reselect).
+`e2e/orient-persistence.spec.ts`'s viewport-position test was updated to
+also assert the heading/button land well above their #2-alone-fix values
+rather than only checking the viewport, plus a new test asserting the
+picker's `open` JS property flips as expected and that reopening it and
+picking a different sample actually swaps the loaded model.
+
+### 3 & 4. Rail jump-nav, sticky mini-headers, and reachable Export & print -- one combined fix
+
+**Decision:** a single new "Jump to:" nav row (`.rail-jump-nav` in
+`Workspace.tsx`, styled in `styles.css`) directly under the existing
+`.workspace-rail-heading`, with one button per top-level rail section
+(Needle & pile / Punch detail / Shape interpretation / Yarn colors /
+Export & print), each scrolling its target into view via
+`document.getElementById(id).scrollIntoView({ behavior: 'smooth', block:
+'start' })`. Combined with sticky `<h3>` mini-headers via a new
+`.rail-section` class applied to exactly those same 4 top-level groups
+(`ReliefControls.tsx` x3, `YarnColorsGroup.tsx` x1).
+
+**Why one fix for two numbered items:** #3 asked for a jump-nav and/or
+sticky headers as a small navigational aid; #4 asked for a persistent,
+easy-to-find affordance for "Export & print" specifically. A jump-nav row
+that includes an Export & print entry satisfies both at once, rather than
+building a separate dedicated "Export" button elsewhere in the rail that
+would duplicate the jump-nav's own Export entry.
+
+**Why `.rail-section` excludes the nested "Color story palettes" group:**
+`YarnColorsGroup.tsx` nests a second `.control-group` ("Color story
+palettes") inside the top-level "Yarn colors" group when color-by-height
+mode is active. A selector matching every `.control-group h3` regardless
+of nesting would let both headers try to stick at `top: 0`
+simultaneously once the user has scrolled past the outer group's top but
+is still within the nested group's bounds -- two sticky boxes rendering at
+the same position, one visually covering the other. `.rail-section` is
+applied only to the 4 top-level groups (via an explicit class, not a
+`:not()` exclusion on the nested group), so the nested header stays
+`position: static` and never competes. Confirmed in a running browser:
+scrolling into the "Yarn colors" section sticks its own `<h3>` at `top:
+0`, while the nested "Color story palettes" heading (revealed by
+switching to color-by-height mode) remains `position: static` throughout.
+
+**Export & print reachability:** the jump-nav's Export & print button
+both scrolls to and opens the `<details>` disclosure in one click, since
+it's otherwise the last thing in the rail after every color swatch.
+`ExportPanel.tsx`'s previously-local `detailsOpen` `useState` is lifted
+into an optional controlled `open`/`onOpenChange` prop pair (`Workspace
+.tsx` owns the state and passes both); when neither prop is supplied, the
+component falls back to its own internal `useState`, so the 7 existing
+`ExportPanel.test.tsx` render call sites (none of which pass these props)
+keep working completely unchanged. Passing only one of the two props is
+a real footgun (documented inline in `ExportPanel.tsx`): `open` alone
+pins the disclosure to a fixed value while click-driven writes go to an
+internal state the display no longer reads, and `onOpenChange` alone
+observes clicks that never actually open/close anything, since the
+displayed `open` value still falls back to internal state. The one real
+caller (`Workspace.tsx`) always passes both together.
+
+**Scroll target for the not-yet-generated placeholder:** before the first
+relief has generated, `Workspace.tsx` renders a plain placeholder div
+instead of the real `ExportPanel` ("Export & print will be available once
+the first relief has generated") -- it shares the `id="rail-export-print"`
+with the real panel's `<details>`, so the jump-nav's Export button always
+has a valid scroll target regardless of generation state.
+
+**A known, accepted rough edge:** because "Export & print" is the very
+last section in the rail, `scrollIntoView({ block: 'start' })` cannot
+always align its heading flush with the viewport top -- there's nothing
+below it left to scroll past, so at the document's max scroll position the
+disclosure lands partway down the viewport instead of at the very top
+(confirmed in a running browser: ~302px from the top in a heavy-swatch
+state, not 0). Still a large, reliable improvement over the pre-fix state
+(requiring a full manual scroll through the entire rail), and adding
+artificial bottom padding to the rail just to force perfect top-alignment
+was judged not worth the empty visual space it would introduce for a
+one-section edge case.
+
+**Test coverage:** two new tests in `e2e/workspace.spec.ts` -- one
+exercising every jump-nav button (confirming Shape interpretation's
+heading lands near the viewport top, and Export & print both opens and
+scrolls into view), one confirming a top-level section's `<h3>` sticks at
+`top: 0` while scrolled within its own section, and that the nested
+"Color story palettes" heading stays `position: static`.
+
+**Ripple effect on existing e2e tests:** the jump-nav's "Export & print"
+button text duplicates the `<summary>`'s own text, so `page.getByText
+('Export & print', { exact: true })` -- used across 6 existing test files
+(`workspace.spec.ts`, `accessibility.spec.ts`, `main-workflow.spec.ts`,
+`print-emulation.spec.ts`, and three call sites in
+`preview-controls.spec.ts`) to open the disclosure -- became ambiguous
+(two matching elements). All 7 call sites were updated to
+`page.locator('.export-panel summary')`, which is both unambiguous and
+more precisely targeted at the actual disclosure toggle than a text match
+ever was.
+
+### 5. Mobile-overflow at 375px: reproduced with the exact missing precondition, root-caused, fixed
+
+**Outcome: reproduces, root-caused precisely, fixed.** A previously-
+reported 375px-width horizontal-overflow bug (`document.documentElement
+.scrollWidth: 420` vs `clientWidth: 375`) could not be reproduced by an
+earlier follow-up audit that toggled every discrete control (disclosures,
+palettes, pattern-view buttons, checkboxes) at 375px width on both a local
+build and the live deployment. That audit's own working theory -- untested
+at the time -- was that the original overflow was found while the
+small-region warning banner ("N region(s) are smaller than the minimum
+punchable size... may be difficult to punch reliably", `ReliefControls
+.tsx`) was actively showing, a state its control-toggling sweep never
+happened to trigger.
+
+**This investigation deliberately reproduced that exact state** rather
+than continuing to guess. First attempted with the built-in samples
+(Concentric Ripple, Rounded Relief, Geometric Steps) under combinations of
+the "Bold & simple" min-region preset, 12 pile levels, and model rotation
+up to 40 degrees on multiple axes -- **none of these triggered the
+warning banner.** Root cause: `cleanupTinyRegions`
+(`src/domain/regionCleanup.ts`) runs with the _same_ threshold the warning
+check later reads, and only leaves a region unmerged when
+`neighborCounts.size === 0` -- i.e., every one of its bordering pixels is
+background, with no other foreground region to merge into. The three
+built-in samples are smooth, single-blob height fields; every small region
+they can produce borders _some_ other foreground region and gets merged
+away during generation, before the warning check ever sees it.
+
+**Reliable reproduction required a genuinely disconnected shape.** Built
+`e2e/fixtures/sliver.stl`: one 20x20x20 cube plus one small
+(0.3x0.15x0.3), fully separated sliver positioned well outside it (x in
+[18, 18.3] vs. the cube's [-10, 10]). Captured from the front view, the
+sliver projects as an isolated foreground island bordered entirely by
+background -- `cleanupTinyRegions`'s one exception -- so it survives
+cleanup at the _default_ "Balanced" preset with no setting changes needed,
+and the warning banner fires reliably.
+
+**First-pass local testing found no overflow -- CI proved that
+conclusion wrong, for an instructive reason.** Confirmed by hand against a
+running build (macOS, local Chromium/WebKit) at both 375px and the
+project's own 390px mobile-narrow width: banner genuinely showing, zero
+horizontal overflow by every measurement taken at the time. But this
+branch's own CI run (`npm run test:e2e` on GitHub Actions' Ubuntu
+runner) failed the new regression test with real overflow (the test at
+that point only asserted a boolean, so the exact pixel numbers weren't
+captured -- see the diagnostics work below) on both `chromium` and
+`mobile-narrow` (WebKit) projects. The CI failure screenshot showed the
+actual culprit clearly: the Workspace rail heading's live-status pill
+("● Live -- updates as you adjust") and the new jump-nav's button row
+both visibly cut off at the right edge.
+
+**Real root cause, once looked at directly:** `.workspace-rail-heading`
+(`src/styles.css`) is `display: flex` with no `flex-wrap`, and
+`.live-status-pill` has `white-space: nowrap` -- so the pill can never
+shrink below its full un-wrapped text width, and the row has no way to
+move it to a second line when space runs out. This is a genuine,
+pre-existing bug from Iteration 03's combined-workspace change (not
+something this branch's other fixes introduced), it just needed the
+right combination of narrow viewport _and_ wider font-rendering metrics
+to actually overflow -- CI's Ubuntu runner falls back much further down
+this app's font stack (`'Iowan Old Style', 'Palatino Linotype', Georgia,
+'Segoe UI', system-ui, sans-serif` -- none of the first four exist on
+Linux) than macOS does, rendering this text measurably wider. This is
+exactly why local-only verification on one OS's font stack isn't
+sufficient for a horizontal-overflow claim, and why "does not reproduce"
+was the wrong conclusion to leave standing once contradicting evidence
+appeared -- corrected here rather than left in place.
+
+**Fix, round 1:** `flex-wrap: wrap` added to `.workspace-rail-heading`, so
+the pill drops to its own line instead of forcing the row wider than its
+container. `.rail-jump-nav button` also gets an explicit `white-space:
+normal` as defensive hardening for the same class of bug (buttons don't
+reliably wrap their own text across engines without it, and the parent's
+existing `flex-wrap: wrap` can only move whole buttons to a new line, not
+shrink one below its own un-wrapped width). Verified structurally sound
+by forcing every element to a much wider fallback font (`'Courier New',
+monospace`) in a running local build at 375px -- a deliberately more
+extreme metrics shift than CI's actual font substitution -- and
+confirming zero overflow, both via `scrollWidth`/`clientWidth` and
+visually (the pill and jump-nav buttons wrap cleanly onto their own
+rows).
+
+**Round 1 fixed the visible symptom but CI still failed** -- with no
+cut-off content in either failure screenshot this time, meaning the
+remaining overflow was small and needed better diagnostics, not another
+guess. The regression test was extended to report the widest few elements
+by `getBoundingClientRect().right` directly in the assertion failure
+message (`e2e/preview-controls.spec.ts`), rather than downloading and
+reading CI artifacts by hand for each iteration. The next CI run pinpointed
+it precisely: `scrollWidth=383 clientWidth=375`, widest element `<header
+class="app-header">` at `right: 383.03px` on `chromium`, `379px` on
+`mobile-narrow`.
+
+**Round 2 root cause and fix:** `.app-header` (`src/styles.css`) has the
+exact same missing-`flex-wrap` shape as `.workspace-rail-heading` above --
+`display: flex; align-items: baseline;` with no `flex-wrap`, holding the
+`<h1>`/tagline `<p>` pair. This element predates Iteration 03 entirely
+(it's the app's original top banner) and sits on every stage, not just
+Workspace -- it just also needed CI's real Linux font substitution to
+actually overflow at 375px. Fixed identically: `flex-wrap: wrap` added, so
+the tagline drops below the title instead of overflowing.
+
+**Round 2's fix did not close it out -- the next CI run reported the
+exact same `right: 383.03px`, unchanged.** That was the tell: if fixing
+`.app-header` had actually mattered, the number should have moved. The
+diagnostics were extended again to report the widest 5 elements, not
+just 1 -- the next failure showed `<header class="app-header">`,
+`<nav class="stage-nav">`, `<main class="workspace-layout">`,
+`.workspace-controls-col`, and `.screen-only` **all tied at the identical
+`right: 383.03px`** -- five unrelated elements at different DOM depths
+sharing one exact pixel value is not five independent bugs, it's one
+shared ancestor being forced wide and every descendant just inheriting
+its width.
+
+**Round 3, the actual systemic root cause:** `.app-shell`'s mobile
+`@media (max-width: 720px)` rule sets `grid-template-columns: 1fr` (bare,
+not `minmax(0, 1fr)`). A bare `1fr` grid track has an implicit `auto`
+(content-based) minimum -- so _any_ descendant anywhere in that column
+with a wide enough min-content (a long unbreakable string, a wide
+`<select>`, anything) forces the entire single-column track, and
+therefore the whole page, wider than the viewport, no matter how much
+`flex-wrap` gets added to individual rows inside it. Rounds 1 and 2 both
+made real, worthwhile fixes (two genuine missing-`flex-wrap` bugs, still
+correct and still needed), but neither could fully close this out without
+also fixing the ancestor track's sizing -- which is exactly why the
+`.app-header` fix left the failure's exact pixel value unchanged: some
+other, unidentified descendant was still forcing the same shared column
+width, and `.app-header` was just one of several elements riding along
+with it. Fixed by changing the mobile rule to `grid-template-columns:
+minmax(0, 1fr)`, removing the auto-minimum so the column actually
+respects the viewport width and any wide descendant has to wrap or
+scroll within its own box instead of stretching the page. Verified
+locally with the same font-substitution simulation used in rounds 1-2
+(forcing `'Courier New', monospace` everywhere at 375px): zero overflow.
+**Confirmed against the real environment that found the previous two
+rounds' gaps** -- this round's CI run (`npm run test:e2e` on GitHub
+Actions) is green on both `chromium` and `mobile-narrow` (WebKit).
+
+**Why this took three rounds instead of one:** each round's diagnosis was
+correct as far as it looked, and each fix was a real, independent bug
+worth having fixed regardless -- but reasoning from "the widest single
+element" alone (round 1's original diagnostic) systematically
+under-diagnoses this exact class of bug, since a forced-wide ancestor
+track makes every descendant in it report a similarly-inflated
+`getBoundingClientRect()`, and the true cause can be an ancestor several
+levels removed from whichever leaf element happens to visually look
+"cut off" in a screenshot. The widest-5 diagnostic (added in round 2) is
+what actually surfaced the tied-value pattern that pointed at a shared
+ancestor rather than another leaf-level flex row.
+
+**Regression coverage:** `e2e/preview-controls.spec.ts` gained a
+permanent test using the new `sliver.stl` fixture, so this specific state
+(warning banner + narrow viewport) has real, deterministic e2e coverage
+going forward instead of relying on incidental model/setting combinations
+that may or may not trigger it -- and this test, plus its widest-5
+diagnostic, is what actually caught and root-caused all three rounds of
+this regression on CI, doing exactly the job it was written for.
+`docs/ITERATION_02_PLAN.md`'s §18 item 2 (which originally tracked and
+fixed a _different_, already-resolved mobile-overflow bug) is updated
+with a closing note pointing here, so this specific question doesn't get
+re-litigated a fourth time without new information.

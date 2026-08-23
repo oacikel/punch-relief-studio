@@ -854,6 +854,23 @@ significantly changed several of the files this round touches
    check). Fixed by converting to a `.preview-columns` class with the same
    `@media (max-width: 720px)` pattern `.app-shell`/`main.relief-layout`
    already use.
+
+   > **Closing note (post-Iteration-03 usability audit).** A separate,
+   > later-reported 375px-width overflow (`scrollWidth: 420` vs
+   > `clientWidth: 375`) raised the same "mobile overflow" question a
+   > third time, after Iteration 03's combined-workspace change replaced
+   > `.preview-columns` entirely. That report was investigated
+   > specifically (not conflated with this already-fixed item) and turned
+   > out to require an additional precondition this item's fix never
+   > covered: the small-region warning banner actively showing. A
+   > different, real bug was found once that precondition was actually
+   > reproduced against a real CI environment (not just a local one) —
+   > `.workspace-rail-heading`'s live-status pill had no way to wrap onto
+   > a second line at narrow widths. See `docs/DECISIONS.md`'s "Workspace
+   > usability fixes" section, item 5, for the full reproduction,
+   > root-cause, and fix — that question is now closed with real
+   > measurements from both a local build and CI, not left open.
+
 3. **The Legend table has no horizontal-scroll wrapper — confirmed, fixed
    as originally proposed.** The `CalibrationEditor` table half of the
    original finding is moot (Round 1 removed calibration from the UI

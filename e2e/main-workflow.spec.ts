@@ -48,7 +48,7 @@ test.describe('main workflow', () => {
     await expect(page.getByText('Simulation -- not a photo')).toBeVisible();
 
     // 6: open the compact export panel and set physical dimensions
-    await page.getByText('Export & print', { exact: true }).click();
+    await page.locator('.export-panel summary').click();
     await page.getByLabel('Width (cm)').fill('30');
     await expect(page.getByLabel('Width (cm)')).toHaveValue('30');
 

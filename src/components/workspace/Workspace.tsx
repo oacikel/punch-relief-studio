@@ -117,7 +117,20 @@ export function Workspace({
   const [view, setView] = useState<PatternView>('combined');
   const [showGrid, setShowGrid] = useState(false);
   const [mirrored, setMirrored] = useState(false);
+  // Usability fix #4 (docs/DECISIONS.md): lifted out of ExportPanel so the
+  // jump-nav below can force the disclosure open from afar, not just
+  // toggle it in place.
+  const [exportOpen, setExportOpen] = useState(false);
   const { showOnScreenLabels, punchGuide } = patternViewSettings;
+
+  // Usability fix #3/#4: scrolls a rail section's heading to the top of
+  // the viewport. Plain `document.getElementById` rather than a ref map,
+  // since these ids are stable, unique DOM anchors the rail already needs
+  // for the sticky-mini-header CSS (`.rail-section`) -- no extra plumbing
+  // to wire a ref through each child component just for this.
+  const jumpTo = (id: string): void => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   // Written as `regionMap && processed &&` (not a separate boolean) at each
   // use site below so TypeScript's control-flow narrowing actually applies
@@ -153,6 +166,37 @@ export function Workspace({
               {processing ? '● Processing…' : '● Live — updates as you adjust'}
             </span>
           </div>
+
+          {/* Usability fix #3/#4 (docs/DECISIONS.md): a short jump-nav so
+              a section further down a long, fast-growing rail is never
+              more than one click away -- and, for "Export & print"
+              specifically, a persistent affordance so it's reachable
+              without a long scroll past every color swatch, since it's
+              otherwise the last, easy-to-forget thing in the rail. */}
+          <nav className="rail-jump-nav" aria-label="Jump to rail section">
+            <button type="button" onClick={() => jumpTo('rail-needle-pile')}>
+              Needle &amp; pile
+            </button>
+            <button type="button" onClick={() => jumpTo('rail-punch-detail')}>
+              Punch detail
+            </button>
+            <button type="button" onClick={() => jumpTo('rail-shape-interpretation')}>
+              Shape interpretation
+            </button>
+            <button type="button" onClick={() => jumpTo('rail-yarn-colors')}>
+              Yarn colors
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setExportOpen(true);
+                jumpTo('rail-export-print');
+              }}
+            >
+              Export &amp; print
+            </button>
+          </nav>
+
           {processingError && (
             <p role="alert" className="warning-banner">
               {processingError}
@@ -196,9 +240,14 @@ export function Workspace({
             screenShowGrid={showGrid}
             screenMirrored={mirrored}
             screenShowLabels={showOnScreenLabels}
+            open={exportOpen}
+            onOpenChange={setExportOpen}
           />
         ) : (
-          <div className="control-group screen-only">
+          // Same id as the real ExportPanel's <details> above -- the
+          // jump-nav's Export & print button needs a valid scroll target
+          // even before the first relief has generated.
+          <div className="control-group screen-only" id="rail-export-print">
             <h3>Export &amp; print</h3>
             <p className="helper-text">
               Export &amp; print will be available once the first relief has generated.

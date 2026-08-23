@@ -74,7 +74,20 @@ select:focus-visible {
 
 @media (max-width: 720px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    /* Usability fix #5 (docs/DECISIONS.md): the true systemic root cause
+       behind this branch's whole mobile-overflow investigation. A bare
+       `1fr` grid track has an implicit `auto` (content-based) minimum, so
+       *any* descendant with a wide enough min-content -- a long
+       unbreakable string, a wide `<select>`, anything -- forces this
+       single mobile-width column (and therefore the whole page) wider
+       than the viewport, no matter how much `flex-wrap` gets added to
+       individual rows inside it (the two upstream fixes in this same
+       investigation both helped, but neither could fully close this
+       without also fixing the ancestor track). `minmax(0, 1fr)` removes
+       the auto-minimum, so the column actually respects the viewport
+       width and any wide descendant has to wrap/scroll within its own
+       box instead of stretching the page. */
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -84,6 +97,13 @@ select:focus-visible {
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: baseline;
+  /* Usability fix #5 (docs/DECISIONS.md): same missing-flex-wrap class of
+     bug as `.workspace-rail-heading` below -- the h1 + tagline pair had
+     no way to drop to a second line, so wider (non-macOS) font-rendering
+     metrics at a narrow viewport pushed this row past the viewport edge.
+     CI's real Linux font substitution caught this precisely (8px over at
+     375px width); this element sits on every page, not just Workspace. */
+  flex-wrap: wrap;
   gap: var(--space-3);
 }
 
@@ -172,6 +192,30 @@ select:focus-visible {
 .helper-text {
   font-size: 0.85rem;
   color: var(--color-ink-muted);
+}
+
+/* Usability fix (docs/DECISIONS.md): the Import stage's sample-picker/
+   drop-zone collapses into this disclosure once a model has loaded, so it
+   stops consuming ~700px of vertical space that used to push the 3D
+   viewport and "Continue to Workspace" button below the fold. */
+.import-picker {
+  margin-top: var(--space-2);
+}
+
+.import-picker > summary {
+  cursor: pointer;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+
+.import-picker[open] > summary {
+  margin-bottom: var(--space-3);
+}
+
+.import-picker__body {
+  padding-top: var(--space-2);
 }
 
 .warning-banner {
@@ -279,6 +323,54 @@ select:focus-visible {
   margin-top: 0;
 }
 
+/* Usability fix #3 (docs/DECISIONS.md): a short "Jump to:" row near the
+   Workspace heading, one button per top-level rail section, so a section
+   further down a long rail is never more than one click away. */
+.rail-jump-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.rail-jump-nav button {
+  font-size: 0.78rem;
+  padding: 2px 10px;
+  border-radius: 999px;
+  /* Buttons don't reliably wrap their own text across engines/platforms
+     without this -- defensive hardening alongside the parent's
+     `flex-wrap: wrap` (which moves whole buttons to a new line, but can't
+     shrink a single button's text below one un-wrapped line on its own).
+     Same root cause investigated for the live-status pill below -- see
+     docs/DECISIONS.md's usability fix #5. */
+  white-space: normal;
+}
+
+/* Usability fix #3 (docs/DECISIONS.md): sticky mini-headers so scrolling
+   two sections deep into the rail still shows which section you're in.
+   Scoped to `.rail-section` (applied only to the 4 top-level rail groups
+   in ReliefControls.tsx/YarnColorsGroup.tsx) rather than every
+   `.control-group h3` -- YarnColorsGroup nests a second, non-rail-section
+   `.control-group` ("Color story palettes") inside it, and matching that
+   one too would let two headers both try to stick at `top: 0`
+   simultaneously and visually overlap once both containing blocks are
+   mid-scroll. `scroll-margin-top` gives the jump-nav's scrollIntoView a
+   little breathing room above each target. */
+.rail-section {
+  scroll-margin-top: var(--space-2);
+}
+
+.rail-section > h3 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
 .advanced-controls {
   margin-top: var(--space-3);
 }
@@ -320,6 +412,25 @@ main.workspace-layout > .workspace-preview-col {
   position: sticky;
   top: var(--space-3);
   align-self: start;
+  /* Usability fix #1 (docs/DECISIONS.md): a CSS grid row auto-sizes to the
+     *taller* of its two column children. Without a height cap here, the
+     preview column's own natural height (when it happens to exceed the
+     rail's -- true in the default/first-run state, before the rail has
+     grown from expanded disclosures/more swatches) *is* the row height,
+     leaving the column's own containing block zero taller than the column
+     itself -- no slack for `position: sticky` to pin within, so it just
+     scrolls in lockstep with the page instead of staying pinned. Capping
+     the column's own height here means its contribution to the grid row's
+     auto-sizing is always <= the viewport height, so the rail reliably
+     becomes the taller sibling for any rail content taller than that same
+     cap -- which covers every realistic control-rail height in this app,
+     from the default/light state up through the heaviest state exercised
+     in e2e/workspace.spec.ts. The column becomes independently scrollable
+     for its own contents (Pattern + Finished-piece simulation + Legend)
+     once they exceed that cap, rather than relying on page scroll. */
+  max-height: calc(100vh - 2 * var(--space-3));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -333,12 +444,27 @@ main.workspace-layout > .workspace-preview-col {
 
   main.workspace-layout > .workspace-preview-col {
     position: static;
+    /* `position: static` alone does not neutralize `max-height`/
+       `overflow-y` above (unrelated properties) -- without this reset, a
+       phone-width single-stacked-column layout would trap the three
+       preview panels inside an artificial internal scrollbox capped to
+       viewport height instead of flowing normally with the page. */
+    max-height: none;
+    overflow-y: visible;
   }
 }
 
 .workspace-rail-heading {
   display: flex;
   align-items: center;
+  /* Usability fix #5 (docs/DECISIONS.md): the live-status pill has
+     `white-space: nowrap` (below) and this row had no `flex-wrap`, so at
+     narrow widths -- combined with wider fallback-font metrics than this
+     was ever tested against locally -- the pill could never shrink below
+     its full un-wrapped text width and the row overflowed horizontally
+     instead of wrapping. `flex-wrap: wrap` lets the pill drop to its own
+     line instead. */
+  flex-wrap: wrap;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
 }

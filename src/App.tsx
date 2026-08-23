@@ -178,6 +178,22 @@ export default function App(): JSX.Element {
     };
   }, [state.processed, state.colorMode, state.swatches]);
 
+  // Usability fix (docs/DECISIONS.md, follow-up to "move the Import 3D
+  // orient viewport above the fold"): the label shown in ImportStage's
+  // collapsed-picker summary once a model is loaded. Reuses the same
+  // sourceKind/sampleId/sourceFilename fields SET_SOURCE already writes
+  // (see handleSelectSample/handleFilesSelected above) rather than adding a
+  // new piece of state just to describe what's loaded.
+  const loadedModelLabel = useMemo(() => {
+    if (state.sourceKind === 'built-in-sample') {
+      return (state.sampleId && getSampleById(state.sampleId)?.name) ?? 'sample model';
+    }
+    if (state.sourceKind === 'user-file') {
+      return state.sourceFilename;
+    }
+    return null;
+  }, [state.sourceKind, state.sampleId, state.sourceFilename]);
+
   const legend = useMemo(() => {
     if (!state.processed || !regionMap) return [];
     return buildLegend(state.swatches, state.processed.levels, state.calibrationProfile, regionMap);
@@ -311,16 +327,13 @@ export default function App(): JSX.Element {
               <ImportStage
                 onSelectSample={handleSelectSample}
                 onFilesSelected={(files) => void handleFilesSelected(files)}
+                hasModel={workflow.hasModel}
+                loadedModelLabel={loadedModelLabel}
               />
               {importWarning && (
                 <p role="alert" className="warning-banner" style={{ margin: '0 24px' }}>
                   {importWarning}
                 </p>
-              )}
-              {workflow.hasModel && (
-                <ImportOrientSection
-                  onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
-                />
               )}
             </>
           )}
@@ -363,6 +376,23 @@ export default function App(): JSX.Element {
                 />
               </div>
             )}
+
+          {/* Usability fix #2 (docs/DECISIONS.md): rendered in a new slot
+              positioned after the (otherwise untouched) Viewport3D block
+              above, instead of before it, so the 3D viewport a user is
+              meant to orient is visible near the fold instead of being
+              pushed below it by this section's own heading/text/button.
+              This is a real DOM reorder, not a CSS `order` trick -- it
+              does not move Viewport3D's own conditional block at all
+              (still the same array position among <main>'s children on
+              every render), so the "never remount across Import <->
+              Workspace" guarantee (e2e/orient-persistence.spec.ts) is
+              unaffected; only ImportOrientSection's position moved. */}
+          {workflow.currentStage === 'import' && workflow.hasModel && (
+            <ImportOrientSection
+              onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
+            />
+          )}
 
           {workflow.currentStage === 'workspace' && (
             <Workspace

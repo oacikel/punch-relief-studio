@@ -566,6 +566,23 @@ you're about to make) right now.
 > the full account of what was built and how both architectural wrinkles
 > (rotation-panel placement, live-regeneration correctness) were resolved.
 
+> **Post-ship usability audit (branch `feat/workspace-usability-fixes`).**
+> A separate, hands-on audit of the shipped combined-Workspace redesign,
+> using a real 74MB STL file, found five concrete follow-up bugs/gaps: the
+> sticky preview column not pinning in the default/light state (a CSS
+> grid row-sizing edge case the original sticky-preview implementation
+> didn't anticipate), the Import stage's 3D orient viewport rendering
+> below the fold, no "you are here" cue in a rail that can grow to ~2.5x a
+> 900px viewport, "Export & print" buried after every color swatch, and a
+> third report of mobile-width overflow (this one requiring the
+> small-region warning banner to be actively showing, and ultimately not
+> reproducing once that precondition was correctly isolated). All five
+> fixed following this same document's own process (draft plan,
+> independent pre-implementation review, implementation, independent
+> post-implementation diff review). See `docs/DECISIONS.md`'s "Workspace
+> usability fixes" section for the full root-cause analysis and chosen
+> fix for each.
+
 ## Cross-reference: Iteration 02's own Stage E survey
 
 `docs/ITERATION_02_PLAN.md`'s Stage E audit (run before this feedback
