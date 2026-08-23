@@ -510,6 +510,48 @@ tied to this item and stay open.
 > `SimulationPanel.tsx`) plus a new shared `src/components/
 RotationControls.tsx` and `src/hooks/useLiveRelief.ts`; `ImportStage.tsx`
 > is unchanged apart from its "Continue to..." button text.
+>
+> **Post-ship usability audit (branch `feat/workspace-usability-fixes`,
+> merged before the next entry below).** Five follow-up bugs/gaps found
+> from real hands-on use with a 74MB STL file -- sticky preview not
+> pinning in the default state, the Import 3D viewport rendering below the
+> fold, no rail wayfinding cue, "Export & print" buried, and a third
+> mobile-overflow report. See `docs/DECISIONS.md`'s "Workspace usability
+> fixes" section for the full root-cause account of each.
+>
+> **Second redesign round (branch
+> `feat/workspace-two-column-redesign`).** The usability-fix round above
+> shipped and was then actually used by the product owner, who gave two
+> further structured rounds of feedback -- the upshot, direct quote: _"I
+> don't see that there's a live finished-piece simulation without
+> scrolling down, and I wouldn't have scrolled down if I didn't know it
+> already existed there."_ A specific alternative layout was proposed,
+> mocked up, and approved: a true 50/50 two-column split (both columns
+> independently scrollable, capped to the viewport) replacing the
+> stacked-panel sticky preview, with a **Pattern / Finished-piece
+> simulation tab switch** on the right instead of both panels stacked --
+> the direct fix for the quote above, since the simulation's tab is now
+> always visible and one click away. In the same pass, per explicit
+> product-owner decisions: the H1/H2/... pile-height coverage-percentage
+> chip row was removed entirely ("connects to nothing actionable,"
+> "wouldn't understand it as a newbie"); the Legend section was removed
+> entirely ("there is no symbols" -- see `docs/DECISIONS.md` for a related
+> finding surfaced while removing it: the app's "symbol" was in fact only
+> ever a text word shown in that same removed Legend table, never a
+> visual glyph anywhere, a gap reported there rather than silently fixed
+> as a side effect of this removal task); the rail jump-nav pill row was
+> removed ("nice thought, but unnecessary," the sticky mini-headers from
+> the same prior round were kept); and the heavy `StageNav` sidebar was
+> replaced by a thin ambient "current model" top bar with a "Change"
+> action, deliberately not framed as a wizard "back" step. `workflow.ts`'s
+> two-stage `['import', 'workspace']` structure is unchanged -- this is
+> the second presentational rework of the same Workspace stage, not a
+> change to how many stages exist. See `docs/DECISIONS.md`'s "Workspace
+> two-column redesign" section for the full account, including a real,
+> non-obvious CSS bug (`document.documentElement`'s scrollable range not
+> matching any of its own descendants' measured bounds) found and fixed
+> via real-browser verification during implementation, not just inferred
+> from reading CSS.
 
 ---
 

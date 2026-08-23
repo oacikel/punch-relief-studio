@@ -14,6 +14,17 @@ import { expect, test } from '@playwright/test';
  * simulation, opening Export & print -- now happens on the one Workspace
  * page, and relief generation is live/debounced rather than a manual
  * button click.
+ *
+ * Updated again for the Workspace two-column redesign (see
+ * docs/DECISIONS.md): the former H1/H2/... coverage-percentage chip row
+ * was removed, so step 3 below now confirms the new level count via the
+ * "Color by height" swatch table instead (kept in exact 1:1 sync with the
+ * generated level count by `resizeSwatches`/`PROCESSING_SUCCEEDED`, see
+ * src/state/appState.ts) -- switching color mode earlier than the original
+ * test did, specifically to get that readout. Step 5 now clicks the
+ * "Finished-piece simulation" tab before asserting its content is visible,
+ * since Pattern and Finished-piece simulation are no longer both visible
+ * at once -- the whole point of the redesign.
  */
 test.describe('main workflow', () => {
   test('ripple sample end-to-end', async ({ page }) => {
@@ -26,7 +37,7 @@ test.describe('main workflow', () => {
     await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
 
     // Move to the combined Workspace.
-    await page.getByRole('button', { name: '2. Workspace' }).click();
+    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
     await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
 
     // 3: change from default (4) to 5 height levels (relabeled "Number of
@@ -35,15 +46,19 @@ test.describe('main workflow', () => {
     await levelsSlider.fill('5');
     await expect(page.getByLabel(/Number of pile heights \(5\)/)).toBeVisible();
 
-    // No manual "Generate relief" button anymore -- wait for the live
-    // regeneration to land (5 coverage chips, matching the new level count).
-    await expect(page.locator('.level-chip')).toHaveCount(5, { timeout: 15_000 });
-
     // 4: assign colors -- already visible in the rail, no navigation needed.
+    // Switching to "Color by height" here (rather than after, as this test
+    // originally did) doubles as the wait for live regeneration to land:
+    // by-height swatches are kept in exact 1:1 sync with the generated
+    // level count (src/state/appState.ts's resizeSwatches), so 5 swatch
+    // rows only appear once the 5-level relief has actually finished
+    // generating.
     await page.getByLabel('Color by height').check();
+    await expect(page.locator('.legend-table tbody tr')).toHaveCount(5, { timeout: 15_000 });
 
-    // 5: inspect the finished-piece simulation -- already visible in the
-    // sticky preview column, no navigation needed.
+    // 5: inspect the finished-piece simulation -- a click away via the
+    // preview column's tab switch, not stacked below the Pattern panel.
+    await page.getByRole('button', { name: 'Finished-piece simulation' }).click();
     await expect(page.getByLabel('Finished-piece simulation')).toBeVisible();
     await expect(page.getByText('Simulation -- not a photo')).toBeVisible();
 

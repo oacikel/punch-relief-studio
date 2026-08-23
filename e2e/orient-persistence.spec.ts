@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 /**
  * Usability fix #2 (docs/DECISIONS.md): on Import, the 3D orient viewport
@@ -123,6 +123,20 @@ test('the sample picker collapses once a model loads, and can be reopened to loa
  * spec now exercises the same shared-Viewport3D persistence guarantee
  * across Import -> Workspace, waiting for the live pill to settle instead
  * of clicking a button.
+ *
+ * Updated again for the Workspace two-column redesign (docs/DECISIONS.md):
+ * the former H1/H2/... coverage-percentage chip row (used here both as a
+ * "generation landed" readiness signal and as proof the level count
+ * genuinely changed) was removed. Replaced with the "Color by height"
+ * swatch table, kept in exact 1:1 sync with the generated level count by
+ * `resizeSwatches`/`PROCESSING_SUCCEEDED` (src/state/appState.ts) -- a
+ * genuine, not approximate, readiness+count signal. The chips' own
+ * per-level percentage breakdown (used previously to also assert the
+ * regenerated pattern had a real, non-degenerate distribution across
+ * bands, not just a level count) has no direct UI replacement now that
+ * the feature is gone -- that narrower claim is dropped here; the domain
+ * logic it exercised (`quantize()`'s "Balanced by shape" mode) remains
+ * covered by unit tests (src/domain/__tests__/quantize.test.ts).
  */
 test('camera orientation chosen on Import carries over to relief generation', async ({ page }) => {
   await page.goto('/');
@@ -131,14 +145,15 @@ test('camera orientation chosen on Import carries over to relief generation', as
 
   await page.getByRole('button', { name: 'top', exact: true }).click();
 
-  await page.getByRole('button', { name: '2. Workspace' }).click();
+  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
   await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
 
   // Live regeneration auto-fires on arrival (no manual "Generate relief"
-  // button anymore) -- wait for the first pass to actually land before
-  // reading a snapshot to diff against below.
-  await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
-  const before = await page.locator('.level-chip').allTextContents();
+  // button anymore). Switching to "Color by height" doubles as the wait
+  // for the first pass to land -- the default 4 swatch rows only appear
+  // once the first relief has actually finished generating.
+  await page.getByLabel('Color by height').check();
+  await expect(page.locator('.legend-table tbody tr')).toHaveCount(4, { timeout: 15_000 });
 
   // Labels/grouping updated in Iteration 02 Stage B -- see
   // docs/ITERATION_02_PLAN.md §5. "Height band spacing" (formerly
@@ -148,15 +163,10 @@ test('camera orientation chosen on Import carries over to relief generation', as
   await page.getByText('Advanced shape controls').click();
   await page.getByLabel('Height band spacing').selectOption('quantile');
 
-  // Poll for the chip list to actually change (8 chips instead of the
-  // default's 4, at minimum) rather than the live pill -- see the
-  // rotation test below for why polling the real effect is more robust
-  // than the pill for a debounce that can settle between assertions.
-  await expect(page.locator('.level-chip')).toHaveCount(8, { timeout: 15_000 });
-  const chips = await page.locator('.level-chip').allTextContents();
-  expect(chips).not.toEqual(before);
-  const nonZeroBands = chips.filter((text) => !/ 0\.0%$/.test(text.trim())).length;
-  expect(nonZeroBands).toBeGreaterThan(2);
+  // The swatch table growing to 8 rows is the proof the regeneration
+  // actually completed with the new level count, not just that the
+  // control accepted the input.
+  await expect(page.locator('.legend-table tbody tr')).toHaveCount(8, { timeout: 15_000 });
 });
 
 /**
@@ -171,6 +181,15 @@ test('camera orientation chosen on Import carries over to relief generation', as
  * shared state sees the current value regardless of its own mount/unmount
  * history. This test locks in that setting rotation on Import is visible
  * from Workspace's own copy of the controls.
+ *
+ * Updated for the Workspace two-column redesign (docs/DECISIONS.md):
+ * Workspace's own `RotationControls` copy lives inside `SimulationPanel`,
+ * which -- unlike the pre-redesign stacked layout -- is only mounted while
+ * the "Finished-piece simulation" tab is active (Pattern is the default
+ * active tab). The tab switch itself doesn't affect the underlying
+ * `AppState.modelRotationDeg` value, so clicking into the tab is just
+ * navigation to where the already-carried-over value is rendered, not a
+ * new precondition being tested.
  */
 test('model rotation chosen on Import carries over to the Workspace', async ({ page }) => {
   await page.goto('/');
@@ -182,9 +201,10 @@ test('model rotation chosen on Import carries over to the Workspace', async ({ p
   await rollInput.blur();
   await expect(rollInput).toHaveValue('45');
 
-  await page.getByRole('button', { name: '2. Workspace' }).click();
+  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
   await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
 
+  await page.getByRole('button', { name: 'Finished-piece simulation' }).click();
   await expect(page.getByLabel(/^Roll/)).toHaveValue('45');
 });
 
@@ -205,42 +225,174 @@ test('"Reset rotation" zeroes all three axes', async ({ page }) => {
 });
 
 /**
+ * Fetches the pattern `<img>`'s current `blob:` URL and returns its actual
+ * SVG text content -- not just the URL string. `usePatternSvgUrl.ts`
+ * creates a fresh `blob:` object URL on every mount of the hook,
+ * regardless of whether the underlying `regionMap` genuinely changed, so
+ * comparing URLs alone is not a reliable "did the pattern actually
+ * regenerate" signal once `PatternPanel` itself unmounts and remounts
+ * (e.g. switching away to another tab and back) -- confirmed by testing
+ * that a bare tab round-trip with no setting change in between still
+ * produces a different `src` value. Comparing the actual fetched *content*
+ * is not fooled by this: an unmount/remount with an unchanged `regionMap`
+ * still serializes to byte-identical SVG text, while a real regeneration
+ * (different region shapes) does not.
+ */
+async function patternSvgContent(page: Page): Promise<string | null> {
+  return page.evaluate(async () => {
+    const img = document.querySelector(
+      'img[alt^="Punch-needle pattern"]',
+    ) as HTMLImageElement | null;
+    if (!img?.src) return null;
+    const response = await fetch(img.src);
+    return response.text();
+  });
+}
+
+/**
  * New coverage for the combined-workspace change: rotation adjusted
  * directly from Workspace's own SimulationPanel controls (not just
  * Import's) must genuinely affect the live-regenerated relief, not be a
  * purely cosmetic control -- the same guarantee `captureDepth` always had,
  * now proven from its new home too (see docs/DECISIONS.md's "Wrinkle A"
  * resolution).
+ *
+ * Updated for the Workspace two-column redesign (docs/DECISIONS.md): the
+ * former H1/H2/... coverage-percentage chip row (used here to detect that
+ * regeneration produced different content) was removed, and rotation
+ * controls now live behind the "Finished-piece simulation" tab rather than
+ * always being visible, which means proving the effect requires navigating
+ * away from the Pattern tab and back. An earlier version of this test
+ * compared the Pattern `<img>`'s `src` attribute before/after, which turned
+ * out to be a tautology once found by independent review: `PatternPanel`
+ * unmounts on every tab switch, and `usePatternSvgUrl.ts` creates a fresh
+ * `blob:` URL on every mount regardless of whether `regionMap` actually
+ * changed -- the src would differ after a bare tab round-trip even with no
+ * rotation change at all, so the old test could never fail. Fixed by
+ * comparing the actual fetched SVG *content* (`patternSvgContent` above)
+ * instead of the URL -- an unmount/remount with unchanged content
+ * serializes identically, so this only passes on a genuine regeneration.
  */
 test("rotating the model from Workspace's own controls changes the live-regenerated pattern", async ({
   page,
 }) => {
   await page.goto('/');
   await page.getByText('Concentric Ripple').click();
-  await page.getByRole('button', { name: '2. Workspace' }).click();
-  await expect(page.getByText(/Live — updates as you adjust/)).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
 
-  const before = await page.locator('.level-chip').allTextContents();
+  // Pattern is the default active tab -- its <img> is visible without any
+  // extra navigation. Waiting for it also confirms the initial live
+  // generation has finished (no separate idle status pill to wait on).
+  const patternImg = page.getByAltText(/Punch-needle pattern/);
+  await expect(patternImg).toBeVisible({ timeout: 15_000 });
+  const before = await patternSvgContent(page);
+  expect(before).not.toBeNull();
 
-  // Workspace's own rotation controls live in the Finished-piece
-  // simulation panel -- both Import's and Workspace's copies share an
-  // accessible name ("Pitch ..."), so scope to the one visible copy (only
-  // Workspace's is mounted while on the Workspace stage -- Import's is
-  // unmounted, not just hidden, per docs/DECISIONS.md). Uses Pitch, not
-  // Roll: the "Concentric Ripple" fixture is radially symmetric around
-  // the view axis, so a pure Roll (rotation around that same axis)
-  // produces byte-identical captured depth -- correct model behavior, not
-  // a bug, but a poor choice for proving rotation has an effect. Pitch
-  // tilts the model relative to the camera, which changes the depth
-  // capture for any shape, symmetric or not.
+  // Switch to the Finished-piece simulation tab, where Workspace's own
+  // rotation controls live -- both Import's and Workspace's copies share
+  // an accessible name ("Pitch ..."), so scope to the one visible copy
+  // (only Workspace's is mounted while on the Workspace stage -- Import's
+  // is unmounted, not just hidden, per docs/DECISIONS.md).
+  await page.getByRole('button', { name: 'Finished-piece simulation' }).click();
+
+  // Uses Pitch, not Roll: the "Concentric Ripple" fixture is radially
+  // symmetric around the view axis, so a pure Roll (rotation around that
+  // same axis) produces byte-identical captured depth -- correct model
+  // behavior, not a bug, but a poor choice for proving rotation has an
+  // effect. Pitch tilts the model relative to the camera, which changes
+  // the depth capture for any shape, symmetric or not.
   const pitchInput = page.getByLabel(/^Pitch/);
   await pitchInput.fill('45');
   await pitchInput.blur();
 
-  // Poll directly on the chip text changing rather than the live pill --
-  // the debounce+regeneration can complete fast enough between polls that
-  // a pill-based wait could trivially pass without ever observing the
-  // in-flight state. This asserts the *effect* (the pattern actually
-  // changed), which is what this test is really checking.
-  await expect(page.locator('.level-chip')).not.toHaveText(before, { timeout: 15_000 });
+  // Switch back to Pattern and poll for its rendered content to actually
+  // change, rather than the live pill -- the debounce+regeneration can
+  // complete fast enough between polls that a pill-based wait could
+  // trivially pass without ever observing the in-flight state. This
+  // asserts the *effect* (the pattern actually regenerated with different
+  // content), which is what this test is really checking.
+  await page.getByRole('button', { name: 'Pattern' }).click();
+  await expect.poll(() => patternSvgContent(page), { timeout: 15_000 }).not.toBe(before);
+});
+
+/**
+ * Regression test for the "clicking a standard-view button never
+ * re-triggers relief regeneration" bug (found via manual testing of the
+ * Workspace two-column redesign, root-caused and fixed in the same commit
+ * as this test).
+ *
+ * Root cause: `Viewport3D.tsx`'s `goToView(view)` (the standard-view button
+ * handler) mutated the Three.js camera via `applyStandardView()` purely
+ * imperatively -- no React state involved at all. Meanwhile
+ * `src/hooks/useLiveRelief.ts`'s effect only re-triggered a capture+
+ * regenerate cycle when `hasModel`/`reliefSettings`/`rotationDeg` changed
+ * (its dependency array), none of which change when a standard-view button
+ * is clicked. So clicking e.g. "top" never triggered a new capture -- the
+ * generated pattern kept reflecting whatever camera orientation was active
+ * at the *first* auto-triggered generation (the mount-time default 'front'
+ * view) -- unless the user *also* happened to touch a
+ * `reliefSettings`/`rotationDeg` control afterward (which incidentally
+ * re-captured from the camera's by-then-correct current orientation,
+ * masking the bug). This is exactly why the pre-existing "camera
+ * orientation chosen on Import carries over to relief generation" test
+ * above never caught this: it clicks "top", but then *also* changes
+ * "Number of pile heights" and "Height band spacing" before asserting
+ * anything, both genuine `reliefSettings` triggers that mask the gap.
+ *
+ * Fix: `Viewport3D` gained an `onViewChange` prop, called synchronously
+ * from `goToView` (a standard-view button click) and -- debounced, via an
+ * OrbitControls `'change'` listener -- after a free orbit/pan/zoom drag
+ * settles. `App.tsx` wires this to a plain `viewNonce` counter
+ * (`useState`), passed into `useLiveRelief`'s options and added to its
+ * effect's dependency array alongside `reliefSettings`/`rotationDeg` --
+ * see `src/hooks/useLiveRelief.ts` and docs/DECISIONS.md.
+ *
+ * This test isolates the exact gap: click "top" and continue to Workspace
+ * with *no* other relief-settings/rotation touch in between, then confirm
+ * the regenerated pattern's actual SVG content differs from what the same
+ * sample produces via the plain default front view -- proving the pattern
+ * genuinely reflects the chosen standard view, not just that some
+ * unrelated later change happened to mask the bug.
+ */
+test('clicking a standard-view button alone (no other setting touched) changes the regenerated pattern to reflect that view', async ({
+  page,
+}) => {
+  // Baseline: default front view, reached with zero standard-view/rotation
+  // interaction, so this is guaranteed to be "the front-view sliver" the
+  // bug incorrectly kept producing regardless of which view was selected.
+  await page.goto('/');
+  await page.getByText('Concentric Ripple').click();
+  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+  await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+  await expect(page.getByAltText(/Punch-needle pattern/)).toBeVisible({ timeout: 15_000 });
+  // Let the initial live-generation debounce chain fully settle before
+  // reading -- reading too early risks capturing a transient blob that's
+  // about to be replaced by the same generation's own eventual result.
+  await page.waitForTimeout(1000);
+  const frontContent = await patternSvgContent(page);
+  expect(frontContent).not.toBeNull();
+
+  // The actual repro: a fresh load of the same sample, clicking "top"
+  // before continuing -- and, critically, touching nothing else
+  // (reliefSettings/rotationDeg) that could incidentally mask the bug the
+  // way the older "camera orientation ... carries over" test above does.
+  await page.goto('/');
+  await page.getByText('Concentric Ripple').click();
+  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+  await page.getByRole('button', { name: 'top', exact: true }).click();
+  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+  await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+  await expect(page.getByAltText(/Punch-needle pattern/)).toBeVisible({ timeout: 15_000 });
+
+  // Poll rather than a fixed wait: the fix's debounce chain (goToView's
+  // synchronous `onViewChange` -> `useLiveRelief`'s 300ms) means the
+  // top-view capture can land some time after the pattern <img> first
+  // appears, which may initially still show the front-view generation
+  // auto-triggered by `hasModel` becoming true (before "top" was even
+  // clicked). This asserts the actual regenerated content eventually
+  // differs from the front-view baseline -- the concentric-rings top-down
+  // capture, not the thin front-view sliver -- not just that *some*
+  // content is present.
+  await expect.poll(() => patternSvgContent(page), { timeout: 15_000 }).not.toBe(frontContent);
 });

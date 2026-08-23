@@ -7,11 +7,15 @@ create ever leaves your device.
 
 ## The two steps
 
-As of Iteration 03's combined-workspace change, the app is two steps, not a
-page-by-page wizard: **Import** a model, then work in one persistent
-**Workspace** -- a control rail alongside a live-updating preview, modeled
-on 3D-print slicer software, where every adjustment shows its effect
-immediately without navigating anywhere.
+The app is two steps, not a page-by-page wizard: **Import** a model, then
+work in one persistent **Workspace** -- a control rail alongside a
+live-updating preview, modeled on 3D-print slicer software, where every
+adjustment shows its effect immediately without navigating anywhere. The
+Workspace is a true 50/50 split: a control rail on the left and a
+Pattern/Finished-piece-simulation preview on the right, both
+independently scrollable and always fitting the screen -- switching to
+the simulation is one click away, not something you have to scroll down
+to discover.
 
 1. **Import** -- pick one of the three built-in samples (no upload needed),
    or drag in your own STL or OBJ (+ .mtl + local texture images, all at
@@ -28,7 +32,10 @@ immediately without navigating anywhere.
    Workspace" when you're happy with the view.
 
 2. **Workspace** -- a control rail on the left, a live preview on the
-   right, both always visible. There's no "Generate relief" button: as
+   right, a true 50/50 split with each side independently scrollable (an
+   ambient "Model: ..." bar with a "Change" button sits above both, so
+   you can always see what's loaded and swap it without feeling like
+   you've gone "back a step"). There's no "Generate relief" button: as
    soon as a model is loaded, a relief starts generating automatically,
    and it re-generates automatically whenever you change a setting that
    affects it (a small "● Live — updates as you adjust" indicator at the
@@ -36,9 +43,7 @@ immediately without navigating anywhere.
    applied). The rail's groups, top to bottom:
 
    - **Needle & pile**: how many distinct pile heights the pattern uses
-     ("Number of pile heights", 2-12), with a live readout directly below
-     it showing what percentage of the pattern each height level actually
-     covers once a relief has generated (e.g. `H1 17.7%  H2 13.4%  ...`).
+     ("Number of pile heights", 2-12).
    - **Punch detail**: "Smallest punchable region" -- pick "Fine detail",
      "Balanced" (the default), or "Bold & simple" to control how
      aggressively tiny, fiddly areas get removed. There's no separate
@@ -61,8 +66,8 @@ immediately without navigating anywhere.
      matches whatever the Pattern panel (see below) is currently showing
      on screen -- there's nothing to set twice.
 
-   The preview column, pinned in place alongside the rail while you scroll
-   on wider screens, shows two panels at once:
+   The preview column shows exactly one of two tabs at a time -- click
+   between them, nothing is stacked or hidden below a scroll:
 
    - **Pattern**: compare pattern views (combined/color-only/height-only/
      contour), toggle Grid/Mirrored (back side)/Region labels
@@ -78,9 +83,10 @@ immediately without navigating anywhere.
      adjusting rotation here re-generates the relief too, since it changes
      what the app actually captured from the model, not just this preview.
 
-   Below both panels, a legend ties color IDs, height IDs, and yarn names
-   together, with a symbol as well as a color for every region so nothing
-   ever depends on color alone to tell regions apart.
+   Every region on the pattern is still labeled with a C{n}-H{n} ID
+   (e.g. "C1-H2") directly on the image itself, so nothing ever depends on
+   color alone to tell regions apart -- there's no separate legend table
+   on screen; the same IDs are what every export/print output uses too.
 
 You can move backward and forward between Import and Workspace without
 losing your settings.

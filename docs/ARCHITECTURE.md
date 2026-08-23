@@ -71,35 +71,66 @@ orientation section) and a single persistent **Workspace**, whose
 components live under `src/components/workspace/`:
 
 - `Workspace.tsx` -- the stage's top-level container. Renders the control
-  rail (left) and sticky preview column (right) as two grid-column
-  siblings inside `App.tsx`'s `<main className="workspace-layout">`
-  (renamed from `relief-layout`, same sticky mechanism -- see
-  `docs/DECISIONS.md`). Owns `view`/`showGrid`/`mirrored` as local
-  `useState` (moved up from the former `PreviewStage.tsx`) since both
-  `PatternPanel` and `ExportPanel` -- now rail siblings, not parent/child
-  -- need them as controlled props from one shared owner. Gates
-  `PatternPanel`/`SimulationPanel`/`ExportPanel` on `regionMap && processed`
-  being non-null (a rail placeholder shows in the interim, before the
-  first live generation has landed), while the rest of the rail
-  (`ReliefControls`/`YarnColorsGroup`) stays always-interactive.
+  rail (left) and preview column (right) as two grid-column siblings
+  inside `App.tsx`'s `<main className="workspace-layout">` (renamed from
+  `relief-layout`). As of the Workspace two-column redesign
+  (`docs/DECISIONS.md`), this is a **true 50/50 split, both columns
+  independently, internally scrollable** (`overflow-y: auto`, capped by
+  `App.tsx`'s `.app-shell--workspace` fixed-height flex/grid parent --
+  `position: sticky` is no longer used at all, see `docs/DECISIONS.md`
+  for why the original single-sided sticky mechanism doesn't generalize
+  symmetrically), and the right column is a **Pattern / Finished-piece
+  simulation tab switch** (`previewTab` local state) rather than two
+  panels stacked one above the other -- only one of `PatternPanel`/
+  `SimulationPanel` is ever mounted at a time. Owns `view`/`showGrid`/
+  `mirrored` as local `useState` (moved up from the former
+  `PreviewStage.tsx`) since both `PatternPanel` and `ExportPanel` -- now
+  rail siblings, not parent/child -- need them as controlled props from
+  one shared owner. Gates `PatternPanel`/`SimulationPanel`/`ExportPanel`
+  on `regionMap && processed` being non-null (a rail placeholder shows in
+  the interim, before the first live generation has landed), while the
+  rest of the rail (`ReliefControls`/`YarnColorsGroup`) stays
+  always-interactive. No longer renders a rail jump-nav or a Legend
+  section -- both removed by explicit product-owner decision, see
+  `docs/DECISIONS.md`.
 - `ReliefControls.tsx` -- the former `ReliefStage.tsx`'s three groups
   (Needle & pile / Punch detail / Shape interpretation) verbatim, minus
   the manual "Generate relief" button (replaced by live regeneration --
-  see `src/hooks/useLiveRelief.ts` below), plus the former
-  `HeightStage.tsx`'s per-level coverage table (now a live chip row under
-  "Needle & pile") and small-region warning (moved under "Punch detail" --
-  see `docs/DECISIONS.md` for the placement reasoning).
+  see `src/hooks/useLiveRelief.ts` below) and minus the former
+  `HeightStage.tsx`'s per-level coverage-percentage chip row (removed
+  entirely in the Workspace two-column redesign, not just relocated --
+  see `docs/DECISIONS.md`; the component no longer accepts a `levels`
+  prop at all, since nothing else inside it needed one). The small-region
+  warning (also folded in from `HeightStage.tsx`) stays under "Punch
+  detail," directly below the min-region preset that drives it.
 - `YarnColorsGroup.tsx` -- the former `ColorStage.tsx`'s content verbatim,
   rendered as a rail `<div className="control-group">` instead of its own
   page.
 - `PatternPanel.tsx` / `SimulationPanel.tsx` -- the former
-  `PreviewStage.tsx`'s two columns, extracted into the sticky preview
-  column's two stacked panels. `SimulationPanel.tsx` additionally renders
-  `<RotationControls>` (see below).
+  `PreviewStage.tsx`'s two columns, now rendered one at a time by
+  `Workspace.tsx`'s tab switch rather than stacked together -- neither
+  component's own internals changed for this, only how `Workspace.tsx`
+  composes them. `SimulationPanel.tsx` additionally renders
+  `<RotationControls>` (see below), reachable only while its tab is
+  active.
 - `ExportPanel.tsx` (unchanged, stays at the top level of
   `src/components/**`, not under `workspace/`) -- the existing compact
   export/print panel, simply relocated into the rail as one more collapsed
   `<details>` section.
+- `src/components/ModelBar.tsx` (new, Workspace two-column redesign) --
+  a thin ambient "current model" bar rendered above `<main>` only while
+  on the Workspace stage, replacing the former `StageNav.tsx` sidebar
+  (deleted). Shows the loaded model's name (`App.tsx`'s existing
+  `loadedModelLabel` derivation, reused as a prop) and a "Change" button
+  that navigates back to Import -- framed as ambient state with a direct
+  action, not a wizard "back" step. See `docs/DECISIONS.md`.
+- `Legend.tsx` -- **removed** in the Workspace two-column redesign (along
+  with its one call site and its test file). `LegendEntry` (the type,
+  `src/domain/pattern/legend.ts`) and `buildLegend()` are untouched --
+  still consumed by `PatternCanvas.tsx`, `ExportPanel.tsx`,
+  `SimulationView.tsx`, `svgPattern.ts`, and `buildReliefMesh.ts`. See
+  `docs/DECISIONS.md` for the type-vs-component distinction and a related
+  finding about the app's "symbol" concept surfaced while removing this.
 
 Components read state via props and call `src/domain`/`src/three`/
 `src/export` functions; per CLAUDE.md, no quantization/scaling/calibration
@@ -130,19 +161,32 @@ coupling and is unit-testable with mocks (see
 `src/hooks/__tests__/useLiveRelief.test.ts`). See `docs/DECISIONS.md` for
 the debounce-interval profiling and the full algorithm.
 
-The sticky-preview mechanism itself (Iteration 02 Stage B: rail scrolls,
-preview column pinned via `position: sticky`) is unchanged, just renamed
-(`relief-layout`/`relief-controls-col`/`relief-preview-col` ->
-`workspace-layout`/`workspace-controls-col`/`workspace-preview-col`) --
-see `docs/DECISIONS.md`. The shared `Viewport3D` instance's never-
-remounted guarantee (guarded by `e2e/orient-persistence.spec.ts`) now
-spans Import<->Workspace instead of Import<->Relief, for the same reason
-as before: `capture()` depends on that live WebGL scene staying alive.
+The `relief-layout`/`relief-controls-col`/`relief-preview-col` class names
+from Iteration 02 Stage B were renamed to `workspace-layout`/
+`workspace-controls-col`/`workspace-preview-col` in the original
+combined-workspace change and reused since. The layout mechanism they
+implement, however, was replaced (not just renamed) in the Workspace
+two-column redesign: the original single-sided `position: sticky` +
+`max-height` trick is gone, replaced by a genuinely fixed-height flex/grid
+layout (`App.tsx`'s `.app-shell--workspace` modifier class + `main
+.workspace-layout`'s own `flex`/`grid` sizing) with both columns as plain
+`overflow-y: auto` boxes -- see `docs/DECISIONS.md` for why the sticky
+mechanism doesn't generalize symmetrically to two columns, and the real,
+non-obvious `documentElement.scrollHeight` bug found and fixed along the
+way. The shared `Viewport3D` instance's never-remounted guarantee (guarded
+by `e2e/orient-persistence.spec.ts`) still spans Import<->Workspace,
+unaffected by this layout change: `capture()` depends on that live WebGL
+scene staying alive, and neither the `.app-shell--workspace` class toggle
+nor the tab switch touch its JSX slot.
 
 **Calibration UI removal (Iteration 03 Round 1).** The former
-`HeightStage.tsx` (now `ReliefControls.tsx`'s live chip row) has no
+`HeightStage.tsx` (its content later folded into `ReliefControls.tsx`,
+then its live-chip readout removed entirely in the Workspace two-column
+redesign -- see `docs/DECISIONS.md`) has no
 needle-setting column or "Calibrate needle settings" link; `Legend.tsx`
-has no needle-setting/measured-height columns; `ExportPanel.tsx` renders
+(itself removed entirely in the later Workspace two-column redesign, for
+unrelated reasons -- see `docs/DECISIONS.md`) never had needle-setting/
+measured-height columns while it existed; `ExportPanel.tsx` renders
 no Calibration section (`CalibrationEditor.tsx` usage removed) and takes
 no `calibrationProfile`/`savedProfiles`/`onCalibration*`/`focusCalibration`
 props. This is a render-tree-only removal, by explicit reversible product
@@ -192,9 +236,12 @@ buffers --`postMessage`--> `processing.worker.ts` --domain functions in
 sequence (mask -> normalize -> invert -> intensity -> smooth -> quantize ->
 cleanup [-> color quantize -> cleanup])--> `RegionMap` --`postMessage`
 back--> `App.tsx` state --> `PatternCanvas` / `SimulationView` /
-`Legend`, all rendering from the _same_ `RegionMap` + `LegendEntry[]`, so
-the pattern, the simulation, and the legend can never disagree with each
-other about what a region is.
+`ExportPanel`, all rendering from the _same_ `RegionMap` + `LegendEntry[]`,
+so the on-screen pattern, the simulation, and every export/print path can
+never disagree with each other about what a region is. (The on-screen
+`Legend` table itself was removed in the Workspace two-column redesign --
+see `docs/DECISIONS.md` -- but `LegendEntry`/`buildLegend()` are unchanged
+and still the single source every one of those consumers reads from.)
 
 ## Why no React Three Fiber
 

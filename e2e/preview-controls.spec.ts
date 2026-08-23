@@ -33,8 +33,10 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: '2. Workspace' }).click();
-    await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   /**
@@ -127,9 +129,11 @@ test.describe('Workspace mobile-narrow layout (Iteration 03 Round 2 #2)', () => 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: '2. Workspace' }).click();
+    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
     await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
-    await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
+      timeout: 15_000,
+    });
 
     const hasHorizontalOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -185,8 +189,10 @@ test.describe('Mobile-narrow layout with the small-region warning banner active 
       timeout: 10_000,
     });
 
-    await page.getByRole('button', { name: '2. Workspace' }).click();
-    await expect(page.locator('.level-chip').first()).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // The sliver fixture's tiny detached piece has no valid neighbor to
     // merge into, so it survives cleanup at the default "Balanced" preset

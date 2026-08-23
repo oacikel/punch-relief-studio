@@ -18,7 +18,12 @@ interface Props {
   helperText?: string;
 }
 
-const AXES = ['roll', 'pitch', 'yaw'] as const;
+// Pitch/yaw tilt the model relative to the view, so they change what the
+// camera sees for almost any shape; roll spins it around the view axis
+// itself, which is a no-op for anything close to radially symmetric (a
+// ripple, a bowl, a cylinder viewed end-on) -- ordered so the controls
+// most likely to show a visible effect come first.
+const AXES = ['pitch', 'yaw', 'roll'] as const;
 
 /**
  * Model-straightening rotation controls (Roll/Pitch/Yaw sliders + Reset),
@@ -67,6 +72,10 @@ export function RotationControls({
       <button type="button" onClick={onReset} style={{ alignSelf: 'flex-start' }}>
         Reset rotation
       </button>
+      <p className="helper-text" style={{ margin: 0 }}>
+        Roll may not visibly change a shape that&rsquo;s symmetric around this view &mdash; try
+        Pitch or Yaw if a slider doesn&rsquo;t seem to do anything.
+      </p>
     </div>
   );
 }

@@ -81,32 +81,56 @@ Import is unchanged in spirit: pick a sample or drag in a file, then (once
 a model has loaded) orient/straighten it via the same orientation section
 and Roll/Pitch/Yaw rotation controls as before.
 
-**Workspace's control rail**, top to bottom: **Needle & Pile** (pile-height
-count, with a live per-level coverage-percentage readout folded in
-directly below it -- previously its own "Height Levels" page), **Punch
-Detail** (the "Smallest punchable region" preset, with the small-region
-warning directly beneath it), **Shape Interpretation** (relief depth,
-smoothing, invert, with the quantization-mode/edge-preservation controls
-behind an "Advanced" disclosure), **Yarn Colors** (single/by-height/
-source-material mode, the color-story palette gallery, swatch editing --
-previously its own page), and **Export & Print** (physical dimensions,
-SVG/PNG/print-PDF export, project JSON save/load -- previously a panel at
-the bottom of the Preview page, now one more collapsed section in the
-rail). There is no manual "Generate relief" button: relief-generation-
-affecting settings (pile heights, punch detail, shape interpretation,
-model rotation) debounce into an automatic, live regeneration, reflected
-by a rail-heading status pill ("● Live — updates as you adjust" / "●
-Processing…"). Yarn-color and pattern-display changes update instantly
-without any regeneration round-trip.
+**Workspace is a true 50/50 two-column split, both columns independently
+scrollable and capped to the viewport height** (reworked from the
+original combined-workspace build's asymmetric sticky-preview layout --
+see `docs/DECISIONS.md`'s "Workspace two-column redesign" for the direct
+product-owner feedback this responds to: _"I don't see that there's a
+live finished-piece simulation without scrolling down, and I wouldn't
+have scrolled down if I didn't know it already existed there."_).
 
-**Workspace's preview column** (sticky, pinned alongside the rail on wider
-screens) shows two panels at once, no tab-switching: **Pattern** (view
-mode, grid/mirrored/region-labels toggles, the punch-guide overlay
-selector, and the pattern itself) and **Finished-piece simulation** (pile
-style, lighting direction, the 3D render in real yarn colors, and the
+**The control rail** (left column), top to bottom: **Needle & Pile**
+(pile-height count, "Number of pile heights"), **Punch Detail** (the
+"Smallest punchable region" preset, with the small-region warning
+directly beneath it), **Shape Interpretation** (relief depth, smoothing,
+invert, with the quantization-mode/edge-preservation controls behind an
+"Advanced" disclosure), **Yarn Colors** (single/by-height/source-material
+mode, the color-story palette gallery, swatch editing -- previously its
+own page), and **Export & Print** (physical dimensions, SVG/PNG/print-PDF
+export, project JSON save/load -- previously a panel at the bottom of the
+Preview page, now one more collapsed section in the rail). There is no
+manual "Generate relief" button: relief-generation-affecting settings
+(pile heights, punch detail, shape interpretation, model rotation)
+debounce into an automatic, live regeneration, reflected by a
+rail-heading status pill ("● Live — updates as you adjust" / "●
+Processing…"). Yarn-color and pattern-display changes update instantly
+without any regeneration round-trip. (The former per-level H1/H2/...
+pile-height coverage-percentage readout under Needle & Pile was removed
+entirely, by explicit product-owner decision -- it "connects to nothing
+actionable" for a non-technical user; see `docs/DECISIONS.md`.)
+
+**The preview column** (right) shows exactly one of **Pattern** or
+**Finished-piece simulation** at a time, via a tab switch -- never both
+stacked. This is the direct fix for the core complaint above: the
+simulation's tab button is always visible next to Pattern's, discoverable
+without scrolling. **Pattern** (the default active tab): view mode,
+grid/mirrored/region-labels toggles, the punch-guide overlay selector,
+and the pattern itself. **Finished-piece simulation**: pile style,
+lighting direction, the 3D render in real yarn colors, and the
 Roll/Pitch/Yaw model-straightening controls -- also reachable here, not
 only from Import, writing to the same underlying rotation value either
-place is used from).
+place is used from. (The former Legend table below both panels was
+removed entirely, by explicit product-owner decision; see
+`docs/DECISIONS.md` -- region/color/symbol/yarn-name identity is still
+computed the same way internally and still drives the pattern and every
+export, just no longer rendered as its own on-screen table.)
+
+**An ambient "current model" bar** sits above the workspace (replacing a
+heavier "1. Import / 2. Workspace" sidebar navigation): the loaded
+model's name plus a "Change" action that returns to Import -- framed
+deliberately as ambient state with a direct action (like a slicer
+showing its loaded file name), not as a wizard "back" step. See
+`docs/DECISIONS.md`.
 
 As of Iteration 02 Stage C, the Pattern panel's on-screen view gained an
 optional punch-guide overlay: a "Punch guide" selector (None/Dots) plus a

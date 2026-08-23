@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import * as THREE from 'three';
 import { APP_NAME, APP_TAGLINE, APP_VERSION } from '@/config/branding';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { StageNav } from '@/components/StageNav';
+import { ModelBar } from '@/components/ModelBar';
 import { Viewport3D, type Viewport3DHandle } from '@/components/Viewport3D';
 import { ImportStage, ImportOrientSection } from '@/components/stages/ImportStage';
 import { Workspace } from '@/components/workspace/Workspace';
@@ -30,6 +30,20 @@ export default function App(): JSX.Element {
   const [state, dispatch] = useReducer(appReducer, undefined, initialAppState);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [importWarning, setImportWarning] = useState<string | null>(null);
+  // Bumped whenever the 3D viewport's camera is reoriented for a
+  // user-driven reason (a standard-view button click, or a settled
+  // OrbitControls orbit/pan/zoom) -- see `Viewport3D`'s `onViewChange`
+  // prop and `useLiveRelief`'s `viewNonce` option. `applyStandardView`/
+  // `OrbitControls` mutate the Three.js camera imperatively with no React
+  // state of their own, so without this, `useLiveRelief` (which only
+  // re-triggers on `hasModel`/`reliefSettings`/`rotationDeg` changing)
+  // never learns the camera moved -- see docs/DECISIONS.md for the full
+  // bug account this closes. `useCallback([])` keeps the identity stable
+  // across renders; `Viewport3D` also holds its own ref to the latest
+  // value regardless (belt-and-braces -- see that component's own doc
+  // comment), so this only needs to be "stable enough," not perfectly so.
+  const [viewNonce, setViewNonce] = useState(0);
+  const onViewChange = useCallback(() => setViewNonce((n) => n + 1), []);
   const viewportHandle = useRef<Viewport3DHandle | null>(null);
   const { process } = useProcessingWorker();
 
@@ -42,6 +56,47 @@ export default function App(): JSX.Element {
   useEffect(() => {
     dispatch({ type: 'SET_SAVED_PROFILES', profiles: loadProfiles() });
   }, []);
+
+  // Workspace two-column redesign: both columns are independently,
+  // internally scrollable (`.workspace-controls-col`/`.workspace-preview-col`,
+  // each `overflow-y: auto`, capped by `.app-shell--workspace`'s `height:
+  // 100vh; overflow: hidden;`) -- there should be no leftover document-
+  // level scroll for the page itself to move while on Workspace, at
+  // desktop width. Found via real-browser verification that `.app-shell`'s
+  // own `overflow: hidden` was not, on its own, enough to stop
+  // `document.documentElement` from reporting (and acting on) scrollable
+  // overflow beyond one viewport height, even though every one of its own
+  // descendants measured correctly bounded. Toggling this class (rather
+  // than setting an inline style directly) is deliberate: the actual
+  // `overflow: hidden` declaration lives in styles.css scoped inside the
+  // same `@media (min-width: 721px)` range the two-column layout itself
+  // requires, so this stays inert at the mobile-narrow breakpoint, where
+  // the layout falls back to normal single-column, page-scrolled stacking
+  // -- an unconditional inline style here would have locked body scroll
+  // there too and made that fallback content unreachable, found via the
+  // same real-browser verification pass.
+  //
+  // `window.scrollTo(0, 0)` alongside the lock is required, not defensive
+  // padding: `overflow: hidden` only stops *further* scrolling, it does
+  // not reset a scroll position the page already has -- and Import
+  // legitimately scrolls the page as a normal side effect of navigating it
+  // (e.g. an element being scrolled into view before a click), so by the
+  // time a user reaches Workspace the document can already be scrolled
+  // some way down. Without this reset, the entire two-column layout (which
+  // always starts at document y=0) would render effectively above the
+  // visible viewport, appearing blank. Found via a real, reproducible
+  // failure during this feature's own verification, not a hypothetical.
+  //
+  // Reset on every stage change and on unmount so Import's normal page
+  // scroll is never affected.
+  useEffect(() => {
+    if (workflow.currentStage !== 'workspace') return;
+    window.scrollTo(0, 0);
+    document.body.classList.add('workspace-scroll-lock');
+    return () => {
+      document.body.classList.remove('workspace-scroll-lock');
+    };
+  }, [workflow.currentStage]);
 
   const handleSelectSample = (sampleId: string): void => {
     const sample = getSampleById(sampleId);
@@ -132,6 +187,7 @@ export default function App(): JSX.Element {
     hasModel: workflow.hasModel,
     reliefSettings: state.reliefSettings,
     rotationDeg: state.modelRotationDeg,
+    viewNonce,
     captureColor: state.colorMode === 'source-material',
     capture: captureFromViewport,
     buildProcessArgs,
@@ -301,16 +357,28 @@ export default function App(): JSX.Element {
 
   return (
     <ErrorBoundary>
-      <div className="app-shell">
+      <div
+        className={
+          workflow.currentStage === 'workspace' ? 'app-shell app-shell--workspace' : 'app-shell'
+        }
+      >
         <header className="app-header">
           <h1>{APP_NAME}</h1>
           <p>{APP_TAGLINE}</p>
         </header>
-        <StageNav
-          current={workflow.currentStage}
-          hasModel={workflow.hasModel}
-          onSelect={(stage) => dispatchWorkflow({ type: 'GO_TO_STAGE', stage })}
-        />
+        {/* Ambient "current model" indicator (Workspace two-column
+            redesign), replacing the former StageNav sidebar. Deliberately
+            not rendered on Import -- there's nothing to "change" while
+            you're already on the Import stage picking a model; the
+            existing ImportOrientSection "Continue to Workspace" button
+            (unchanged, out of scope) remains the only forward navigation.
+            See docs/DECISIONS.md. */}
+        {workflow.currentStage === 'workspace' && (
+          <ModelBar
+            modelLabel={loadedModelLabel}
+            onChangeModel={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'import' })}
+          />
+        )}
         {/* Iteration 03's combined-workspace change: on 'workspace', this
             becomes a sticky two-column layout (control rail left, preview
             column right) via the `workspace-layout` class alone -- renamed
@@ -372,6 +440,7 @@ export default function App(): JSX.Element {
                   onRotationChange={(patch) =>
                     dispatch({ type: 'SET_MODEL_ROTATION', rotation: patch })
                   }
+                  onViewChange={onViewChange}
                   showControls={workflow.currentStage === 'import'}
                 />
               </div>
