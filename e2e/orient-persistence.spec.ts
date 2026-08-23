@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 /**
  * Usability fix #2 (docs/DECISIONS.md): on Import, the 3D orient viewport
@@ -225,6 +225,31 @@ test('"Reset rotation" zeroes all three axes', async ({ page }) => {
 });
 
 /**
+ * Fetches the pattern `<img>`'s current `blob:` URL and returns its actual
+ * SVG text content -- not just the URL string. `usePatternSvgUrl.ts`
+ * creates a fresh `blob:` object URL on every mount of the hook,
+ * regardless of whether the underlying `regionMap` genuinely changed, so
+ * comparing URLs alone is not a reliable "did the pattern actually
+ * regenerate" signal once `PatternPanel` itself unmounts and remounts
+ * (e.g. switching away to another tab and back) -- confirmed by testing
+ * that a bare tab round-trip with no setting change in between still
+ * produces a different `src` value. Comparing the actual fetched *content*
+ * is not fooled by this: an unmount/remount with an unchanged `regionMap`
+ * still serializes to byte-identical SVG text, while a real regeneration
+ * (different region shapes) does not.
+ */
+async function patternSvgContent(page: Page): Promise<string | null> {
+  return page.evaluate(async () => {
+    const img = document.querySelector(
+      'img[alt^="Punch-needle pattern"]',
+    ) as HTMLImageElement | null;
+    if (!img?.src) return null;
+    const response = await fetch(img.src);
+    return response.text();
+  });
+}
+
+/**
  * New coverage for the combined-workspace change: rotation adjusted
  * directly from Workspace's own SimulationPanel controls (not just
  * Import's) must genuinely affect the live-regenerated relief, not be a
@@ -236,12 +261,17 @@ test('"Reset rotation" zeroes all three axes', async ({ page }) => {
  * former H1/H2/... coverage-percentage chip row (used here to detect that
  * regeneration produced different content) was removed, and rotation
  * controls now live behind the "Finished-piece simulation" tab rather than
- * always being visible. Replaced with the Pattern panel's own `<img>`
- * `src` (a fresh `blob:` URL, `usePatternSvgUrl.ts`) changing -- a new
- * object URL is only created when `regionMap` changes identity, which only
- * happens on a real, completed live-regeneration pass, so this still
- * proves the effect (not just that the control accepted input) rather
- * than merely proving pixel-identical visual difference.
+ * always being visible, which means proving the effect requires navigating
+ * away from the Pattern tab and back. An earlier version of this test
+ * compared the Pattern `<img>`'s `src` attribute before/after, which turned
+ * out to be a tautology once found by independent review: `PatternPanel`
+ * unmounts on every tab switch, and `usePatternSvgUrl.ts` creates a fresh
+ * `blob:` URL on every mount regardless of whether `regionMap` actually
+ * changed -- the src would differ after a bare tab round-trip even with no
+ * rotation change at all, so the old test could never fail. Fixed by
+ * comparing the actual fetched SVG *content* (`patternSvgContent` above)
+ * instead of the URL -- an unmount/remount with unchanged content
+ * serializes identically, so this only passes on a genuine regeneration.
  */
 test("rotating the model from Workspace's own controls changes the live-regenerated pattern", async ({
   page,
@@ -255,7 +285,8 @@ test("rotating the model from Workspace's own controls changes the live-regenera
   // extra navigation.
   const patternImg = page.getByAltText(/Punch-needle pattern/);
   await expect(patternImg).toBeVisible({ timeout: 15_000 });
-  const before = await patternImg.getAttribute('src');
+  const before = await patternSvgContent(page);
+  expect(before).not.toBeNull();
 
   // Switch to the Finished-piece simulation tab, where Workspace's own
   // rotation controls live -- both Import's and Workspace's copies share
@@ -274,12 +305,12 @@ test("rotating the model from Workspace's own controls changes the live-regenera
   await pitchInput.fill('45');
   await pitchInput.blur();
 
-  // Switch back to Pattern and poll for its <img> src to actually change,
-  // rather than the live pill -- the debounce+regeneration can complete
-  // fast enough between polls that a pill-based wait could trivially pass
-  // without ever observing the in-flight state. This asserts the *effect*
-  // (the pattern actually regenerated), which is what this test is really
-  // checking.
+  // Switch back to Pattern and poll for its rendered content to actually
+  // change, rather than the live pill -- the debounce+regeneration can
+  // complete fast enough between polls that a pill-based wait could
+  // trivially pass without ever observing the in-flight state. This
+  // asserts the *effect* (the pattern actually regenerated with different
+  // content), which is what this test is really checking.
   await page.getByRole('button', { name: 'Pattern' }).click();
-  await expect.poll(() => patternImg.getAttribute('src'), { timeout: 15_000 }).not.toBe(before);
+  await expect.poll(() => patternSvgContent(page), { timeout: 15_000 }).not.toBe(before);
 });

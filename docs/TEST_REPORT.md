@@ -588,8 +588,23 @@ issue -- the plan's proposed symmetric reuse of the single-sided
 columns share a height cap, and the plan's own proposed regression test
 would have passed vacuously; see `docs/DECISIONS.md` for the real
 fixed-height layout built instead), one against the finished diff
-afterward ([outcome recorded once run -- see the PR description for this
-branch for the full findings]).
+afterward. The second pass ran the full local gate and full e2e suite
+itself and confirmed the same results reported above, and found one real
+issue: `e2e/orient-persistence.spec.ts`'s "rotating the model...changes
+the live-regenerated pattern" test compared the Pattern `<img>`'s `src`
+attribute before/after, which turned out to be a tautology -- switching
+to the Finished-piece simulation tab (where the rotation control lives)
+and back unmounts and remounts `PatternPanel`, and `usePatternSvgUrl.ts`
+creates a fresh `blob:` object URL on every mount regardless of whether
+`regionMap` actually changed, so the test could never fail (confirmed by
+the reviewer reproducing the false-pass with the rotation step removed).
+Fixed by comparing the actual fetched SVG text content instead of the URL
+(`fetch(img.src).then(r => r.text())`, the same technique
+`e2e/print-emulation.spec.ts` already uses) -- see `docs/DECISIONS.md`.
+No other blocking issues found; everything else in the diff (the CSS
+mechanism, the mobile fallback, the `LegendEntry`/`Legend` split, the
+out-of-scope files staying untouched, the other e2e tests) was
+independently re-verified as correct.
 
 ## Session 1 (prior, sandboxed): what was reviewed manually
 

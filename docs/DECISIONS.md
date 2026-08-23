@@ -1851,13 +1851,27 @@ blind deletion:
   replacement signal, confirmed by reading that reducer case rather than
   assumed.
 - **"Rotation actually changed the regenerated pattern" signal**
-  (`e2e/orient-persistence.spec.ts`): replaced with the Pattern panel's
-  own `<img>` `src` attribute changing. `usePatternSvgUrl.ts` creates a
-  fresh `blob:` object URL only when `regionMap` changes identity, which
-  only happens on a real, completed live-regeneration pass -- this still
-  proves the _effect_ (a genuine new generation landed), even though,
-  like the chip-percentage comparison it replaces, it doesn't strictly
-  prove _visually_ different output.
+  (`e2e/orient-persistence.spec.ts`): the first version of this replacement
+  compared the Pattern panel's `<img>` `src` attribute before/after --
+  found to be a genuine tautology by the required independent
+  post-implementation review, not merely a theoretical risk: since
+  rotation controls now live behind the Finished-piece-simulation tab,
+  proving the effect requires switching tabs away from Pattern and back,
+  which unmounts and remounts `PatternPanel`. `usePatternSvgUrl.ts` creates
+  a fresh `blob:` object URL on _every mount_ of the hook, not only when
+  `regionMap` changes identity -- confirmed by reproducing the failure
+  mode directly (a bare tab round-trip with no rotation change in between
+  still produced a different `src`, so the original test could never
+  fail). Fixed by comparing the actual fetched SVG _content_ (`fetch(img
+.src).then(r => r.text())`, the same technique
+  `e2e/print-emulation.spec.ts` already uses) instead of the URL string --
+  an unmount/remount with an unchanged `regionMap` still serializes to
+  byte-identical SVG text, so only a genuine regeneration with different
+  region shapes can make this comparison fail. This still doesn't
+  strictly prove _visually_ different output (two different region
+  layouts could theoretically serialize to visually-similar-looking SVGs),
+  matching the same limitation the chip-percentage comparison it replaces
+  always had.
 - **Dropped, not replaced:** the former chip-based `nonZeroBands` check
   (asserting "Balanced by shape" quantization produces a real,
   non-degenerate distribution across bands, not just a level count) has
