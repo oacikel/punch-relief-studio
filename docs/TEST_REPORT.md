@@ -785,6 +785,42 @@ component's _total_ area, including the wide base they're attached to,
 cleared the threshold) are now correctly absorbed into neighboring
 regions.
 
+## Session 8: branch health and UX re-audit
+
+Run from the repository root on 2026-09-14 with Node 22 selected through
+the project's `.nvmrc`. `npm ci` first restored the lockfile's exact
+dependency tree because the existing local install was stale.
+
+`npm run verify` passed: formatting, lint, strict TypeScript checking, all
+**314 unit/component tests in 38 files**, and the production build. The
+build still reports its existing bundle-size warning (main JavaScript is
+about 725 kB minified / 199 kB gzip) and notes that `projectStore.ts` is
+both statically and dynamically imported, so that particular dynamic import
+does not create a separate chunk.
+
+`npm run test:e2e` passed against a freshly-built current-branch preview:
+**79 passed, 1 skipped** across desktop Chromium and the mobile-narrow
+project. The one skip is the intentional, pre-existing mobile PDF case.
+The mobile overflow regression now switches from Pattern to Finished-piece
+simulation before re-checking document width.
+
+Manual browser review covered Import, model orientation, needle diameter
+and throw input (`2.2` / `40`), Pattern, Finished-piece simulation, and the
+expanded Export & print panel at desktop and 390 px mobile widths. It found
+and fixed two UX defects:
+
+- the simulation canvas retained its desktop width after the layout became
+  narrow, producing document-level horizontal scrolling (measured before as
+  486 px content in a 375 px client width, and after as 375 px / 375 px);
+- built-in sample buttons used content-dependent widths instead of a clear,
+  consistent card layout.
+
+`npm audit --omit=dev` reported zero production dependency vulnerabilities.
+The full audit reports eight development-tool advisories in the current
+Vite/Vitest toolchain. React, React DOM, and Three.js also have newer major
+versions available; those are compatibility upgrades and were deliberately
+left out of this contained audit/fix.
+
 ## Session 1 (prior, sandboxed): what was reviewed manually
 
 This MVP was originally built in a sandboxed session with no outbound

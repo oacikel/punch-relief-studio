@@ -123,7 +123,7 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
  * width -- this test now exercises that against the new layout.
  */
 test.describe('Workspace mobile-narrow layout (Iteration 03 Round 2 #2)', () => {
-  test('Workspace has no horizontal overflow at 390px width, and the Export & print toggle is clickable', async ({
+  test('Workspace preview modes have no horizontal overflow at 390px width, and the Export & print toggle is clickable', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -139,6 +139,13 @@ test.describe('Workspace mobile-narrow layout (Iteration 03 Round 2 #2)', () => 
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     );
     expect(hasHorizontalOverflow).toBe(false);
+
+    await page.getByRole('button', { name: 'Finished-piece simulation' }).click();
+    await expect(page.getByRole('img', { name: 'Finished-piece simulation' })).toBeVisible();
+    const simulationHasHorizontalOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    );
+    expect(simulationHasHorizontalOverflow).toBe(false);
 
     // A real click, not just a visibility check -- this is exactly the
     // interaction the original bug broke (the toggle was "visible" per

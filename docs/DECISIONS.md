@@ -2237,3 +2237,20 @@ been corrupted by the locale bug rather than reflecting the constant
 itself still being wrong -- worth the product owner re-checking against a
 now-actually-correctly-parsed baseline rather than treating this as
 fully settled.
+
+## Responsive simulation canvas and consistent sample cards
+
+A later branch audit found that the finished-piece simulation's WebGL
+canvas kept the pixel width it had when mounted. If the browser was then
+narrowed, the surrounding layout became responsive but the canvas did not,
+so the Workspace overflowed horizontally on a phone-sized viewport. The
+simulation now observes its container and updates both the renderer size and
+camera aspect ratio whenever that container changes. The mobile overflow E2E
+check covers both Pattern and Finished-piece simulation modes so this cannot
+hide behind the default Pattern tab again.
+
+The same visual review found that the built-in sample buttons sized
+themselves from their description text, producing four unrelated-looking
+widths. They now use a responsive grid of equal-width cards: four columns
+when space permits and one readable column on narrow screens. This changes
+presentation only; sample selection and import behavior are unchanged.

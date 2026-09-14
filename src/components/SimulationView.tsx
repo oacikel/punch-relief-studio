@@ -99,6 +99,16 @@ export function SimulationView({
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
 
+    const resizeObserver = new ResizeObserver(() => {
+      const nextWidth = container.clientWidth;
+      const nextHeight = container.clientHeight;
+      if (nextWidth === 0 || nextHeight === 0) return;
+      renderer.setSize(nextWidth, nextHeight);
+      camera.aspect = nextWidth / nextHeight;
+      camera.updateProjectionMatrix();
+    });
+    resizeObserver.observe(container);
+
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
@@ -132,6 +142,7 @@ export function SimulationView({
 
     return () => {
       cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
       controls.dispose();
       mesh.geometry.dispose();
       material.dispose();

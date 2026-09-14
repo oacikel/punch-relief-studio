@@ -91,11 +91,15 @@ export function ImportStage({
         </summary>
         <div className="import-picker__body">
           <h3>Try a built-in sample</h3>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
+          <div className="sample-grid">
             {BUILTIN_SAMPLES.map((sample) => (
-              <button key={sample.id} type="button" onClick={() => onSelectSample(sample.id)}>
+              <button
+                className="sample-card"
+                key={sample.id}
+                type="button"
+                onClick={() => onSelectSample(sample.id)}
+              >
                 <strong>{sample.name}</strong>
-                <br />
                 <span className="helper-text">{sample.description}</span>
               </button>
             ))}

@@ -210,6 +210,21 @@ select:focus-visible {
   padding-top: var(--space-2);
 }
 
+.sample-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 12px;
+  margin-bottom: var(--space-4);
+}
+
+.sample-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-1);
+  text-align: left;
+}
+
 .warning-banner {
   background: #fbe9dd;
   border: 1px solid var(--color-accent);
@@ -264,6 +279,7 @@ select:focus-visible {
 
 .viewport-container {
   width: 100%;
+  min-width: 0;
   aspect-ratio: 4 / 3;
   background: #1c1b19;
   border-radius: var(--radius);
