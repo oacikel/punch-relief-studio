@@ -821,6 +821,29 @@ Vite/Vitest toolchain. React, React DOM, and Three.js also have newer major
 versions available; those are compatibility upgrades and were deliberately
 left out of this contained audit/fix.
 
+## Session 9: needle terminology and geometry simplification
+
+Run from the repository root on 2026-09-14. The needle-detail rule was
+simplified so the entered needle-tip diameter is the minimum physical width
+for every generated zone. Maximum needle length is optional and affects only
+the uncalibrated finished-piece simulation's pile-height range; changing it
+does not regenerate or simplify the pattern.
+
+`npm run verify` passed: formatting, lint, strict TypeScript checking, all
+**304 unit/component tests in 38 files**, and the production build. The two
+existing build warnings remain: the main bundle exceeds Vite's default size
+warning and `projectStore.ts` is imported both statically and dynamically.
+
+`npm run test:e2e` passed against a fresh current-branch preview: **79 passed,
+1 skipped** across desktop Chromium and the mobile-narrow project. The skip is
+the existing intentional mobile PDF case.
+
+Manual browser verification used the Fine Ridges sample. Changing maximum
+needle length from 40 mm to 30 mm kept the generated pattern unchanged, while
+changing needle-tip diameter from 2.2 mm to 1.6 mm regenerated it. The new
+1.3, 1.6, and 2.2 mm quick choices and their explanatory copy were also
+reviewed in the workspace.
+
 ## Session 1 (prior, sandboxed): what was reviewed manually
 
 This MVP was originally built in a sandboxed session with no outbound

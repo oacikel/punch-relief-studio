@@ -17,10 +17,8 @@ interface Props {
   heightIndex: Int16Array | null;
   width: number;
   height: number;
-  /** Needle diameter/throw, direct mm input (docs/ITERATION_04_PLAN.md) --
-   * drives the needle-geometry width floor that shapes the pattern during
-   * generation. `{diameterMm: 0, throwMm: 0}` (the default) means "not
-   * set," which disables the constraint entirely. */
+  /** Physical needle inputs. Diameter shapes the pattern; optional length
+   * affects only the simulated pile-height range. */
   needleGeometry: NeedleGeometry;
   onNeedleGeometryChange: (patch: Partial<NeedleGeometry>) => void;
 }
@@ -43,12 +41,10 @@ interface Props {
  * accepted as a prop: it was only ever used to build those chips --
  * `findSmallRegions` below needs only `heightIndex`/`width`/`height`.
  *
- * "Needle & pile" also gained two optional mm inputs (Iteration 04,
- * docs/ITERATION_04_PLAN.md): needle diameter/throw drive a needle-
- * geometry width floor that reshapes narrow regions during generation.
- * No warning banner and no per-region/per-level indicator for this one --
- * per explicit product-owner direction, the reshaped pattern is the only
- * signal surfaced.
+ * Needle-tip diameter reshapes narrow regions during generation. Optional
+ * maximum needle length changes only the uncalibrated simulation's relative
+ * pile-height range. The generated pattern itself remains the only signal
+ * for diameter-driven cleanup; there is no technical warning to interpret.
  */
 export function ReliefControls({
   settings,
@@ -90,16 +86,32 @@ export function ReliefControls({
         </div>
 
         <div className="field">
-          <label htmlFor="needle-diameter">Needle diameter (mm)</label>
+          <label htmlFor="needle-diameter">Needle tip diameter (mm)</label>
           <DecimalNumberInput
             id="needle-diameter"
             value={needleGeometry.diameterMm === 0 ? null : needleGeometry.diameterMm}
             placeholder="Not set"
             onChange={(diameterMm) => onNeedleGeometryChange({ diameterMm: diameterMm ?? 0 })}
           />
+          <div className="needle-size-presets" aria-label="Common embroidery needle sizes">
+            {[1.3, 1.6, 2.2].map((diameterMm) => (
+              <button
+                key={diameterMm}
+                type="button"
+                aria-pressed={needleGeometry.diameterMm === diameterMm}
+                onClick={() => onNeedleGeometryChange({ diameterMm })}
+              >
+                {diameterMm} mm
+              </button>
+            ))}
+          </div>
+          <p className="helper-text">
+            Sets the thinnest line or zone the pattern will keep. 1.3, 1.6, and 2.2 mm are common
+            fine-embroidery tip sizes.
+          </p>
         </div>
         <div className="field">
-          <label htmlFor="needle-throw">Needle throw / shaft length (mm)</label>
+          <label htmlFor="needle-throw">Maximum needle length (mm, optional)</label>
           <DecimalNumberInput
             id="needle-throw"
             value={needleGeometry.throwMm === 0 ? null : needleGeometry.throwMm}
@@ -107,8 +119,8 @@ export function ReliefControls({
             onChange={(throwMm) => onNeedleGeometryChange({ throwMm: throwMm ?? 0 })}
           />
           <p className="helper-text">
-            Both optional. When set, narrow regions are automatically widened to whatever your
-            needle can actually punch cleanly at each pile height.
+            Changes only the pile-height range in the finished-piece simulation. It does not change
+            pattern detail. Actual loop height also depends on yarn, fabric, and technique.
           </p>
         </div>
       </div>
@@ -132,9 +144,10 @@ export function ReliefControls({
         </div>
         {heightIndex && smallRegions.length > 0 && (
           <p role="alert" className="warning-banner">
-            {smallRegions.length} region{smallRegions.length === 1 ? '' : 's'} are smaller than the
-            minimum punchable size ({minRegionPx}px) and may be difficult to punch reliably.
-            Consider raising the minimum region size or lowering the level count.
+            {smallRegions.length} region{smallRegions.length === 1 ? '' : 's'}
+            {smallRegions.length === 1 ? ' is' : ' are'} smaller than the minimum punchable size (
+            {minRegionPx}px) and may be difficult to punch reliably. Consider raising the minimum
+            region size or lowering the level count.
           </p>
         )}
       </div>

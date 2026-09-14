@@ -326,6 +326,7 @@ export function Workspace({
                     legend={legend}
                     rotationDeg={rotationDeg}
                     onRotationChange={onRotationChange}
+                    needleGeometry={needleGeometry}
                   />
                 </div>
               )}

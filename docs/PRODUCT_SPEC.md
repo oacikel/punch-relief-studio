@@ -90,11 +90,11 @@ live finished-piece simulation without scrolling down, and I wouldn't
 have scrolled down if I didn't know it already existed there."_).
 
 **The control rail** (left column), top to bottom: **Needle & Pile**
-(pile-height count, "Number of pile heights" -- plus, as of Iteration 04,
-two optional "Needle diameter (mm)" / "Needle throw (mm)" fields; when
-set, they automatically widen narrow regions to whatever that needle can
-actually punch cleanly at each pile height, reshaping the generated
-pattern directly rather than surfacing a warning -- see
+(pile-height count, "Number of pile heights"; "Needle tip diameter" sets
+the minimum width retained in every height zone, with common 1.3/1.6/2.2 mm
+fine-embroidery choices; optional "Maximum needle length" affects only the
+relative pile-height range in the finished-piece simulation, never pattern
+detail -- see
 `docs/ITERATION_04_PLAN.md`), **Punch Detail** (the
 "Smallest punchable region" preset, with the small-region warning
 directly beneath it), **Shape Interpretation** (relief depth, smoothing,
@@ -105,8 +105,8 @@ own page), and **Export & Print** (physical dimensions, SVG/PNG/print-PDF
 export, project JSON save/load -- previously a panel at the bottom of the
 Preview page, now one more collapsed section in the rail). There is no
 manual "Generate relief" button: relief-generation-affecting settings
-(pile heights, punch detail, shape interpretation, model rotation, and, as
-of Iteration 04, needle diameter/throw and physical pattern Width/Height)
+(pile heights, punch detail, shape interpretation, model rotation, needle
+tip diameter, and physical pattern Width/Height)
 debounce into an automatic, live regeneration, reflected by a
 rail-heading status pill ("● Live — updates as you adjust" / "●
 Processing…"). Yarn-color and pattern-display changes update instantly

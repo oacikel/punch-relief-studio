@@ -227,7 +227,7 @@ describe('useLiveRelief', () => {
     expect(options.capture).toHaveBeenCalledTimes(2);
   });
 
-  it('re-triggers on a needleGeometry change alone, independent of reliefSettings', async () => {
+  it('re-triggers when needle diameter changes', async () => {
     const options = baseOptions();
     const { rerender } = renderHook((opts: UseLiveReliefOptions) => useLiveRelief(opts), {
       initialProps: options,
@@ -239,6 +239,20 @@ describe('useLiveRelief', () => {
     await vi.advanceTimersByTimeAsync(300);
 
     expect(options.capture).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not regenerate the 2D pattern when only maximum needle length changes', async () => {
+    const options = baseOptions();
+    const { rerender } = renderHook((opts: UseLiveReliefOptions) => useLiveRelief(opts), {
+      initialProps: options,
+    });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(options.capture).toHaveBeenCalledTimes(1);
+
+    rerender({ ...options, needleGeometry: { diameterMm: 0, throwMm: 40 } });
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(options.capture).toHaveBeenCalledTimes(1);
   });
 
   it('re-triggers on a patternDimensions change alone, independent of reliefSettings', async () => {

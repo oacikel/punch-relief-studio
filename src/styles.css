@@ -181,6 +181,22 @@ select:focus-visible {
   color: var(--color-ink-muted);
 }
 
+.needle-size-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.needle-size-presets button {
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.85rem;
+}
+
+.needle-size-presets button[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  background: #fbe9dd;
+}
+
 .helper-text {
   font-size: 0.85rem;
   color: var(--color-ink-muted);

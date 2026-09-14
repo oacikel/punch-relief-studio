@@ -19,7 +19,7 @@ import {
 import { cleanupTinyRegions, applyNeedleWidthOpening } from '@/domain/regionCleanup';
 import { computeLevelBounds, quantize } from '@/domain/quantize';
 import { minRegionPxForPreset } from '@/domain/pattern/minRegionPreset';
-import { isNeedleGeometrySet, minWidthPxForLevel } from '@/domain/pattern/needleGeometry';
+import { isNeedleDiameterSet, minimumZoneWidthPx } from '@/domain/pattern/needleGeometry';
 import type { NeedleGeometry } from '@/domain/pattern/needleGeometry';
 import type { ReliefSettings } from '@/domain/types';
 
@@ -31,10 +31,10 @@ export interface ProcessRequest {
   height: number;
   emptyValue: number;
   settings: ReliefSettings;
-  /** Needle-geometry width floor inputs (docs/ITERATION_04_PLAN.md) --
-   * `needleGeometry` defaults to "unset" (0,0), which disables the
-   * constraint; `patternDimensions` supplies the physical scale needed to
-   * convert `needleGeometry`'s mm values into raster pixels. */
+  /** Needle-tip diameter plus optional length. Diameter 0 disables the
+   * width floor; pattern dimensions provide the scale for mm-to-pixel
+   * conversion. Length is carried through state but not used by this 2D
+   * processing pipeline. */
   needleGeometry: NeedleGeometry;
   patternDimensions: { widthCm: number; heightCm: number };
   color?: { data: Uint8ClampedArray; channels: 3 | 4; paletteSize: number; seed: number };
@@ -80,7 +80,7 @@ self.onmessage = (event: MessageEvent<ProcessRequest>) => {
     const minRegionPx = minRegionPxForPreset(msg.settings.minRegionPreset, msg.width, msg.height);
     const cleanedFlat = cleanupTinyRegions(heightIndex, msg.width, msg.height, minRegionPx);
 
-    // Needle-diameter-driven width floor, per pile-height level -- a local-
+    // Needle-diameter-driven width floor, identical at every pile-height level -- a local-
     // thickness (morphological opening) check, not merely a whole-region
     // area check, so a region with plenty of total area but a thin neck or
     // spike still gets that thin part absorbed into a neighboring region
@@ -88,14 +88,12 @@ self.onmessage = (event: MessageEvent<ProcessRequest>) => {
     // local-thickness opening"). Shapes heightIndex directly, not a
     // warning (docs/ITERATION_04_PLAN.md §3); runs after (not instead of)
     // the flat preset-based cleanup above -- the two are independent
-    // floors. colorIndex below deliberately keeps the flat, preset-only
-    // threshold: pile height/loop height has no meaning for a color
-    // region.
-    const cleaned = isNeedleGeometrySet(msg.needleGeometry)
-      ? applyNeedleWidthOpening(cleanedFlat, msg.width, msg.height, (levelValue) => {
-          const widthPx = minWidthPxForLevel(
-            levelValue,
-            levels.length,
+    // floors. Needle length does not participate. colorIndex below
+    // deliberately keeps the flat, preset-only threshold: needle diameter
+    // describes physical punch detail, not source-color segmentation.
+    const cleaned = isNeedleDiameterSet(msg.needleGeometry)
+      ? applyNeedleWidthOpening(cleanedFlat, msg.width, msg.height, () => {
+          const widthPx = minimumZoneWidthPx(
             msg.needleGeometry,
             msg.patternDimensions.widthCm,
             msg.patternDimensions.heightCm,

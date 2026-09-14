@@ -120,10 +120,9 @@ export interface AppState {
   exportSettings: ExportSettings;
   patternViewSettings: PatternViewSettings;
   modelRotationDeg: RotationDeg;
-  /** Needle diameter/throw, direct mm input (docs/ITERATION_04_PLAN.md) --
-   * drives the needle-geometry width floor during relief generation.
-   * Default `{diameterMm: 0, throwMm: 0}` means "not set," which disables
-   * the constraint entirely rather than applying a fabricated floor. */
+  /** Physical needle inputs: diameter drives the generated width floor;
+   * optional length drives only the uncalibrated simulation's relative
+   * height range. Both default to 0 (not set). */
   needleGeometry: NeedleGeometry;
 }
 

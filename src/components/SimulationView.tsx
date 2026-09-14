@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { CalibrationProfile } from '@/domain/calibration';
 import type { LegendEntry } from '@/domain/pattern/legend';
+import { estimatedPileHeightStepCm, type NeedleGeometry } from '@/domain/pattern/needleGeometry';
 import type { HeightLevel, RegionMap } from '@/domain/types';
 import { buildReliefGeometry } from '@/three/buildReliefMesh';
 import type { RenderSettings } from '@/state/appState';
@@ -18,6 +19,7 @@ interface Props {
    * render from -- drives real per-region yarn color in the simulation
    * mesh (docs/ITERATION_03_PLAN.md #10) instead of a flat placeholder. */
   legend: LegendEntry[];
+  needleGeometry: NeedleGeometry;
 }
 
 type SimulationMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
@@ -65,6 +67,7 @@ export function SimulationView({
   heightCm,
   renderSettings,
   legend,
+  needleGeometry,
 }: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -164,12 +167,14 @@ export function SimulationView({
     const fabric = fabricRef.current;
     if (!scene || !camera || !mesh || !fabric) return;
 
+    const estimatedStep = estimatedPileHeightStepCm(levels.length, needleGeometry);
     const geometry = buildReliefGeometry(regionMap, {
       widthCm,
       heightCm,
       levels,
       profile,
       legend,
+      ...(estimatedStep !== null ? { fallbackHeightPerLevelCm: estimatedStep } : {}),
     });
     mesh.geometry.dispose();
     mesh.geometry = geometry;
@@ -181,7 +186,7 @@ export function SimulationView({
     const maxSpan = Math.max(widthCm, heightCm);
     camera.position.set(maxSpan * 0.6, maxSpan * 0.7, maxSpan * 0.9);
     camera.lookAt(0, 0, 0);
-  }, [regionMap, levels, profile, widthCm, heightCm, legend]);
+  }, [regionMap, levels, profile, widthCm, heightCm, legend, needleGeometry]);
 
   // Light/material effect: reposition the directional light and update
   // material properties in place. Never touches the camera, controls, or

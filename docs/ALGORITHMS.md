@@ -58,26 +58,10 @@ so the UI can warn the user rather than silently deleting geometry.
 
 ## Needle-geometry width constraint (`src/domain/pattern/needleGeometry.ts`)
 
-Optional, off by default (`diameterMm`/`throwMm` both `0`). When a user
-enters real needle diameter and throw (mm), each pile-height level gets a
-derived loop height (linear interpolation between `diameterMm`, the
-shortest possible loop, and `throwMm * 0.5`, the "practically usable"
-tallest loop) and a minimum region width driven by that loop height's
-_ratio_ to the diameter -- `MIN_WIDTH_MULTIPLIER_SHORT` (~1.4x) at ratio 1
-(loop height equals the diameter, the physical floor), linearly down to
-`MIN_WIDTH_MULTIPLIER_TALL` (~1x) once the ratio reaches
-`LOOP_HEIGHT_RATIO_CAP` (2.5) -- a shorter loop needs a proportionally wider
-region to read as a clean punched shape, and this single number is
-deliberately the only compensation surfaced anywhere (no separate
-"double-pass" indicator; see `docs/ITERATION_04_PLAN.md` §1 for why).
-Ratio-based rather than level-index-based on purpose: an earlier version
-derived the multiplier from the same level-index fraction the loop-height
-interpolation itself uses, which made `throwMm`'s actual magnitude cancel
-out of the result -- see `docs/DECISIONS.md`'s "Needle-width multiplier:
-ratio-based, not level-index-based" for the bug and the real-needle-spec
-trace that found it.
-
-Converted to a pixel width (`minWidthPxForLevel`) via the pattern's
+Needle-tip diameter is optional and off by default. When entered, it becomes
+the minimum local width for every height zone: a 2.2 mm tip produces a 2.2
+mm minimum width, independent of pile level or needle length. It is converted
+to raster pixels (`minimumZoneWidthPx`) via the pattern's
 physical `widthCm`/`heightCm` and enforced in `processing.worker.ts`, after
 the existing `minRegionPreset` cleanup pass, by `applyNeedleWidthOpening`
 (`src/domain/regionCleanup.ts`) -- shapes `heightIndex` directly during
@@ -93,6 +77,14 @@ area cleared the bar. See `docs/DECISIONS.md`'s "Needle-width floor: from
 area check to local-thickness opening" for the full account, and
 `docs/LIMITATIONS.md` for the approximations this version still carries
 (Chebyshev, not Euclidean, distance).
+
+Maximum needle length is a separate optional input. It never enters the 2D
+cleanup pipeline and changing it does not regenerate the pattern. For an
+uncalibrated finished-piece simulation, it supplies an estimated visual
+height step such that the tallest generated level is roughly half the
+entered exposed needle length. That estimate is intentionally not displayed
+as a measured loop height because yarn, fabric, tension, and technique affect
+the finished result.
 
 ## Color quantization (`src/domain/color/colorQuantize.ts`)
 

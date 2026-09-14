@@ -42,8 +42,11 @@ to discover.
    top of the rail briefly shows "● Processing…" while a change is being
    applied). The rail's groups, top to bottom:
 
-   - **Needle & pile**: how many distinct pile heights the pattern uses
-     ("Number of pile heights", 2-12).
+   - **Needle & pile**: choose how many distinct pile heights the pattern
+     uses (2-12). Enter the **needle tip diameter** to prevent lines and
+     zones narrower than the tool; common fine-embroidery tips are 1.3,
+     1.6, and 2.2 mm. **Maximum needle length** is optional and changes only
+     the height range shown in the finished-piece simulation.
    - **Punch detail**: "Smallest punchable region" -- pick "Fine detail",
      "Balanced" (the default), or "Bold & simple" to control how
      aggressively tiny, fiddly areas get removed. There's no separate

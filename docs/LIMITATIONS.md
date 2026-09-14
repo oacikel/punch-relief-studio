@@ -53,12 +53,12 @@
   `minRegionPreset` control and `smoothRelief`'s box-blur-not-bilateral
   approximation are both precedents for accepting a cheaper, honestly-
   documented approximation over an exact one here.
-  The needle-diameter/throw-to-minimum-width multiplier itself (1x-1.4x,
-  retuned twice already after real-needle testing against a 2.2mm/40mm
-  spec -- see docs/DECISIONS.md) is also a stated approximation from the
-  product owner's own experience, not a measured constant -- expected to
-  keep being adjusted as more real-world punching data comes in (see
-  `docs/ITERATION_04_PLAN.md` §6).
+  The minimum width is deliberately a simple one-to-one needle-tip-diameter
+  rule. Real results also depend on yarn, fabric weave, stitch spacing, and
+  technique, so future testing may justify a material-aware profile. The
+  optional maximum needle length uses a rough half-length estimate only to
+  scale the uncalibrated simulation; it is never presented as a measured
+  loop height and never changes pattern detail.
 
 - **Simplified edge-preserving smoothing.** `smoothRelief` blends a box blur
   with the original value, reducing (not eliminating) blur across strong

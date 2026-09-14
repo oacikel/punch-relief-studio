@@ -1,6 +1,7 @@
 import type { CalibrationProfile } from '@/domain/calibration';
 import type { LegendEntry } from '@/domain/pattern/legend';
 import type { HeightLevel, RegionMap } from '@/domain/types';
+import type { NeedleGeometry } from '@/domain/pattern/needleGeometry';
 import type { RenderSettings, RotationDeg } from '@/state/appState';
 import { SimulationView } from '@/components/SimulationView';
 import { RotationControls } from '@/components/RotationControls';
@@ -16,6 +17,7 @@ interface Props {
   legend: LegendEntry[];
   rotationDeg: RotationDeg;
   onRotationChange: (patch: Partial<RotationDeg>) => void;
+  needleGeometry: NeedleGeometry;
 }
 
 /**
@@ -42,6 +44,7 @@ export function SimulationPanel({
   legend,
   rotationDeg,
   onRotationChange,
+  needleGeometry,
 }: Props): JSX.Element {
   return (
     <div className="workspace-panel">
@@ -78,6 +81,7 @@ export function SimulationPanel({
         heightCm={heightCm}
         renderSettings={renderSettings}
         legend={legend}
+        needleGeometry={needleGeometry}
       />
       <RotationControls
         rotationDeg={rotationDeg}

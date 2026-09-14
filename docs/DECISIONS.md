@@ -2254,3 +2254,27 @@ themselves from their description text, producing four unrelated-looking
 widths. They now use a responsive grid of equal-width cards: four columns
 when space permits and one readable column on narrow screens. This changes
 presentation only; sample selection and import behavior are unchanged.
+
+## Separate needle-tip diameter from pile height
+
+Later product-owner testing concluded that the earlier diameter/throw/level
+ratio model made a simple craft decision needlessly technical. Manufacturer
+terminology supports separating the controls: DMC and Prym describe
+interchangeable **needle tips** by diameter (commonly 1.3, 1.6, and 2.2 mm
+for fine embroidery) and describe adjustable needle length as selecting
+loop length/height. Oxford likewise separates point width (Fine/Regular,
+chosen for yarn and detail) from numbered loop height.
+
+The generated pattern now uses one direct rule: minimum local zone width
+equals needle-tip diameter at every pile level. Diameter works without a
+length value. The persisted `throwMm` key remains for backward-compatible
+project JSON, but the UI calls it **Maximum needle length**. It does not
+enter pattern cleanup or trigger regeneration; when provided, it only scales
+the uncalibrated finished-piece simulation's relative height range using the
+existing rough half-length estimate. No estimated millimetre pile-height
+label is shown.
+
+Sources consulted: [DMC Fine Punch Needle Tool](https://www.dmc.com/IE/en-GB/products/fine-punch-needle-tool),
+[Prym Punch Needle](https://prymamericas.com/products/611708),
+[Oxford Punch Needle FAQ](https://amyoxford.com/pages/faq), and
+[Clover Punch Needle](https://www.clover-mfg.com/en/product/n8816/).

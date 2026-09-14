@@ -109,10 +109,12 @@ describe('ReliefControls', () => {
         height={height}
       />,
     );
-    expect(screen.getByRole('alert')).toHaveTextContent(/smaller than the minimum punchable size/);
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /1 region is smaller than the minimum punchable size/,
+    );
   });
 
-  it('renders the needle diameter/throw fields, blank by default', () => {
+  it('renders the needle diameter and optional length fields, blank by default', () => {
     render(
       <ReliefControls
         settings={DEFAULT_RELIEF_SETTINGS}
@@ -124,15 +126,15 @@ describe('ReliefControls', () => {
         height={0}
       />,
     );
-    const diameter = screen.getByLabelText('Needle diameter (mm)') as HTMLInputElement;
+    const diameter = screen.getByLabelText('Needle tip diameter (mm)') as HTMLInputElement;
     const throwField = screen.getByLabelText(
-      'Needle throw / shaft length (mm)',
+      'Maximum needle length (mm, optional)',
     ) as HTMLInputElement;
     expect(diameter.value).toBe('');
     expect(throwField.value).toBe('');
   });
 
-  it('shows the current needle diameter/throw values when set', () => {
+  it('shows the current needle diameter and length values when set', () => {
     render(
       <ReliefControls
         settings={DEFAULT_RELIEF_SETTINGS}
@@ -144,9 +146,9 @@ describe('ReliefControls', () => {
         height={0}
       />,
     );
-    expect((screen.getByLabelText('Needle diameter (mm)') as HTMLInputElement).value).toBe('2');
+    expect((screen.getByLabelText('Needle tip diameter (mm)') as HTMLInputElement).value).toBe('2');
     expect(
-      (screen.getByLabelText('Needle throw / shaft length (mm)') as HTMLInputElement).value,
+      (screen.getByLabelText('Maximum needle length (mm, optional)') as HTMLInputElement).value,
     ).toBe('40');
   });
 
@@ -163,8 +165,25 @@ describe('ReliefControls', () => {
         height={0}
       />,
     );
-    await userEvent.type(screen.getByLabelText('Needle diameter (mm)'), '2');
+    await userEvent.type(screen.getByLabelText('Needle tip diameter (mm)'), '2');
     expect(onNeedleGeometryChange).toHaveBeenLastCalledWith({ diameterMm: 2 });
+  });
+
+  it('offers common fine-embroidery tip sizes as one-click choices', async () => {
+    const onNeedleGeometryChange = vi.fn();
+    render(
+      <ReliefControls
+        settings={DEFAULT_RELIEF_SETTINGS}
+        onChange={vi.fn()}
+        needleGeometry={{ diameterMm: 0, throwMm: 0 }}
+        onNeedleGeometryChange={onNeedleGeometryChange}
+        heightIndex={null}
+        width={0}
+        height={0}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: '2.2 mm' }));
+    expect(onNeedleGeometryChange).toHaveBeenLastCalledWith({ diameterMm: 2.2 });
   });
 
   it('has no "Detail resolution" control anywhere', () => {

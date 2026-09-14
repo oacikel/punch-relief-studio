@@ -213,7 +213,7 @@ export function chebyshevDistanceTransform(
  *
  * `radiusForLevel(levelValue)` returns the erosion/dilation radius for
  * that level, in pixels -- roughly half the needle-driven minimum width in
- * px (see `src/domain/pattern/needleGeometry.ts`'s `minWidthPxForLevel`);
+ * px (see `src/domain/pattern/needleGeometry.ts`'s `minimumZoneWidthPx`);
  * `<= 0` means "no constraint for this level." Background (`-1`) is never
  * a source or a target.
  *

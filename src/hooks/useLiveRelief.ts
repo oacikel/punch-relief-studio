@@ -5,9 +5,9 @@
  * (pile heights, min-region preset, relief depth, smoothing, raise-near-
  * surfaces, quantization mode, edge preservation, model rotation, the
  * camera's chosen viewpoint (standard-view button clicks and settled
- * OrbitControls orbit/pan/zoom, both surfaced via `viewNonce`), needle
- * diameter/throw, and physical pattern Width/Height (the last two join this
- * list per docs/ITERATION_04_PLAN.md -- the needle-geometry width floor
+ * OrbitControls orbit/pan/zoom, both surfaced via `viewNonce`), needle-tip
+ * diameter, and physical pattern Width/Height (the last two join this list
+ * per docs/ITERATION_04_PLAN.md -- the diameter width floor
  * needs physical scale to convert its mm inputs into raster pixels) --
  * NOT yarn color/palette/view-mode/grid/label/pile-style/lighting changes,
  * which only affect rendering and never reach this hook) into a single
@@ -65,10 +65,9 @@ export interface UseLiveReliefOptions {
    * value's reference/primitive identity matters (a plain incrementing
    * counter), same as `reliefSettings`/`rotationDeg` below. */
   viewNonce: number;
-  /** Needle-geometry width floor inputs (docs/ITERATION_04_PLAN.md) --
-   * `needleGeometry` defaults to "unset" (0,0), which disables the
-   * constraint; `patternDimensions` supplies the physical scale needed to
-   * convert `needleGeometry`'s mm values into raster pixels. */
+  /** Needle-tip diameter drives the width floor. Optional needle length is
+   * carried in the same persisted object but affects only simulation and is
+   * deliberately excluded from this hook's regeneration triggers. */
   needleGeometry: NeedleGeometry;
   patternDimensions: { widthCm: number; heightCm: number };
   /** Whether the *next* triggered generation should ask for source-material
@@ -134,11 +133,11 @@ export function useLiveRelief(options: UseLiveReliefOptions): void {
     }, debounceMs);
 
     return () => clearTimeout(timeoutId);
-    // reliefSettings/rotationDeg/viewNonce/needleGeometry/patternDimensions
+    // reliefSettings/rotationDeg/viewNonce/needle diameter/patternDimensions
     // are the actual regen-affecting triggers (reliefSettings/rotationDeg/
-    // needleGeometry/patternDimensions compared by reference -- every
-    // dispatch that changes them produces a new object, per appState.ts's
-    // reducer; viewNonce is a plain incrementing counter bumped by the
+    // patternDimensions is compared by reference; needle length is excluded
+    // because it affects only the simulation, while diameter is the sole
+    // physical-detail trigger. viewNonce is a plain incrementing counter bumped by the
     // caller on every real camera-orientation change -- see the field's
     // doc comment above -- so this is a correct and sufficient dependency
     // list). Everything else this effect reads goes through
@@ -150,7 +149,7 @@ export function useLiveRelief(options: UseLiveReliefOptions): void {
     options.reliefSettings,
     options.rotationDeg,
     options.viewNonce,
-    options.needleGeometry,
+    options.needleGeometry.diameterMm,
     options.patternDimensions,
   ]);
 }
