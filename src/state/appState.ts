@@ -103,7 +103,7 @@ export interface ProcessedResult {
 }
 
 export interface AppState {
-  sourceKind: 'none' | 'built-in-sample' | 'user-file';
+  sourceKind: 'none' | 'built-in-sample' | 'user-file' | 'image-file';
   sampleId: string | null;
   sourceFilename: string | null;
   reliefSettings: ReliefSettings;

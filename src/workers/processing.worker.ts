@@ -22,6 +22,8 @@ import { minRegionPxForPreset } from '@/domain/pattern/minRegionPreset';
 import { isNeedleDiameterSet, minimumZoneWidthPx } from '@/domain/pattern/needleGeometry';
 import type { NeedleGeometry } from '@/domain/pattern/needleGeometry';
 import type { ReliefSettings } from '@/domain/types';
+import { simplifyImage, type ImageSimplificationSettings } from '@/domain/image/simplifyImage';
+import { normalizedDepth } from '@/domain/units';
 
 export interface ProcessRequest {
   type: 'process';
@@ -40,6 +42,15 @@ export interface ProcessRequest {
   color?: { data: Uint8ClampedArray; channels: 3 | 4; paletteSize: number; seed: number };
 }
 
+export interface ProcessImageRequest {
+  type: 'process-image';
+  requestId: string;
+  rgba: Uint8ClampedArray;
+  width: number;
+  height: number;
+  settings: ImageSimplificationSettings;
+}
+
 export interface ProcessResponse {
   type: 'processed';
   requestId: string;
@@ -55,10 +66,26 @@ export interface ProcessErrorResponse {
   message: string;
 }
 
-self.onmessage = (event: MessageEvent<ProcessRequest>) => {
+self.onmessage = (event: MessageEvent<ProcessRequest | ProcessImageRequest>) => {
   const msg = event.data;
-  if (msg.type !== 'process') return;
   try {
+    if (msg.type === 'process-image') {
+      const result = simplifyImage(msg.rgba, msg.width, msg.height, msg.settings);
+      const response: ProcessResponse = {
+        type: 'processed',
+        requestId: msg.requestId,
+        heightIndex: result.heightIndex,
+        levels: [{ index: 0, lowerBound: normalizedDepth(0), upperBound: normalizedDepth(1) }],
+        colorIndex: result.colorIndex,
+        palette: result.palette,
+      };
+      (self as unknown as Worker).postMessage(response, [
+        result.heightIndex.buffer,
+        result.colorIndex.buffer,
+      ]);
+      return;
+    }
+
     const mask = buildForegroundMask(msg.depth, msg.width, msg.height, msg.emptyValue);
     let field = normalizeDepth(msg.depth, mask);
     field = invertRelief(field, msg.settings.invert);

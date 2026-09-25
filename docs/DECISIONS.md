@@ -2278,3 +2278,24 @@ Sources consulted: [DMC Fine Punch Needle Tool](https://www.dmc.com/IE/en-GB/pro
 [Prym Punch Needle](https://prymamericas.com/products/611708),
 [Oxford Punch Needle FAQ](https://amyoxford.com/pages/faq), and
 [Clover Punch Needle](https://www.clover-mfg.com/en/product/n8816/).
+
+## 2D images use spatial craft simplification, not pixelation
+
+The image workflow deliberately shares the existing `RegionMap` boundary with
+3D relief processing. A worker-side, deterministic pipeline performs
+edge-aware smoothing, Lab palette reduction, color-aware connected-component
+merging, and the same physical needle-width opening used by relief zones. This
+keeps texture/noise from becoming hundreds of disconnected yarn islands and
+makes finished size and needle diameter affect the generated color shapes.
+
+Imported images start with exactly one pile height. Luminance is not mapped to
+height automatically because a flat image cannot distinguish object form from
+lighting or painted shading; presenting that inference as relief would be
+misleading. Users can still choose a single yarn or edit the derived image
+palette, while richer manual height assignment remains a future extension.
+
+No remote model or generative service is used. Processing remains local,
+offline-capable, deterministic for identical pixels/settings, and runs in the
+existing worker. The original image is exposed as a comparison tab but, like
+user-imported meshes, is not embedded in project JSON; reopening requires the
+source file to be selected again.

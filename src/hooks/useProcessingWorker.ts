@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type {
   ProcessErrorResponse,
+  ProcessImageRequest,
   ProcessRequest,
   ProcessResponse,
 } from '@/workers/processing.worker';
@@ -23,8 +24,11 @@ export interface ProcessArgs {
   color?: { data: Uint8ClampedArray; channels: 3 | 4; paletteSize: number; seed: number };
 }
 
+export type ImageProcessArgs = Omit<ProcessImageRequest, 'type' | 'requestId'>;
+
 export function useProcessingWorker(): {
   process: (args: ProcessArgs) => Promise<ProcessResponse>;
+  processImage: (args: ImageProcessArgs) => Promise<ProcessResponse>;
 } {
   const workerRef = useRef<Worker | null>(null);
   const pending = useRef(
@@ -61,5 +65,25 @@ export function useProcessingWorker(): {
     });
   }, []);
 
-  return { process };
+  const processImage = useCallback((args: ImageProcessArgs): Promise<ProcessResponse> => {
+    return new Promise((resolve, reject) => {
+      const worker = workerRef.current;
+      if (!worker) {
+        reject(new Error('Processing worker is not ready yet.'));
+        return;
+      }
+      const requestId = crypto.randomUUID();
+      pending.current.set(requestId, { resolve, reject });
+      const rgba = args.rgba.slice();
+      const request: ProcessImageRequest = {
+        type: 'process-image',
+        requestId,
+        ...args,
+        rgba,
+      };
+      worker.postMessage(request, [rgba.buffer]);
+    });
+  }, []);
+
+  return { process, processImage };
 }

@@ -1,6 +1,6 @@
 # Product Specification — Punch Relief Studio
 
-Tagline: _Turn 3D models into sculptural punch-needle patterns._
+Tagline: _Turn images and 3D models into punchable textile patterns._
 
 ## 1. Problem
 
@@ -26,7 +26,8 @@ slicer turns a mesh into printable layers. Here, the "slices" are:
 ## 3. MVP Boundary
 
 In scope: local, client-side, no-account, deterministic pipeline covering
-Import (incl. orientation and model-straightening rotation) → a combined
+3D-model import (incl. orientation and model-straightening rotation) or
+PNG/JPEG/WebP image import → a combined
 Workspace (relief generation, height levels, yarn color, preview, and
 export all in one persistent view, live-updating as settings change --
 see §6), three built-in sample models, a calibration-profile system
@@ -40,8 +41,9 @@ true undercut/volumetric reconstruction.
 
 ## 4. Users & Core Questions
 
-Target user: a punch-needle hobbyist or small-batch maker who has a 3D model
-(or wants to try a sample) and wants a pattern they can actually punch. The
+Target user: a punch-needle hobbyist or small-batch maker who has a 3D model,
+photo, or illustration (or wants to try a sample) and wants a pattern they
+can actually punch. The
 product must let them answer, without guessing: which yarn color goes where,
 how big the finished piece will be, what the stepped relief will look like
 punched, whether the simplified image is still recognizable, and whether the
@@ -80,6 +82,15 @@ upload.
 Import is unchanged in spirit: pick a sample or drag in a file, then (once
 a model has loaded) orient/straighten it via the same orientation section
 and Roll/Pitch/Yaw rotation controls as before.
+
+For a 2D image, Import accepts PNG, JPEG, or WebP and opens the Workspace
+directly. The image path is not pixel enlargement: an edge-aware smoothing
+pass reduces texture, a deterministic perceptual palette limits yarn colors,
+and connected color regions are merged according to size, shared boundary,
+color similarity, the selected detail preset, and the physical needle width.
+The first image workflow intentionally uses one pile height; image brightness
+is not treated as physical depth. A Source image preview tab supports direct
+comparison with the generated Pattern.
 
 **Workspace is a true 50/50 two-column split, both columns independently
 scrollable and capped to the viewport height** (reworked from the

@@ -2,6 +2,7 @@ import type { ColorMode, ColorSwatch, RgbColor } from '@/domain/types';
 import { COLOR_STORY_PALETTES } from '@/domain/color/palettes';
 
 interface Props {
+  isImageSource?: boolean;
   mode: ColorMode;
   swatches: ColorSwatch[];
   paletteSize: number;
@@ -35,6 +36,7 @@ function fromHex(hex: string): RgbColor {
  * "control-group">`/`<h3>` group matching the rail's other sections.
  */
 export function YarnColorsGroup({
+  isImageSource = false,
   mode,
   swatches,
   paletteSize,
@@ -71,16 +73,20 @@ export function YarnColorsGroup({
           Single yarn -- whole pattern is one color
         </label>
         <br />
-        <label>
-          <input
-            type="radio"
-            name="color-mode"
-            checked={mode === 'by-height'}
-            onChange={() => onModeChange('by-height')}
-          />{' '}
-          Color by height -- each level gets its own color
-        </label>
-        <br />
+        {!isImageSource && (
+          <>
+            <label>
+              <input
+                type="radio"
+                name="color-mode"
+                checked={mode === 'by-height'}
+                onChange={() => onModeChange('by-height')}
+              />{' '}
+              Color by height -- each level gets its own color
+            </label>
+            <br />
+          </>
+        )}
         <label>
           <input
             type="radio"
@@ -89,8 +95,11 @@ export function YarnColorsGroup({
             disabled={!hasSourceColor}
             onChange={() => onModeChange('source-material')}
           />{' '}
-          Source-material color
-          {!hasSourceColor && ' (unavailable -- this import has no color/material data)'}
+          {isImageSource ? 'Simplified image palette' : 'Source-material color'}
+          {!hasSourceColor &&
+            (isImageSource
+              ? ' (available after processing)'
+              : ' (unavailable -- this import has no color/material data)')}
         </label>
       </fieldset>
 
@@ -105,6 +114,11 @@ export function YarnColorsGroup({
             value={paletteSize}
             onChange={(e) => onPaletteSizeChange(Number(e.target.value))}
           />
+          {isImageSource && (
+            <p className="helper-text">
+              Sets the maximum number of yarn colors. Similar neighboring areas are combined.
+            </p>
+          )}
         </div>
       )}
 

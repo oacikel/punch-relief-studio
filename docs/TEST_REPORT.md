@@ -865,6 +865,33 @@ and the 390 px mobile layout. A Playwright CLI run was attempted but could not
 start because the active shell exposed Node 18.20.0 while this Playwright
 version requires Node 20 or newer (and the project itself declares Node 22).
 
+## Session 11: smart 2D image patterns
+
+Run from the repository root on 2026-09-25. Added local PNG/JPEG/WebP import,
+worker-side edge-aware image simplification, connected color-region merging,
+physical needle-width cleanup for color zones, image-specific controls, and a
+source-vs-pattern comparison view.
+
+`npm run typecheck`, `npm run lint`, and all **317 unit/component tests in 40
+files** passed. The new pure-domain tests cover determinism, one-height output,
+tiny-speck merging, transparent background handling, all-transparent rejection,
+and physical needle-width simplification.
+
+`e2e/image-workflow.spec.ts` passed in both desktop Chromium and the
+mobile-narrow project (**2 passed**) using Node 22. It generates a PNG in the
+browser, imports it, waits for smart-zone processing, compares the original
+source, and verifies the simplified image palette controls.
+
+The full `npm run test:e2e` suite was also attempted with Node 22. It is not a
+green gate in the current repository: older specs still look for superseded UI
+copy and controls such as “Import a model,” “Orient the model,” “Continue to
+Workspace,” always-visible Yarn/Export controls, and “Finished-piece
+simulation.” The accessibility sweep additionally reports pre-existing color
+contrast failures for the current coral eyebrow and muted tab colors. Those
+failures reproduce outside the new image path; the new image-workflow spec is
+green. Existing E2E files were left unchanged rather than folding an unrelated
+test-suite migration into this feature.
+
 ## Session 1 (prior, sandboxed): what was reviewed manually
 
 This MVP was originally built in a sandboxed session with no outbound

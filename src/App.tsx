@@ -24,11 +24,14 @@ import { downloadText } from '@/export/download';
 import { PROJECT_SCHEMA_VERSION, type ProjectFile } from '@/domain/projectSchema';
 import type { DepthCaptureResult } from '@/three/depthCapture';
 import type { ColorSwatch, RegionMap, RgbColor } from '@/domain/types';
+import { decodeImageFile, type DecodedImage } from '@/image/decodeImage';
 
 export default function App(): JSX.Element {
   const [workflow, dispatchWorkflow] = useReducer(workflowReducer, undefined, initialWorkflowState);
   const [state, dispatch] = useReducer(appReducer, undefined, initialAppState);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
+  const [imageRaster, setImageRaster] = useState<DecodedImage | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [importWarning, setImportWarning] = useState<string | null>(null);
   // Bumped whenever the 3D viewport's camera is reoriented for a
   // user-driven reason (a standard-view button click, or a settled
@@ -45,7 +48,8 @@ export default function App(): JSX.Element {
   const [viewNonce, setViewNonce] = useState(0);
   const onViewChange = useCallback(() => setViewNonce((n) => n + 1), []);
   const viewportHandle = useRef<Viewport3DHandle | null>(null);
-  const { process } = useProcessingWorker();
+  const { process, processImage } = useProcessingWorker();
+  const imageProcessGeneration = useRef(0);
 
   // Loads any locally-saved calibration profiles into state even though
   // there's currently no UI surface that reads state.savedProfiles --
@@ -56,6 +60,13 @@ export default function App(): JSX.Element {
   useEffect(() => {
     dispatch({ type: 'SET_SAVED_PROFILES', profiles: loadProfiles() });
   }, []);
+
+  useEffect(
+    () => () => {
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    },
+    [imagePreviewUrl],
+  );
 
   // Workspace two-column redesign: both columns are independently,
   // internally scrollable (`.workspace-controls-col`/`.workspace-preview-col`,
@@ -102,6 +113,8 @@ export default function App(): JSX.Element {
     const sample = getSampleById(sampleId);
     if (!sample) return;
     setGeometry(meshDataToGeometry(sample.generate()));
+    setImageRaster(null);
+    setImagePreviewUrl(null);
     dispatch({ type: 'SET_SOURCE', sourceKind: 'built-in-sample', sampleId });
     dispatchWorkflow({ type: 'MODEL_LOADED' });
     // Iteration 02 Stage A: orientation now happens on the Import stage
@@ -117,6 +130,8 @@ export default function App(): JSX.Element {
       if (stl) {
         const geo = await parseStlFile(stl);
         setGeometry(geo);
+        setImageRaster(null);
+        setImagePreviewUrl(null);
         dispatch({ type: 'SET_SOURCE', sourceKind: 'user-file', filename: stl.name });
       } else if (obj) {
         const others = files.filter((f) => f !== obj);
@@ -134,6 +149,8 @@ export default function App(): JSX.Element {
         merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         merged.computeVertexNormals();
         setGeometry(merged);
+        setImageRaster(null);
+        setImagePreviewUrl(null);
         dispatch({ type: 'SET_SOURCE', sourceKind: 'user-file', filename: obj.name });
       } else {
         setImportWarning('No .stl or .obj file found among the dropped files.');
@@ -144,6 +161,30 @@ export default function App(): JSX.Element {
       // shows the orientation section once hasModel is true.
     } catch (err) {
       setImportWarning(err instanceof Error ? err.message : 'Import failed.');
+    }
+  };
+
+  const handleImageSelected = async (file: File): Promise<void> => {
+    setImportWarning(null);
+    try {
+      const decoded = await decodeImageFile(file, Number(state.reliefSettings.outputResolutionPx));
+      setGeometry(null);
+      setImageRaster(decoded);
+      setImagePreviewUrl(URL.createObjectURL(file));
+      dispatch({ type: 'SET_SOURCE', sourceKind: 'image-file', filename: file.name });
+      dispatch({ type: 'SET_COLOR_MODE', mode: 'source-material' });
+      dispatch({
+        type: 'SET_PATTERN_DIMENSIONS',
+        dimensions: {
+          widthCm: 20,
+          heightCm: Math.max(1, Math.round((20 * decoded.height * 10) / decoded.width) / 10),
+          lockAspect: true,
+        },
+      });
+      dispatchWorkflow({ type: 'MODEL_LOADED' });
+      dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' });
+    } catch (err) {
+      setImportWarning(err instanceof Error ? err.message : 'Could not import this image.');
     }
   };
 
@@ -192,7 +233,7 @@ export default function App(): JSX.Element {
   );
 
   useLiveRelief({
-    hasModel: workflow.hasModel,
+    hasModel: workflow.hasModel && state.sourceKind !== 'image-file',
     reliefSettings: state.reliefSettings,
     rotationDeg: state.modelRotationDeg,
     viewNonce,
@@ -223,6 +264,70 @@ export default function App(): JSX.Element {
       }),
     onError: (message) => dispatch({ type: 'PROCESSING_FAILED', message }),
   });
+
+  useEffect(() => {
+    const generation = ++imageProcessGeneration.current;
+    if (state.sourceKind !== 'image-file' || !imageRaster) return;
+    const timer = window.setTimeout(() => {
+      dispatch({ type: 'PROCESSING_STARTED' });
+      void processImage({
+        rgba: imageRaster.rgba,
+        width: imageRaster.width,
+        height: imageRaster.height,
+        settings: {
+          paletteSize: state.paletteSize,
+          detail: state.reliefSettings.minRegionPreset,
+          smoothingStrength: state.reliefSettings.smoothingStrength,
+          edgePreservation: state.reliefSettings.edgePreservation,
+          seed: state.reliefSettings.seed,
+          needleGeometry: state.needleGeometry,
+          patternDimensions: state.patternDimensions,
+        },
+      })
+        .then((result) => {
+          if (generation !== imageProcessGeneration.current) return;
+          dispatch({
+            type: 'PROCESSING_SUCCEEDED',
+            result: {
+              width: imageRaster.width,
+              height: imageRaster.height,
+              heightIndex: result.heightIndex,
+              colorIndex: result.colorIndex ?? new Int16Array(result.heightIndex.length).fill(0),
+              levels: result.levels,
+            },
+          });
+          if (result.palette && result.palette.length > 0) {
+            dispatch({
+              type: 'SET_SWATCHES',
+              swatches: result.palette.map((color, index) => ({
+                index,
+                color,
+                yarnName: `Image color ${index + 1}`,
+              })),
+            });
+          }
+        })
+        .catch((err: unknown) => {
+          if (generation !== imageProcessGeneration.current) return;
+          dispatch({
+            type: 'PROCESSING_FAILED',
+            message: err instanceof Error ? err.message : 'Image processing failed.',
+          });
+        });
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [
+    imageRaster,
+    processImage,
+    state.sourceKind,
+    state.paletteSize,
+    state.reliefSettings.minRegionPreset,
+    state.reliefSettings.smoothingStrength,
+    state.reliefSettings.edgePreservation,
+    state.reliefSettings.seed,
+    state.needleGeometry,
+    state.patternDimensions,
+  ]);
 
   const regionMap: RegionMap | null = useMemo(() => {
     if (!state.processed) return null;
@@ -264,6 +369,7 @@ export default function App(): JSX.Element {
     if (state.sourceKind === 'user-file') {
       return state.sourceFilename;
     }
+    if (state.sourceKind === 'image-file') return state.sourceFilename;
     return null;
   }, [state.sourceKind, state.sampleId, state.sourceFilename]);
 
@@ -287,7 +393,10 @@ export default function App(): JSX.Element {
               ...(state.sampleId ? { sampleId: state.sampleId } : {}),
             }
           : {
-              kind: 'user-file' as const,
+              kind:
+                state.sourceKind === 'image-file'
+                  ? ('image-file' as const)
+                  : ('user-file' as const),
               ...(state.sourceFilename ? { originalFilename: state.sourceFilename } : {}),
             },
       patternDimensions: state.patternDimensions,
@@ -426,6 +535,7 @@ export default function App(): JSX.Element {
               <ImportStage
                 onSelectSample={handleSelectSample}
                 onFilesSelected={(files) => void handleFilesSelected(files)}
+                onImageSelected={(file) => void handleImageSelected(file)}
                 hasModel={workflow.hasModel}
                 loadedModelLabel={loadedModelLabel}
               />
@@ -437,11 +547,13 @@ export default function App(): JSX.Element {
             </>
           )}
 
-          {workflow.currentStage === 'import' && workflow.hasModel && (
-            <ImportOrientSection
-              onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
-            />
-          )}
+          {workflow.currentStage === 'import' &&
+            workflow.hasModel &&
+            state.sourceKind !== 'image-file' && (
+              <ImportOrientSection
+                onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
+              />
+            )}
 
           {/* Rendered once, unconditionally, for both stages that need it, so
               the orientation/rotation chosen on Import survives navigating on
@@ -461,7 +573,8 @@ export default function App(): JSX.Element {
               interactive rotation controls in the DOM alongside Workspace's
               own `SimulationPanel` copy -- see docs/DECISIONS.md. */}
           {(workflow.currentStage === 'import' || workflow.currentStage === 'workspace') &&
-            workflow.hasModel && (
+            workflow.hasModel &&
+            state.sourceKind !== 'image-file' && (
               <div
                 className={
                   workflow.currentStage === 'workspace'
@@ -485,6 +598,8 @@ export default function App(): JSX.Element {
 
           {workflow.currentStage === 'workspace' && (
             <Workspace
+              isImageSource={state.sourceKind === 'image-file'}
+              sourceImageUrl={imagePreviewUrl}
               reliefSettings={state.reliefSettings}
               onReliefSettingsChange={(patch) =>
                 dispatch({ type: 'SET_RELIEF_SETTINGS', settings: patch })

@@ -5,6 +5,7 @@ import { validateFile } from '@/domain/import/validation';
 interface Props {
   onSelectSample: (sampleId: string) => void;
   onFilesSelected: (files: File[]) => void;
+  onImageSelected: (file: File) => void;
   /** Usability fix (docs/DECISIONS.md): whether a model has already been
    * loaded (from `workflow.hasModel`, the same signal that gates
    * `ImportOrientSection` in App.tsx -- reused here rather than inventing a
@@ -45,12 +46,14 @@ interface Props {
 export function ImportStage({
   onSelectSample,
   onFilesSelected,
+  onImageSelected,
   hasModel,
   loadedModelLabel,
 }: Props): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleFiles = (fileList: FileList | File[]): void => {
     const files = Array.from(fileList);
@@ -69,9 +72,9 @@ export function ImportStage({
   return (
     <section className="stage-panel" aria-labelledby="import-heading">
       <p className="eyebrow">Start a new pattern</p>
-      <h2 id="import-heading">Choose a 3D model</h2>
+      <h2 id="import-heading">Choose what to turn into a pattern</h2>
       <p className="stage-lede">
-        Pick a sample or bring your own STL or OBJ. Everything stays private in your browser.
+        Start from a 3D relief or a flat image. Everything stays private in your browser.
       </p>
 
       {/* Usability fix (docs/DECISIONS.md): `open={!hasModel}` is only
@@ -85,8 +88,8 @@ export function ImportStage({
       <details className="import-picker" open={!hasModel}>
         <summary>
           {hasModel
-            ? `Model loaded: ${loadedModelLabel ?? 'your model'} — choose a different file`
-            : 'Choose a model to import'}
+            ? `Source loaded: ${loadedModelLabel ?? 'your source'} — choose a different file`
+            : 'Choose a source to import'}
         </summary>
         <div className="import-picker__body">
           <h3>Start with a sample</h3>
@@ -141,6 +144,38 @@ export function ImportStage({
               className="visually-hidden"
               onChange={(e) => e.target.files && handleFiles(e.target.files)}
               aria-label="Choose model files to import"
+            />
+          </div>
+
+          <div className="section-divider">
+            <span>or use a flat image</span>
+          </div>
+          <div className="image-import-card">
+            <div>
+              <h3>Turn a 2D image into punchable zones</h3>
+              <p className="helper-text">
+                Photos and artwork are simplified into connected yarn-color shapes—not enlarged
+                pixels. PNG, JPEG, or WebP.
+              </p>
+            </div>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+            >
+              Choose an image
+            </button>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+              className="visually-hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onImageSelected(file);
+                event.target.value = '';
+              }}
+              aria-label="Choose image to import"
             />
           </div>
         </div>

@@ -15,7 +15,7 @@ export interface ProjectFile {
   appVersion: string;
   createdAt: string; // ISO 8601
   sourceModel: {
-    kind: 'built-in-sample' | 'user-file';
+    kind: 'built-in-sample' | 'user-file' | 'image-file';
     sampleId?: string;
     /** Filename only, for display -- the file itself is never embedded. */
     originalFilename?: string;

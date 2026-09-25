@@ -101,3 +101,15 @@ describe('parseProjectFile needleGeometry field (Iteration 04)', () => {
     expect(parsed.needleGeometry).toEqual({ diameterMm: 2, throwMm: 40 });
   });
 });
+
+describe('parseProjectFile image source', () => {
+  it('accepts image metadata without embedding the original file', () => {
+    const project = makeValidProject();
+    project.sourceModel = { kind: 'image-file', originalFilename: 'portrait.png' };
+    const parsed = parseProjectFile(project);
+    expect(parsed.sourceModel).toEqual({
+      kind: 'image-file',
+      originalFilename: 'portrait.png',
+    });
+  });
+});

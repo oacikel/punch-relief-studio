@@ -9,6 +9,7 @@ describe('ImportStage', () => {
       <ImportStage
         onSelectSample={vi.fn()}
         onFilesSelected={vi.fn()}
+        onImageSelected={vi.fn()}
         hasModel={false}
         loadedModelLabel={null}
       />,
@@ -24,6 +25,7 @@ describe('ImportStage', () => {
       <ImportStage
         onSelectSample={onSelectSample}
         onFilesSelected={vi.fn()}
+        onImageSelected={vi.fn()}
         hasModel={false}
         loadedModelLabel={null}
       />,
@@ -37,6 +39,7 @@ describe('ImportStage', () => {
       <ImportStage
         onSelectSample={vi.fn()}
         onFilesSelected={vi.fn()}
+        onImageSelected={vi.fn()}
         hasModel={false}
         loadedModelLabel={null}
       />,
@@ -56,6 +59,7 @@ describe('ImportStage', () => {
         <ImportStage
           onSelectSample={vi.fn()}
           onFilesSelected={vi.fn()}
+          onImageSelected={vi.fn()}
           hasModel={false}
           loadedModelLabel={null}
         />,
@@ -70,13 +74,14 @@ describe('ImportStage', () => {
         <ImportStage
           onSelectSample={vi.fn()}
           onFilesSelected={vi.fn()}
+          onImageSelected={vi.fn()}
           hasModel={true}
           loadedModelLabel="Concentric Ripple"
         />,
       );
       const details = container.querySelector<HTMLDetailsElement>('details.import-picker');
       expect(details?.open).toBe(false);
-      expect(screen.getByText(/Model loaded: Concentric Ripple/)).toBeInTheDocument();
+      expect(screen.getByText(/Source loaded: Concentric Ripple/)).toBeInTheDocument();
     });
 
     it('lets the user re-expand the collapsed picker and pick a different sample', async () => {
@@ -85,6 +90,7 @@ describe('ImportStage', () => {
         <ImportStage
           onSelectSample={onSelectSample}
           onFilesSelected={vi.fn()}
+          onImageSelected={vi.fn()}
           hasModel={true}
           loadedModelLabel="Concentric Ripple"
         />,

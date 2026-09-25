@@ -24,8 +24,9 @@ import { ReliefControls } from '@/components/workspace/ReliefControls';
 import { YarnColorsGroup } from '@/components/workspace/YarnColorsGroup';
 import { PatternPanel } from '@/components/workspace/PatternPanel';
 import { SimulationPanel } from '@/components/workspace/SimulationPanel';
+import { ImageShapeControls } from '@/components/workspace/ImageShapeControls';
 
-type PreviewTab = 'pattern' | 'simulation';
+type PreviewTab = 'source' | 'pattern' | 'simulation';
 type EditorStep = 'shape' | 'color' | 'export';
 
 const EDITOR_STEPS: Array<{ id: EditorStep; number: string; label: string }> = [
@@ -42,6 +43,8 @@ interface ProcessedForDisplay {
 }
 
 interface Props {
+  isImageSource?: boolean;
+  sourceImageUrl?: string | null;
   reliefSettings: ReliefSettings;
   onReliefSettingsChange: (patch: Partial<ReliefSettings>) => void;
   processed: ProcessedForDisplay | null;
@@ -111,6 +114,8 @@ interface Props {
  * `regionMap`/`processed` data either tab renders from.
  */
 export function Workspace({
+  isImageSource = false,
+  sourceImageUrl = null,
   reliefSettings,
   onReliefSettingsChange,
   processed,
@@ -214,22 +219,33 @@ export function Workspace({
           </nav>
 
           <div className="editor-step-content">
-            {editorStep === 'shape' && (
-              <ReliefControls
-                settings={reliefSettings}
-                onChange={onReliefSettingsChange}
-                heightIndex={processed?.heightIndex ?? null}
-                width={processed?.width ?? 0}
-                height={processed?.height ?? 0}
-                needleGeometry={needleGeometry}
-                onNeedleGeometryChange={onNeedleGeometryChange}
-                dimensions={dimensions}
-                onDimensionsChange={onDimensionsChange}
-              />
-            )}
+            {editorStep === 'shape' &&
+              (isImageSource ? (
+                <ImageShapeControls
+                  settings={reliefSettings}
+                  onChange={onReliefSettingsChange}
+                  needleGeometry={needleGeometry}
+                  onNeedleGeometryChange={onNeedleGeometryChange}
+                  dimensions={dimensions}
+                  onDimensionsChange={onDimensionsChange}
+                />
+              ) : (
+                <ReliefControls
+                  settings={reliefSettings}
+                  onChange={onReliefSettingsChange}
+                  heightIndex={processed?.heightIndex ?? null}
+                  width={processed?.width ?? 0}
+                  height={processed?.height ?? 0}
+                  needleGeometry={needleGeometry}
+                  onNeedleGeometryChange={onNeedleGeometryChange}
+                  dimensions={dimensions}
+                  onDimensionsChange={onDimensionsChange}
+                />
+              ))}
 
             {editorStep === 'color' && (
               <YarnColorsGroup
+                isImageSource={isImageSource}
                 mode={colorMode}
                 swatches={swatches}
                 paletteSize={paletteSize}
@@ -333,6 +349,15 @@ export function Workspace({
                 accessibility sweep). `role="group"` + `aria-pressed`
                 already communicates the toggle relationship without it. */}
             <div className="workspace-tabs" role="group" aria-label="Preview mode">
+              {isImageSource && sourceImageUrl && (
+                <button
+                  type="button"
+                  aria-pressed={previewTab === 'source'}
+                  onClick={() => setPreviewTab('source')}
+                >
+                  Source image
+                </button>
+              )}
               <button
                 type="button"
                 aria-pressed={previewTab === 'pattern'}
@@ -360,7 +385,12 @@ export function Workspace({
                 heights or setting needle geometry) is still in flight
                 rather than looking like the input was ignored. */}
             <div className="workspace-preview-content">
-              {previewTab === 'pattern' ? (
+              {previewTab === 'source' && sourceImageUrl ? (
+                <div className="source-image-preview">
+                  <img src={sourceImageUrl} alt="Original imported source" />
+                  <p>Original image—switch back to Pattern to compare the simplified yarn zones.</p>
+                </div>
+              ) : previewTab === 'pattern' ? (
                 <div>
                   <PatternPanel
                     regionMap={regionMap}

@@ -97,6 +97,26 @@ centroid means -> repeat until no assignment changes). Determinism comes
 from: a fixed-seed xorshift32 PRNG (`src/domain/random.ts`) instead of
 `Math.random()`, and iterating pixels in a fixed row-major order.
 
+## 2D image simplification (`src/domain/image/simplifyImage.ts`)
+
+PNG/JPEG/WebP files are decoded and downsampled in `src/image/decodeImage.ts`,
+then transferred as plain RGBA data to the processing worker. Alpha defines
+the punchable foreground; an entirely transparent source is rejected rather
+than silently producing a blank pattern.
+
+The pure domain pipeline applies a small bilateral-style filter whose color
+weight falls across strong edges, quantizes the filtered image in Lab space,
+then reasons over 4-connected regions rather than isolated pixels. Regions
+below the image-detail threshold are repeatedly merged into a neighbor using
+a score that combines shared-boundary length and perceptual color distance.
+Fine/Balanced/Bold add progressively stronger local-width cleanup. When a
+needle-tip diameter is set, its physical millimetre width is converted through
+the finished pattern size and combined with that preset floor before the
+existing morphological opening is applied. Unused palette entries are removed
+and indices compacted. The output uses a single height level and the standard
+`RegionMap`, so preview, simulation, legend, and export remain shared with the
+3D workflow.
+
 ## Calibration (`src/domain/calibration.ts`)
 
 A profile's needle settings are user-entered; `mapHeightLevelToSetting`

@@ -25,9 +25,9 @@ export function ModelBar({ modelLabel, onChangeModel }: Props): JSX.Element {
     // rule (found via this feature's own e2e accessibility sweep) requires
     // all page content to be contained by a landmark -- this bar sits as a
     // plain sibling of `<header>`/`<main>`, outside both.
-    <div className="model-bar" role="region" aria-label="Loaded model">
+    <div className="model-bar" role="region" aria-label="Loaded source">
       <p className="model-bar__label">
-        Model: <strong>{modelLabel ?? 'untitled'}</strong>
+        Source: <strong>{modelLabel ?? 'untitled'}</strong>
       </p>
       <button type="button" onClick={onChangeModel}>
         Change
