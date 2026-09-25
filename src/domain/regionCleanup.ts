@@ -58,8 +58,10 @@ export function findConnectedComponents(
 /**
  * Reassign pixels of components smaller than `minSizePx` to the value of
  * their largest bordering component. Iterates smallest-first so cleanup
- * cascades sensibly; components with no valid (non-background) neighbor
- * are left unchanged rather than deleted, avoiding data loss.
+ * cascades sensibly. A disconnected speck with only background around it
+ * is removed when another real component exists; the sole remaining
+ * component is never deleted, so an unusually thin model cannot silently
+ * turn into an empty pattern.
  */
 export function cleanupTinyRegions(
   index: Int16Array,
@@ -98,7 +100,13 @@ export function cleanupTinyRegions(
           neighborCounts.set(v, (neighborCounts.get(v) ?? 0) + 1);
         }
       }
-      if (neighborCounts.size === 0) continue;
+      if (neighborCounts.size === 0) {
+        if (components.length > 1) {
+          for (const i of comp.pixels) result[i] = -1;
+          changed = true;
+        }
+        continue;
+      }
       let bestValue = comp.levelValue;
       let bestCount = -1;
       for (const [value, count] of neighborCounts) {

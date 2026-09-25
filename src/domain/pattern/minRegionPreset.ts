@@ -23,9 +23,9 @@ export const MIN_REGION_PRESET_LABELS: Record<MinRegionPreset, string> = {
 };
 
 export const MIN_REGION_PRESET_DESCRIPTIONS: Record<MinRegionPreset, string> = {
-  fine: 'Keeps small isolated areas -- more detail, more tiny regions to punch.',
-  balanced: 'Removes only the tiniest slivers -- a good default for most patterns.',
-  bold: 'Removes small areas more aggressively for a simpler, easier-to-punch pattern.',
+  fine: 'Automatically removes only obvious specks while keeping most small details.',
+  balanced: 'Automatically removes tiny specks and slivers -- a good default for most patterns.',
+  bold: 'Automatically merges more small details for a simpler, easier-to-punch pattern.',
 };
 
 /** Fraction of the raster canvas area (width * height, in pixels) below

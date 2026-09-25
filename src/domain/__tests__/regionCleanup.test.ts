@@ -49,6 +49,18 @@ describe('cleanupTinyRegions', () => {
     const result = cleanupTinyRegions(index, 3, 1, 1);
     expect(Array.from(result)).toEqual([0, 1, 0]);
   });
+
+  it('automatically removes a disconnected speck when a main shape exists', () => {
+    const index = Int16Array.from([0, 0, 0, -1, 2, -1]);
+    const result = cleanupTinyRegions(index, 6, 1, 2);
+    expect(Array.from(result)).toEqual([0, 0, 0, -1, -1, -1]);
+  });
+
+  it('does not erase the whole pattern when its only component is below the threshold', () => {
+    const index = Int16Array.from([-1, 2, -1]);
+    const result = cleanupTinyRegions(index, 3, 1, 5);
+    expect(Array.from(result)).toEqual([-1, 2, -1]);
+  });
 });
 
 describe('chebyshevDistanceTransform', () => {

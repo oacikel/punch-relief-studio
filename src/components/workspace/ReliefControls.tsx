@@ -121,10 +121,8 @@ export function ReliefControls({
       </div>
       {heightIndex && smallRegions.length > 0 && (
         <p role="alert" className="warning-banner">
-          {smallRegions.length} region{smallRegions.length === 1 ? '' : 's'}
-          {smallRegions.length === 1 ? ' is' : ' are'} smaller than the minimum punchable size (
-          {minRegionPx}px) and may be difficult to punch reliably. Consider raising the minimum
-          region size or lowering the level count.
+          This shape is too small to simplify without removing it completely. Try making the
+          finished piece larger, choosing a closer model view, or using fewer pile heights.
         </p>
       )}
       <div className="field">

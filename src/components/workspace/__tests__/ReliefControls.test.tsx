@@ -143,8 +143,9 @@ describe('ReliefControls', () => {
       />,
     );
     expect(screen.getByRole('alert')).toHaveTextContent(
-      /1 region is smaller than the minimum punchable size/,
+      /too small to simplify without removing it completely/,
     );
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/px/);
   });
 
   it('renders the needle diameter and optional length fields, blank by default', () => {
