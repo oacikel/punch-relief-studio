@@ -388,8 +388,14 @@ export default function App(): JSX.Element {
         }
       >
         <header className="app-header">
-          <h1>{APP_NAME}</h1>
-          <p>{APP_TAGLINE}</p>
+          <div className="brand-mark" aria-hidden="true">
+            P
+          </div>
+          <div>
+            <h1>{APP_NAME}</h1>
+            <p>{APP_TAGLINE}</p>
+          </div>
+          <span className="app-version">v{APP_VERSION}</span>
         </header>
         {/* Ambient "current model" indicator (Workspace two-column
             redesign), replacing the former StageNav sidebar. Deliberately
@@ -431,6 +437,12 @@ export default function App(): JSX.Element {
             </>
           )}
 
+          {workflow.currentStage === 'import' && workflow.hasModel && (
+            <ImportOrientSection
+              onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
+            />
+          )}
+
           {/* Rendered once, unconditionally, for both stages that need it, so
               the orientation/rotation chosen on Import survives navigating on
               to Workspace instead of resetting to the default camera on
@@ -470,23 +482,6 @@ export default function App(): JSX.Element {
                 />
               </div>
             )}
-
-          {/* Usability fix #2 (docs/DECISIONS.md): rendered in a new slot
-              positioned after the (otherwise untouched) Viewport3D block
-              above, instead of before it, so the 3D viewport a user is
-              meant to orient is visible near the fold instead of being
-              pushed below it by this section's own heading/text/button.
-              This is a real DOM reorder, not a CSS `order` trick -- it
-              does not move Viewport3D's own conditional block at all
-              (still the same array position among <main>'s children on
-              every render), so the "never remount across Import <->
-              Workspace" guarantee (e2e/orient-persistence.spec.ts) is
-              unaffected; only ImportOrientSection's position moved. */}
-          {workflow.currentStage === 'import' && workflow.hasModel && (
-            <ImportOrientSection
-              onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
-            />
-          )}
 
           {workflow.currentStage === 'workspace' && (
             <Workspace

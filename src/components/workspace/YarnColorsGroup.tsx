@@ -51,7 +51,13 @@ export function YarnColorsGroup({
       id="rail-yarn-colors"
       aria-labelledby="color-heading"
     >
-      <h3 id="color-heading">Yarn colors</h3>
+      <div className="section-intro">
+        <span className="section-number">2</span>
+        <div>
+          <h3 id="color-heading">Choose your yarn</h3>
+          <p>Start simple, then add a palette only if the design needs it.</p>
+        </div>
+      </div>
 
       <fieldset className="field">
         <legend>Color mode</legend>

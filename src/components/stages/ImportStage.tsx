@@ -68,11 +68,10 @@ export function ImportStage({
 
   return (
     <section className="stage-panel" aria-labelledby="import-heading">
-      <h2 id="import-heading">Import a model</h2>
-      <p className="helper-text">
-        Supported formats: binary or ASCII STL, and OBJ (optionally with a matching .mtl and its
-        local texture images -- drop them all in together). Nothing you import ever leaves your
-        browser.
+      <p className="eyebrow">Start a new pattern</p>
+      <h2 id="import-heading">Choose a 3D model</h2>
+      <p className="stage-lede">
+        Pick a sample or bring your own STL or OBJ. Everything stays private in your browser.
       </p>
 
       {/* Usability fix (docs/DECISIONS.md): `open={!hasModel}` is only
@@ -90,7 +89,7 @@ export function ImportStage({
             : 'Choose a model to import'}
         </summary>
         <div className="import-picker__body">
-          <h3>Try a built-in sample</h3>
+          <h3>Start with a sample</h3>
           <div className="sample-grid">
             {BUILTIN_SAMPLES.map((sample) => (
               <button
@@ -105,8 +104,12 @@ export function ImportStage({
             ))}
           </div>
 
-          <h3>Or import your own</h3>
+          <div className="section-divider">
+            <span>or</span>
+          </div>
+          <h3>Import your own</h3>
           <div
+            className={dragActive ? 'drop-zone drop-zone--active' : 'drop-zone'}
             onDragOver={(e) => {
               e.preventDefault();
               setDragActive(true);
@@ -117,15 +120,17 @@ export function ImportStage({
               setDragActive(false);
               handleFiles(e.dataTransfer.files);
             }}
-            style={{
-              border: `2px dashed ${dragActive ? 'var(--color-accent)' : 'var(--color-border)'}`,
-              borderRadius: 8,
-              padding: 32,
-              textAlign: 'center',
-            }}
           >
-            <p>Drag and drop your STL or OBJ (+ MTL + textures) here</p>
-            <button type="button" onClick={() => inputRef.current?.click()}>
+            <span className="drop-zone__icon" aria-hidden="true">
+              ↥
+            </span>
+            <strong>Drop your model here</strong>
+            <p className="helper-text">STL or OBJ, including local MTL and texture files</p>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => inputRef.current?.click()}
+            >
               Choose files
             </button>
             <input
@@ -160,16 +165,17 @@ interface OrientSectionProps {
  * viewport itself renders separately (see ImportStage's own doc comment). */
 export function ImportOrientSection({ onContinue }: OrientSectionProps): JSX.Element {
   return (
-    <section className="stage-panel" aria-labelledby="orient-heading">
-      <h2 id="orient-heading">Orient the model</h2>
-      <p className="helper-text">
-        Rotate, pan, and zoom to choose the viewpoint the pattern will be generated from. This view
-        determines the relief -- only the surface visible from this single viewpoint becomes the
-        pattern, so occluded and back surfaces will not appear in the result. This is a front-view
-        bas-relief interpretation, not a full 3D reconstruction.
-      </p>
-      <button type="button" onClick={onContinue}>
-        Continue to Workspace &rarr;
+    <section className="stage-panel orient-actions" aria-labelledby="orient-heading">
+      <div>
+        <p className="eyebrow">Almost there</p>
+        <h2 id="orient-heading">Is this the view you want?</h2>
+        <p className="helper-text">
+          The visible surface becomes your pattern. Hidden and back surfaces are not included, so
+          this is a single-viewpoint relief rather than a full 3D reconstruction.
+        </p>
+      </div>
+      <button className="primary-button" type="button" onClick={onContinue}>
+        Create my pattern &rarr;
       </button>
     </section>
   );

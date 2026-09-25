@@ -107,14 +107,14 @@ describe('ImportStage', () => {
 describe('ImportOrientSection', () => {
   it('shows the single-viewpoint/no-undercuts honesty copy', () => {
     render(<ImportOrientSection onContinue={vi.fn()} />);
-    expect(screen.getByRole('heading', { name: 'Orient the model' })).toBeInTheDocument();
-    expect(screen.getByText(/occluded and back surfaces will not appear/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Is this the view you want?' })).toBeInTheDocument();
+    expect(screen.getByText(/single-viewpoint relief rather than a full 3D/i)).toBeInTheDocument();
   });
 
   it('calls onContinue when the user is done orienting', async () => {
     const onContinue = vi.fn();
     render(<ImportOrientSection onContinue={onContinue} />);
-    await userEvent.click(screen.getByRole('button', { name: /Continue to Workspace/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Create my pattern/i }));
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
 });

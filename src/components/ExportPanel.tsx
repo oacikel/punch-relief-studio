@@ -8,7 +8,7 @@ import { downloadSvg, svgToPngBlob, downloadBlob } from '@/export/download';
 import { computeTiling, cmToCssPx } from '@/export/printTiling';
 import { withExtension } from '@/domain/filenameSanitize';
 import { usePatternSvgUrl } from '@/hooks/usePatternSvgUrl';
-import { DecimalNumberInput } from '@/components/DecimalNumberInput';
+import { PatternSizeFields } from '@/components/PatternSizeFields';
 import type { ProjectFile } from '@/domain/projectSchema';
 
 interface Props {
@@ -197,40 +197,11 @@ export function ExportPanel({
       >
         <summary>Export &amp; print</summary>
         <div className="export-controls">
-          <div className="field">
-            <label htmlFor="width-cm">Width (cm)</label>
-            <DecimalNumberInput
-              id="width-cm"
-              value={dimensions.widthCm}
-              onChange={(widthCm) => {
-                if (widthCm === null || !Number.isFinite(widthCm) || widthCm <= 0) return; // ignore empty/zero/negative input rather than propagating it
-                const heightCm =
-                  dimensions.lockAspect && dimensions.widthCm > 0
-                    ? (widthCm / dimensions.widthCm) * dimensions.heightCm
-                    : dimensions.heightCm;
-                onDimensionsChange({ widthCm, heightCm });
-              }}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="height-cm">Height (cm)</label>
-            <DecimalNumberInput
-              id="height-cm"
-              value={dimensions.heightCm}
-              onChange={(heightCm) => {
-                if (heightCm === null || !Number.isFinite(heightCm) || heightCm <= 0) return;
-                onDimensionsChange({ heightCm });
-              }}
-            />
-          </div>
-          <label>
-            <input
-              type="checkbox"
-              checked={dimensions.lockAspect}
-              onChange={(e) => onDimensionsChange({ lockAspect: e.target.checked })}
-            />{' '}
-            Lock aspect ratio
-          </label>
+          <PatternSizeFields
+            dimensions={dimensions}
+            onChange={onDimensionsChange}
+            idPrefix="export"
+          />
 
           <p className="helper-text">
             Export and print always match what Preview is currently showing above -- pattern view,

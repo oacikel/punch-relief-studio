@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Workspace } from '../Workspace';
 import { DEFAULT_RELIEF_SETTINGS } from '@/domain/types';
 import type { RegionMap, HeightLevel } from '@/domain/types';
@@ -79,7 +80,7 @@ function baseProps() {
 describe('Workspace', () => {
   it('shows the rail heading with no status pill when idle', () => {
     render(<Workspace {...baseProps()} />);
-    expect(screen.getByRole('heading', { name: 'Workspace' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Make it punchable' })).toBeInTheDocument();
     expect(screen.queryByText(/Processing…/)).not.toBeInTheDocument();
   });
 
@@ -93,21 +94,23 @@ describe('Workspace', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong.');
   });
 
-  it('renders the rail control groups even before the first relief has generated', () => {
+  it('shows one setup step at a time instead of every control group at once', async () => {
     render(<Workspace {...baseProps()} />);
-    expect(screen.getByRole('heading', { name: 'Needle & pile' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Punch detail' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Shape interpretation' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Yarn colors' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Shape the relief' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Choose your yarn' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: '2 Yarn' }));
+    expect(screen.getByRole('heading', { name: 'Choose your yarn' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Shape the relief' })).not.toBeInTheDocument();
   });
 
-  it('shows placeholders for the preview panels and export panel before the first relief generates', () => {
+  it('shows clear generating and export placeholders before the first relief generates', async () => {
     render(<Workspace {...baseProps()} />);
     expect(screen.getByText(/Generating your first relief/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/Export & print will be available once the first relief has generated/),
-    ).toBeInTheDocument();
     expect(screen.queryByRole('group', { name: 'Pattern view' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: '3 Export' }));
+    expect(screen.getByText(/Export options will appear as soon as/)).toBeInTheDocument();
   });
 
   it('has no rail jump-nav anywhere (removed in the Workspace two-column redesign)', () => {
@@ -175,9 +178,7 @@ describe('Workspace (ready state, preview tab switch)', () => {
     render(<Workspace {...readyProps()} />);
 
     const patternTab = screen.getByRole('button', { name: 'Pattern' });
-    const simulationTab = screen.getByRole('button', {
-      name: 'Finished-piece simulation',
-    });
+    const simulationTab = screen.getByRole('button', { name: 'Textile preview' });
     expect(patternTab).toHaveAttribute('aria-pressed', 'true');
     expect(simulationTab).toHaveAttribute('aria-pressed', 'false');
 

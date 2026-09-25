@@ -304,7 +304,7 @@ export function Viewport3D({
     contentBoxRef.current = geometry.boundingBox ? geometry.boundingBox.clone() : null;
 
     const material = new THREE.MeshStandardMaterial({
-      color: 0xb5563c,
+      color: 0xef6548,
       roughness: 0.8,
       metalness: 0.05,
     });

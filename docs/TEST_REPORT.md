@@ -844,6 +844,27 @@ changing needle-tip diameter from 2.2 mm to 1.6 mm regenerated it. The new
 1.3, 1.6, and 2.2 mm quick choices and their explanatory copy were also
 reviewed in the workspace.
 
+## Session 10: guided editor redesign
+
+Run from the repository root on 2026-09-25. The import and workspace UI were
+redesigned around a short Shape → Yarn → Export flow with a persistent live
+preview, progressive disclosure for needle-specific settings, and a refreshed
+responsive visual system.
+
+`npm run typecheck`, `npm run lint`, all **309 unit/component tests in 39
+files**, and `npm run build` passed. The count includes the follow-up that
+moved physical pattern size into Shape because it participates in
+needle-width cleanup, plus aspect-ratio tests in both resize directions. The
+two existing build warnings remain:
+the main bundle exceeds Vite's default size warning and `projectStore.ts` is
+imported both statically and dynamically.
+
+Manual browser verification covered Import, the above-the-fold orientation
+action, all three editor steps, the pattern/textile preview switch, Export,
+and the 390 px mobile layout. A Playwright CLI run was attempted but could not
+start because the active shell exposed Node 18.20.0 while this Playwright
+version requires Node 20 or newer (and the project itself declares Node 22).
+
 ## Session 1 (prior, sandboxed): what was reviewed manually
 
 This MVP was originally built in a sandboxed session with no outbound

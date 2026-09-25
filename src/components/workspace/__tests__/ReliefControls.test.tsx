@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event';
 import { ReliefControls } from '../ReliefControls';
 import { DEFAULT_RELIEF_SETTINGS } from '@/domain/types';
 
+const sizeProps = {
+  dimensions: { widthCm: 20, heightCm: 20, lockAspect: true },
+  onDimensionsChange: vi.fn(),
+};
+
 /**
  * Combined-workspace change (docs/ITERATION_03_PLAN.md #13): `ReliefControls`
  * replaces `ReliefStage` (Needle & pile / Punch detail / Shape
@@ -21,6 +26,7 @@ describe('ReliefControls', () => {
   it('renders the Basic controls with their accessible names, and no Generate button', () => {
     render(
       <ReliefControls
+        {...sizeProps}
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
         needleGeometry={{ diameterMm: 0, throwMm: 0 }}
@@ -42,6 +48,7 @@ describe('ReliefControls', () => {
   it('allows the full widened 2-12 height-level range', () => {
     render(
       <ReliefControls
+        {...sizeProps}
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
         needleGeometry={{ diameterMm: 0, throwMm: 0 }}
@@ -56,9 +63,33 @@ describe('ReliefControls', () => {
     expect(slider.max).toBe('12');
   });
 
+  it('edits physical pattern size in Shape because it affects needle-width cleanup', async () => {
+    const onDimensionsChange = vi.fn();
+    render(
+      <ReliefControls
+        dimensions={{ widthCm: 20, heightCm: 10, lockAspect: true }}
+        onDimensionsChange={onDimensionsChange}
+        settings={DEFAULT_RELIEF_SETTINGS}
+        onChange={vi.fn()}
+        needleGeometry={{ diameterMm: 0, throwMm: 0 }}
+        onNeedleGeometryChange={vi.fn()}
+        heightIndex={null}
+        width={0}
+        height={0}
+      />,
+    );
+
+    const widthField = screen.getByLabelText('Width (cm)');
+    await userEvent.clear(widthField);
+    await userEvent.type(widthField, '30');
+    expect(onDimensionsChange).toHaveBeenLastCalledWith({ widthCm: 30, heightCm: 15 });
+    expect(screen.getByText(/Physical size is part of the pattern calculation/)).toBeVisible();
+  });
+
   it('keeps Advanced controls collapsed until their disclosure is opened', async () => {
     render(
       <ReliefControls
+        {...sizeProps}
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
         needleGeometry={{ diameterMm: 0, throwMm: 0 }}
@@ -69,13 +100,14 @@ describe('ReliefControls', () => {
       />,
     );
     expect(screen.getByLabelText('Height band spacing')).not.toBeVisible();
-    await userEvent.click(screen.getByText('Advanced shape controls'));
+    await userEvent.click(screen.getByText('Needle & advanced settings'));
     expect(screen.getByLabelText('Height band spacing')).toBeVisible();
   });
 
   it('has no pile-height coverage chip readout anywhere (removed in the Workspace redesign)', () => {
     render(
       <ReliefControls
+        {...sizeProps}
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
         needleGeometry={{ diameterMm: 0, throwMm: 0 }}
@@ -100,6 +132,7 @@ describe('ReliefControls', () => {
     heightIndex[0] = 0; // one isolated foreground pixel
     render(
       <ReliefControls
+        {...sizeProps}
         settings={{ ...DEFAULT_RELIEF_SETTINGS, minRegionPreset: 'bold' }}
         onChange={vi.fn()}
         needleGeometry={{ diameterMm: 0, throwMm: 0 }}
@@ -117,6 +150,7 @@ describe('ReliefControls', () => {
   it('renders the needle diameter and optional length fields, blank by default', () => {
     render(
       <ReliefControls
+        {...sizeProps}
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
         needleGeometry={{ diameterMm: 0, throwMm: 0 }}
@@ -137,6 +171,7 @@ describe('ReliefControls', () => {
   it('shows the current needle diameter and length values when set', () => {
     render(
       <ReliefControls
+        {...sizeProps}
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
         needleGeometry={{ diameterMm: 2, throwMm: 40 }}
@@ -156,6 +191,7 @@ describe('ReliefControls', () => {
     const onNeedleGeometryChange = vi.fn();
     render(
       <ReliefControls
+        {...sizeProps}
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
         needleGeometry={{ diameterMm: 0, throwMm: 0 }}
@@ -173,6 +209,7 @@ describe('ReliefControls', () => {
     const onNeedleGeometryChange = vi.fn();
     render(
       <ReliefControls
+        {...sizeProps}
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
         needleGeometry={{ diameterMm: 0, throwMm: 0 }}
@@ -189,6 +226,7 @@ describe('ReliefControls', () => {
   it('has no "Detail resolution" control anywhere', () => {
     render(
       <ReliefControls
+        {...sizeProps}
         settings={DEFAULT_RELIEF_SETTINGS}
         onChange={vi.fn()}
         needleGeometry={{ diameterMm: 0, throwMm: 0 }}

@@ -37,8 +37,8 @@ test.describe('main workflow', () => {
     await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
 
     // Move to the combined Workspace.
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
-    await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
+    await expect(page.getByRole('heading', { name: 'Make it punchable' })).toBeVisible();
 
     // 3: change from default (4) to 5 height levels (relabeled "Number of
     // pile heights" in Iteration 02 Stage B -- see docs/ITERATION_02_PLAN.md §5)
@@ -53,17 +53,18 @@ test.describe('main workflow', () => {
     // level count (src/state/appState.ts's resizeSwatches), so 5 swatch
     // rows only appear once the 5-level relief has actually finished
     // generating.
+    await page.getByRole('button', { name: '2 Yarn' }).click();
     await page.getByLabel('Color by height').check();
     await expect(page.locator('.legend-table tbody tr')).toHaveCount(5, { timeout: 15_000 });
 
     // 5: inspect the finished-piece simulation -- a click away via the
     // preview column's tab switch, not stacked below the Pattern panel.
-    await page.getByRole('button', { name: 'Finished-piece simulation' }).click();
+    await page.getByRole('button', { name: 'Textile preview' }).click();
     await expect(page.getByLabel('Finished-piece simulation')).toBeVisible();
     await expect(page.getByText('Simulation -- not a photo')).toBeVisible();
 
     // 6: open the compact export panel and set physical dimensions
-    await page.locator('.export-panel summary').click();
+    await page.getByRole('button', { name: '3 Export' }).click();
     await page.getByLabel('Width (cm)').fill('30');
     await expect(page.getByLabel('Width (cm)')).toHaveValue('30');
 

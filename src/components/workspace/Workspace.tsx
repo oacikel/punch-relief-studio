@@ -26,6 +26,13 @@ import { PatternPanel } from '@/components/workspace/PatternPanel';
 import { SimulationPanel } from '@/components/workspace/SimulationPanel';
 
 type PreviewTab = 'pattern' | 'simulation';
+type EditorStep = 'shape' | 'color' | 'export';
+
+const EDITOR_STEPS: Array<{ id: EditorStep; number: string; label: string }> = [
+  { id: 'shape', number: '1', label: 'Shape' },
+  { id: 'color', number: '2', label: 'Yarn' },
+  { id: 'export', number: '3', label: 'Export' },
+];
 
 interface ProcessedForDisplay {
   levels: HeightLevel[];
@@ -139,7 +146,9 @@ export function Workspace({
   const [showGrid, setShowGrid] = useState(false);
   const [mirrored, setMirrored] = useState(false);
   const [previewTab, setPreviewTab] = useState<PreviewTab>('pattern');
+  const [editorStep, setEditorStep] = useState<EditorStep>('shape');
   const { showOnScreenLabels, punchGuide } = patternViewSettings;
+  const editorStepIndex = EDITOR_STEPS.findIndex((step) => step.id === editorStep);
 
   // Written as `regionMap && processed &&` (not a separate boolean) at each
   // use site below so TypeScript's control-flow narrowing actually applies
@@ -166,7 +175,11 @@ export function Workspace({
             same as before this change. */}
         <div className="screen-only">
           <div className="workspace-rail-heading">
-            <h2>Workspace</h2>
+            <div>
+              <p className="eyebrow">Pattern editor</p>
+              <h2>Make it punchable</h2>
+              <p>Work through three short steps. Your preview updates automatically.</p>
+            </div>
             <span className="visually-hidden" aria-live="polite">
               {processing ? 'Processing…' : ''}
             </span>
@@ -183,30 +196,64 @@ export function Workspace({
             </p>
           )}
 
-          <ReliefControls
-            settings={reliefSettings}
-            onChange={onReliefSettingsChange}
-            heightIndex={processed?.heightIndex ?? null}
-            width={processed?.width ?? 0}
-            height={processed?.height ?? 0}
-            needleGeometry={needleGeometry}
-            onNeedleGeometryChange={onNeedleGeometryChange}
-          />
+          <nav className="editor-steps" aria-label="Pattern setup steps">
+            {EDITOR_STEPS.map((step) => (
+              <button
+                key={step.id}
+                type="button"
+                className={
+                  editorStep === step.id ? 'editor-step editor-step--active' : 'editor-step'
+                }
+                aria-current={editorStep === step.id ? 'step' : undefined}
+                onClick={() => setEditorStep(step.id)}
+              >
+                <span>{step.number}</span>
+                {step.label}
+              </button>
+            ))}
+          </nav>
 
-          <YarnColorsGroup
-            mode={colorMode}
-            swatches={swatches}
-            paletteSize={paletteSize}
-            levelCount={processed?.levels.length ?? 0}
-            hasSourceColor={hasSourceColor}
-            onModeChange={onColorModeChange}
-            onSwatchesChange={onSwatchesChange}
-            onPaletteSizeChange={onPaletteSizeChange}
-            onApplyPalette={onApplyPalette}
-          />
+          <div className="editor-step-content">
+            {editorStep === 'shape' && (
+              <ReliefControls
+                settings={reliefSettings}
+                onChange={onReliefSettingsChange}
+                heightIndex={processed?.heightIndex ?? null}
+                width={processed?.width ?? 0}
+                height={processed?.height ?? 0}
+                needleGeometry={needleGeometry}
+                onNeedleGeometryChange={onNeedleGeometryChange}
+                dimensions={dimensions}
+                onDimensionsChange={onDimensionsChange}
+              />
+            )}
+
+            {editorStep === 'color' && (
+              <YarnColorsGroup
+                mode={colorMode}
+                swatches={swatches}
+                paletteSize={paletteSize}
+                levelCount={processed?.levels.length ?? 0}
+                hasSourceColor={hasSourceColor}
+                onModeChange={onColorModeChange}
+                onSwatchesChange={onSwatchesChange}
+                onPaletteSizeChange={onPaletteSizeChange}
+                onApplyPalette={onApplyPalette}
+              />
+            )}
+
+            {editorStep === 'export' && !regionMap && (
+              <div className="control-group" id="rail-export-print">
+                <h3>Export your pattern</h3>
+                <p className="helper-text">
+                  Export options will appear as soon as the first preview is ready.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
-        {regionMap && processed ? (
+        {editorStep === 'export' && regionMap && processed ? (
           // No controlled `open`/`onOpenChange` passed -- ExportPanel falls
           // back to its own internal `useState` (the rail jump-nav that
           // needed the controlled version to force this open from afar was
@@ -225,15 +272,29 @@ export function Workspace({
             screenShowGrid={showGrid}
             screenMirrored={mirrored}
             screenShowLabels={showOnScreenLabels}
+            open={true}
+            onOpenChange={() => undefined}
           />
-        ) : (
-          <div className="control-group screen-only" id="rail-export-print">
-            <h3>Export &amp; print</h3>
-            <p className="helper-text">
-              Export &amp; print will be available once the first relief has generated.
-            </p>
-          </div>
-        )}
+        ) : null}
+
+        <div className="editor-step-actions screen-only">
+          <button
+            type="button"
+            disabled={editorStepIndex === 0}
+            onClick={() => setEditorStep(EDITOR_STEPS[editorStepIndex - 1]?.id ?? 'shape')}
+          >
+            Back
+          </button>
+          {editorStepIndex < EDITOR_STEPS.length - 1 && (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => setEditorStep(EDITOR_STEPS[editorStepIndex + 1]?.id ?? 'export')}
+            >
+              Continue to {EDITOR_STEPS[editorStepIndex + 1]?.label}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Entirely screen-only -- no `.print-pages` lives in this column,
@@ -241,6 +302,15 @@ export function Workspace({
       <div className="workspace-preview-col screen-only">
         {regionMap && processed ? (
           <>
+            <div className="preview-heading">
+              <div>
+                <p className="eyebrow">Live preview</p>
+                <h2>Your pattern</h2>
+              </div>
+              <p>
+                {dimensions.widthCm.toFixed(1)} × {dimensions.heightCm.toFixed(1)} cm
+              </p>
+            </div>
             {/* Tab switch, not stacked panels -- the direct fix for the
                 product owner's core complaint (see the component doc
                 comment above). Reuses the same `role="group"` +
@@ -275,7 +345,7 @@ export function Workspace({
                 aria-pressed={previewTab === 'simulation'}
                 onClick={() => setPreviewTab('simulation')}
               >
-                Finished-piece simulation
+                Textile preview
               </button>
             </div>
             {/* `.workspace-preview-content` is the positioning context for

@@ -3,19 +3,21 @@
    dependencies modest". */
 
 :root {
-  --color-bg: #f6f1e7;
+  --color-bg: #f7fbfa;
   --color-surface: #ffffff;
-  --color-ink: #2b2620;
-  --color-ink-muted: #6b6255;
-  --color-accent: #b5563c;
+  --color-ink: #17313b;
+  --color-ink-muted: #61717a;
+  --color-accent: #ef6548;
   --color-accent-ink: #ffffff;
-  --color-border: #ddd3c0;
+  --color-border: #d8e3e1;
+  --color-soft: #e8f3f1;
+  --color-green: #16766f;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 16px;
   --space-4: 24px;
   --space-5: 40px;
-  --radius: 6px;
+  --radius: 12px;
   --focus-ring: 3px solid #2f6fb3;
 }
 
@@ -35,7 +37,14 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-ink);
-  font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, 'Segoe UI', system-ui, sans-serif;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  line-height: 1.45;
 }
 
 button,
@@ -52,10 +61,34 @@ button {
   background: var(--color-surface);
   border-radius: var(--radius);
   padding: var(--space-2) var(--space-3);
+  font-weight: 650;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
 }
 
 button:hover {
   border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
+
+.primary-button {
+  border-color: var(--color-green);
+  background: var(--color-green);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(36, 77, 63, 0.18);
+}
+
+.primary-button:hover {
+  border-color: #105a55;
+  background: #105a55;
 }
 
 button:focus-visible,
@@ -104,10 +137,10 @@ select:focus-visible {
 }
 
 .app-header {
-  padding: var(--space-3) var(--space-4);
+  padding: 14px 28px;
   border-bottom: 1px solid var(--color-border);
   display: flex;
-  align-items: baseline;
+  align-items: center;
   /* Usability fix #5 (docs/DECISIONS.md): same missing-flex-wrap class of
      bug as `.workspace-rail-heading` below -- the h1 + tagline pair had
      no way to drop to a second line, so wider (non-macOS) font-rendering
@@ -125,14 +158,34 @@ select:focus-visible {
 }
 
 .app-header h1 {
-  font-size: 1.15rem;
+  font-size: 1rem;
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
 .app-header p {
   margin: 0;
   color: var(--color-ink-muted);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+}
+
+.brand-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--color-accent);
+  color: #fff;
+  font-family: Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.app-version {
+  margin-left: auto;
+  color: var(--color-ink-muted);
+  font-size: 0.72rem;
 }
 
 /* Ambient "current model" indicator (Workspace two-column redesign),
@@ -147,7 +200,7 @@ select:focus-visible {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
+  padding: 10px 28px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
   flex: none;
@@ -160,12 +213,32 @@ select:focus-visible {
 }
 
 .stage-panel {
-  padding: var(--space-4);
-  max-width: 960px;
+  width: min(100%, 1080px);
+  margin-inline: auto;
+  padding: 34px 28px;
 }
 
 .stage-panel h2 {
   margin-top: 0;
+  margin-bottom: 6px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.8rem, 3vw, 2.7rem);
+  letter-spacing: -0.035em;
+}
+
+.eyebrow {
+  margin: 0 0 5px;
+  color: var(--color-accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.stage-lede {
+  max-width: 620px;
+  margin: 0 0 28px;
+  color: var(--color-ink-muted);
+  font-size: 1.05rem;
 }
 
 .field {
@@ -174,6 +247,33 @@ select:focus-visible {
   gap: var(--space-1);
   margin-bottom: var(--space-3);
   max-width: 420px;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.shape-size-block {
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid #bcd6d1;
+  border-radius: 12px;
+  background: #f1f8f7;
+}
+
+.shape-size-block h4 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+}
+
+.shape-size-block .field {
+  margin-bottom: 10px;
+}
+
+.shape-size-note {
+  margin: 12px 0 0;
 }
 
 .field label {
@@ -194,7 +294,7 @@ select:focus-visible {
 
 .needle-size-presets button[aria-pressed='true'] {
   border-color: var(--color-accent);
-  background: #fbe9dd;
+  background: #fff0ef;
 }
 
 .helper-text {
@@ -239,11 +339,80 @@ select:focus-visible {
   flex-direction: column;
   gap: var(--space-1);
   text-align: left;
+  min-height: 110px;
+  padding: 18px;
+  border-color: transparent;
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgba(36, 44, 39, 0.07);
+}
+
+.sample-card::before {
+  content: '✦';
+  color: var(--color-accent);
+  font-size: 1.1rem;
+}
+
+.sample-card:hover {
+  border-color: var(--color-accent);
+}
+
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 30px 0;
+  color: var(--color-ink-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: var(--color-border);
+}
+.drop-zone {
+  display: grid;
+  place-items: center;
+  padding: 36px;
+  text-align: center;
+  border: 1.5px dashed #aeb7b0;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.5);
+}
+.drop-zone--active {
+  border-color: var(--color-accent);
+  background: #fff4ef;
+}
+.drop-zone p {
+  margin: 4px 0 18px;
+}
+.drop-zone__icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 10px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-soft);
+  color: var(--color-green);
+  font-size: 1.5rem;
+}
+.orient-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  padding-top: 14px;
+}
+.orient-actions h2 {
+  font-size: 1.6rem;
 }
 
 .warning-banner {
-  background: #fbe9dd;
-  border: 1px solid var(--color-accent);
+  background: #fff4d9;
+  border: 1px solid #e3a72f;
   border-radius: var(--radius);
   padding: var(--space-3);
   margin-bottom: var(--space-3);
@@ -420,10 +589,10 @@ select:focus-visible {
    either column to need pinning against in the first place. */
 main.workspace-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(340px, 0.8fr) minmax(0, 1.2fr);
   grid-template-rows: minmax(0, 1fr);
-  gap: var(--space-4);
-  padding: var(--space-4);
+  gap: 0;
+  padding: 0;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
@@ -437,7 +606,18 @@ main.workspace-layout > .workspace-preview-col {
   overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
+}
+
+main.workspace-layout > .workspace-controls-col {
+  padding: 28px clamp(20px, 3vw, 42px);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+main.workspace-layout > .workspace-preview-col {
+  padding: 28px clamp(20px, 3vw, 42px);
+  background: #e3f0ee;
 }
 
 /* Belt-and-braces for the two-pane independent-scroll mechanism above:
@@ -493,11 +673,80 @@ main.workspace-layout > .workspace-preview-col {
      line instead. */
   flex-wrap: wrap;
   gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  justify-content: space-between;
+  margin-bottom: 22px;
 }
 
 .workspace-rail-heading h2 {
   margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.65rem, 2.4vw, 2.25rem);
+  letter-spacing: -0.035em;
+}
+
+.workspace-rail-heading p:last-child {
+  max-width: 470px;
+  margin: 5px 0 0;
+  color: var(--color-ink-muted);
+  font-size: 0.88rem;
+}
+
+.editor-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 22px;
+  padding: 5px;
+  border-radius: 14px;
+  background: var(--color-soft);
+}
+
+.editor-step {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-ink-muted);
+  font-size: 0.82rem;
+}
+
+.editor-step span {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid #b9c0bb;
+  border-radius: 50%;
+  font-size: 0.68rem;
+}
+.editor-step--active {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: 0 2px 8px rgba(34, 45, 39, 0.08);
+}
+.editor-step--active span {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: #fff;
+}
+.editor-step-content {
+  animation: editor-step-in 180ms ease-out;
+}
+@keyframes editor-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.editor-step-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 12px;
 }
 
 /* Live-status pill (Iteration 03's combined-workspace change), replacing
@@ -534,7 +783,7 @@ main.workspace-layout > .workspace-preview-col {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  background: rgba(246, 241, 231, 0.85);
+  background: rgba(247, 248, 252, 0.88);
   color: var(--color-ink-muted);
   font-size: 0.95rem;
   border-radius: var(--radius);
@@ -563,7 +812,7 @@ main.workspace-layout > .workspace-preview-col {
 }
 
 .live-status-pill--processing {
-  background: #fbe9dd;
+  background: #fff0ef;
   /* Not var(--color-accent) (#b5563c) -- against this pill's #fbe9dd
      background that's only a 4.08:1 contrast ratio, below WCAG AA's 4.5:1
      text minimum (axe-core color-contrast, caught by
@@ -572,16 +821,18 @@ main.workspace-layout > .workspace-preview-col {
      pre-existing bug from the Workspace two-column redesign, not
      conditional on anything). #954429 is the same accent hue, darkened
      just enough for 5.68:1, comfortably clearing the threshold. */
-  color: #954429;
+  color: #a7363b;
 }
 
 /* Visual framing for whichever of Pattern / Finished-piece simulation is
    the currently active tab in the preview column (Workspace two-column
    redesign) -- only one is ever mounted at a time, see Workspace.tsx. */
 .workspace-panel {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: var(--space-3);
+  border: 1px solid rgba(43, 52, 47, 0.1);
+  border-radius: 18px;
+  padding: 18px;
+  background: var(--color-surface);
+  box-shadow: 0 18px 45px rgba(40, 45, 42, 0.11);
 }
 
 .workspace-panel h3 {
@@ -597,13 +848,154 @@ main.workspace-layout > .workspace-preview-col {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  width: fit-content;
+  margin-bottom: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #dfe1dc;
+}
+
+.workspace-tabs button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-ink-muted);
 }
 
 .workspace-tabs button[aria-pressed='true'] {
-  background: var(--color-accent);
-  color: var(--color-accent-ink);
-  border-color: var(--color-accent);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(34, 45, 39, 0.1);
+}
+
+.preview-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+}
+.preview-heading h2 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.65rem;
+  letter-spacing: -0.03em;
+}
+.preview-heading > p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: 0.82rem;
+}
+
+.section-intro {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.section-intro h3 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+.section-intro p {
+  margin: 4px 0 0;
+  color: var(--color-ink-muted);
+  font-size: 0.84rem;
+}
+.section-number {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: #ffe6e5;
+  color: #a7363b;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.control-group {
+  border: 0;
+  border-radius: 16px;
+  padding: 22px;
+  margin-bottom: 0;
+  background: #fbfcff;
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.rail-section > h3 {
+  position: static;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.field {
+  max-width: none;
+  margin-bottom: 20px;
+}
+.field label,
+fieldset legend {
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+fieldset.field {
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+fieldset.field label {
+  padding: 7px 4px;
+  font-weight: 600;
+}
+
+fieldset.field br {
+  display: none;
+}
+input[type='range'] {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+input:not([type='range']):not([type='radio']):not([type='checkbox']):not([type='color']),
+select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: #fff;
+}
+.advanced-controls {
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+.advanced-controls summary {
+  color: var(--color-green);
+}
+
+.export-panel {
+  margin: 0;
+  border: 0;
+  border-radius: 16px;
+  padding: 22px;
+  background: #fbfcff;
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+.export-panel > summary {
+  list-style: none;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.35rem;
+}
+.export-panel > summary::-webkit-details-marker {
+  display: none;
+}
+.export-panel[open] > summary {
+  margin-bottom: 22px;
 }
 
 .visually-hidden {
