@@ -153,10 +153,7 @@ export function ImportStage({
           <div className="image-import-card">
             <div>
               <h3>Turn a 2D image into punchable zones</h3>
-              <p className="helper-text">
-                Photos and artwork are simplified into connected yarn-color shapes—not enlarged
-                pixels. PNG, JPEG, or WebP.
-              </p>
+              <p className="helper-text">PNG, JPEG, or WebP.</p>
             </div>
             <button
               className="primary-button"

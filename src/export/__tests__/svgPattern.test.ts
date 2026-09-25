@@ -72,6 +72,50 @@ describe('buildSvgPattern contour view', () => {
     expect(result.svg).not.toContain('data-layer="contour"');
   });
 
+  it('draws flat-image contours from color-zone boundaries', () => {
+    const regionMap: RegionMap = {
+      width: 4,
+      height: 1,
+      heightIndex: Int16Array.from([0, 0, 0, 0]),
+      colorIndex: Int16Array.from([0, 0, 1, 1]),
+    };
+    const result = buildSvgPattern(regionMap, makeLegend(), {
+      widthCm: 4,
+      heightCm: 1,
+      view: 'contour',
+      contourSource: 'color',
+      showGrid: false,
+      showLabels: false,
+      mirrored: false,
+    });
+
+    expect(result.svg).toContain('data-contour-source="color"');
+    expect(result.svg).toContain('data-layer="contour"');
+  });
+
+  it('traces the visible silhouette of a transparent image', () => {
+    const regionMap: RegionMap = {
+      width: 3,
+      height: 3,
+      heightIndex: Int16Array.from([-1, -1, -1, -1, 0, -1, -1, -1, -1]),
+      colorIndex: Int16Array.from([-1, -1, -1, -1, 0, -1, -1, -1, -1]),
+    };
+    const result = buildSvgPattern(regionMap, makeLegend(), {
+      widthCm: 3,
+      heightCm: 3,
+      view: 'contour',
+      contourSource: 'color',
+      showGrid: false,
+      showLabels: false,
+      mirrored: false,
+    });
+
+    expect(result.svg).toContain('M20,20 h20');
+    expect(result.svg).toContain('M20,20 v20');
+    expect(result.svg).toContain('M40,20 v20');
+    expect(result.svg).toContain('M20,40 h20');
+  });
+
   it('does not draw contour lines for non-contour views', () => {
     const regionMap: RegionMap = {
       width: 4,

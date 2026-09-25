@@ -3,7 +3,7 @@ import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
 import type { PatternDimensions, ExportSettings } from '@/state/appState';
 import type { PunchGuideSettings } from '@/domain/pattern/punchGuide';
-import { buildSvgPattern, type PatternView } from '@/export/svgPattern';
+import { buildSvgPattern, type ContourSource, type PatternView } from '@/export/svgPattern';
 import { downloadSvg, svgToPngBlob, downloadBlob } from '@/export/download';
 import { computeTiling, cmToCssPx } from '@/export/printTiling';
 import { withExtension } from '@/domain/filenameSanitize';
@@ -33,6 +33,7 @@ interface Props {
   screenShowGrid: boolean;
   screenMirrored: boolean;
   screenShowLabels: boolean;
+  contourSource?: ContourSource;
   /** Usability fix #4 (docs/DECISIONS.md): optional controlled open state
    * for the disclosure, so the rail's jump-nav can open this panel from
    * afar (it's otherwise the last, easy-to-forget thing in a long rail).
@@ -82,6 +83,7 @@ export function ExportPanel({
   screenShowGrid,
   screenMirrored,
   screenShowLabels,
+  contourSource,
   open: openProp,
   onOpenChange,
 }: Props): JSX.Element {
@@ -143,6 +145,7 @@ export function ExportPanel({
       showLabels: screenShowLabels,
       mirrored: screenMirrored,
       punchGuide,
+      ...(contourSource ? { contourSource } : {}),
     });
     downloadSvg(result.svg, withExtension('punch-relief-pattern', 'svg'));
   };
@@ -156,6 +159,7 @@ export function ExportPanel({
       showLabels: screenShowLabels,
       mirrored: screenMirrored,
       punchGuide,
+      ...(contourSource ? { contourSource } : {}),
     });
     const widthPx = Math.round(safeDimensions.widthCm * 40);
     const heightPx = Math.round(safeDimensions.heightCm * 40);
@@ -183,6 +187,7 @@ export function ExportPanel({
     showLabels: screenShowLabels,
     mirrored: screenMirrored,
     punchGuide,
+    ...(contourSource ? { contourSource } : {}),
   });
   const fullWidthPx = cmToCssPx(safeDimensions.widthCm);
   const fullHeightPx = cmToCssPx(safeDimensions.heightCm);

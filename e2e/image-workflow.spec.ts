@@ -29,11 +29,20 @@ test('imports a flat image and opens the smart-zone workflow', async ({ page }) 
 
   await expect(page.getByText('Source:').locator('..')).toContainText('sample-art.png');
   await expect(page.getByRole('heading', { name: 'Simplify the image' })).toBeVisible();
-  await expect(page.getByText('Smart zones, not pixels')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Your pattern' })).toBeVisible();
   await page.getByRole('button', { name: 'Source image' }).click();
   await expect(page.getByAltText('Original imported source')).toBeVisible();
   await page.getByRole('button', { name: 'Pattern' }).click();
+  await page.getByRole('button', { name: 'contour', exact: true }).click();
+  const contourPattern = page.getByAltText(/contour view/);
+  await expect(contourPattern).toBeVisible();
+  const contourUrl = await contourPattern.getAttribute('src');
+  expect(contourUrl).not.toBeNull();
+  const contourSvg = await page.evaluate(
+    async (url) => (await fetch(url)).text(),
+    contourUrl as string,
+  );
+  expect(contourSvg).toContain('data-contour-source="color"');
 
   await page.getByRole('button', { name: /^2 Yarn$/ }).click();
   await expect(page.getByLabel(/Simplified image palette/)).toBeChecked();

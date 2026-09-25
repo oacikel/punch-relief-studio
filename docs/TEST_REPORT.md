@@ -872,10 +872,11 @@ worker-side edge-aware image simplification, connected color-region merging,
 physical needle-width cleanup for color zones, image-specific controls, and a
 source-vs-pattern comparison view.
 
-`npm run typecheck`, `npm run lint`, and all **317 unit/component tests in 40
+`npm run typecheck`, `npm run lint`, and all **319 unit/component tests in 40
 files** passed. The new pure-domain tests cover determinism, one-height output,
 tiny-speck merging, transparent background handling, all-transparent rejection,
-and physical needle-width simplification.
+physical needle-width simplification. Follow-up contour tests verify that 2D
+projects trace both color-zone edges and transparent-image silhouettes.
 
 `e2e/image-workflow.spec.ts` passed in both desktop Chromium and the
 mobile-narrow project (**2 passed**) using Node 22. It generates a PNG in the

@@ -1,8 +1,7 @@
 /**
  * Compose the printable SVG pattern: combined color+height regions,
- * region-outline contours (a line traced along every cell edge where the
- * height level changes -- not true marching squares, but deterministic and
- * fast enough at pattern resolution), per-region "C{n}-H{n}" labels, grid,
+ * region-outline contours (height boundaries for 3D reliefs, color-zone
+ * boundaries for 2D images), per-region "C{n}-H{n}" labels, grid,
  * legend, scale bar, and registration marks. Kept separate from React so
  * it's testable headlessly and reusable for the PNG rasterization path
  * (draw the same SVG to a canvas).
@@ -15,6 +14,7 @@ import { computePunchGuideDots, type PunchGuideSettings } from '@/domain/pattern
 import { placeLabels, type LabelCandidate } from '@/domain/pattern/labelPlacement';
 
 export type PatternView = 'combined' | 'color-only' | 'height-only' | 'contour';
+export type ContourSource = 'height' | 'color';
 
 export interface SvgPatternOptions {
   widthCm: number;
@@ -23,6 +23,9 @@ export interface SvgPatternOptions {
   showGrid: boolean;
   showLabels: boolean;
   mirrored: boolean;
+  /** Which region boundary the contour view traces. 3D reliefs use pile
+   * height boundaries; flat images use their simplified color zones. */
+  contourSource?: ContourSource;
   pxPerCm?: number;
   /** Iteration 02 Stage C: optional dot-grid placement guide, spaced at a
    * real physical distance the user set. `undefined` or `{ mode: 'none' }`
@@ -79,7 +82,15 @@ export function buildSvgPattern(
   const registration = buildRegistrationMarks(widthPx, heightPx);
   const scaleBar = buildScaleBar(heightPx, pxPerCm);
   const contour =
-    options.view === 'contour' ? buildContourLines(regionMap, cellW, cellH, options.mirrored) : '';
+    options.view === 'contour'
+      ? buildContourLines(
+          regionMap,
+          cellW,
+          cellH,
+          options.mirrored,
+          options.contourSource ?? 'height',
+        )
+      : '';
   const labels = options.showLabels
     ? buildLabels(regionMap, cellW, cellH, options.mirrored, widthPx, heightPx)
     : '';
@@ -173,19 +184,50 @@ function buildRegistrationMarks(widthPx: number, heightPx: number): string {
 /**
  * "contour" view draws region cells with no fill (see `fillForView`), so
  * without this the view rendered nothing at all. Traces a line along every
- * cell edge where the height level changes (adjacent-pixel comparison,
- * not true marching squares -- sufficient at pattern raster resolution and
- * much cheaper).
+ * cell edge where the selected region value changes. 3D reliefs preserve
+ * the established height-only behavior; flat images trace color zones and
+ * their visible silhouette against transparent background.
  */
 function buildContourLines(
   regionMap: RegionMap,
   cellW: number,
   cellH: number,
   mirrored: boolean,
+  source: ContourSource,
 ): string {
-  const { width, height, heightIndex } = regionMap;
+  const { width, height, heightIndex, colorIndex } = regionMap;
   const cellX = (x: number): number => (mirrored ? width - 1 - x : x) * cellW;
   const segments: string[] = [];
+
+  if (source === 'color') {
+    const valueAt = (x: number, y: number): number => {
+      if (x < 0 || x >= width || y < 0 || y >= height) return -1;
+      const i = y * width + x;
+      return heightIndex[i] === -1 ? -1 : (colorIndex[i] as number);
+    };
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const value = valueAt(x, y);
+        if (value === -1) continue;
+        const left = cellX(x);
+        const right = left + cellW;
+        const top = y * cellH;
+        const bottom = top + cellH;
+
+        // Top/left own every internal boundary, while right/bottom close
+        // silhouettes against background and the canvas edge. This avoids
+        // drawing a shared color-zone edge twice.
+        if (valueAt(x, y - 1) !== value) segments.push(`M${left},${top} h${cellW}`);
+        if (valueAt(x - 1, y) !== value) segments.push(`M${left},${top} v${cellH}`);
+        if (valueAt(x + 1, y) === -1) segments.push(`M${right},${top} v${cellH}`);
+        if (valueAt(x, y + 1) === -1) segments.push(`M${left},${bottom} h${cellW}`);
+      }
+    }
+
+    if (segments.length === 0) return '';
+    return `<g data-layer="contour" data-contour-source="color"><path d="${segments.join(' ')}" fill="none" stroke="#000" stroke-width="1" /></g>`;
+  }
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -203,7 +245,7 @@ function buildContourLines(
     }
   }
   if (segments.length === 0) return '';
-  return `<g data-layer="contour"><path d="${segments.join(' ')}" fill="none" stroke="#000" stroke-width="1" /></g>`;
+  return `<g data-layer="contour" data-contour-source="height"><path d="${segments.join(' ')}" fill="none" stroke="#000" stroke-width="1" /></g>`;
 }
 
 const MIN_LABEL_AREA_PX = 40;

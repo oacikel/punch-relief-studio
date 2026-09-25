@@ -90,7 +90,9 @@ and connected color regions are merged according to size, shared boundary,
 color similarity, the selected detail preset, and the physical needle width.
 The first image workflow intentionally uses one pile height; image brightness
 is not treated as physical depth. A Source image preview tab supports direct
-comparison with the generated Pattern.
+comparison with the generated Pattern. In Contour view, image projects trace
+their simplified color-zone boundaries and transparent silhouette rather than
+the single shared pile-height boundary used by 3D reliefs.
 
 **Workspace is a true 50/50 two-column split, both columns independently
 scrollable and capped to the viewport height** (reworked from the

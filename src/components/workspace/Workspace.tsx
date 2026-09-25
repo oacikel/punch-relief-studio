@@ -288,6 +288,7 @@ export function Workspace({
             screenShowGrid={showGrid}
             screenMirrored={mirrored}
             screenShowLabels={showOnScreenLabels}
+            contourSource={isImageSource ? 'color' : 'height'}
             open={true}
             onOpenChange={() => undefined}
           />
@@ -388,7 +389,6 @@ export function Workspace({
               {previewTab === 'source' && sourceImageUrl ? (
                 <div className="source-image-preview">
                   <img src={sourceImageUrl} alt="Original imported source" />
-                  <p>Original image—switch back to Pattern to compare the simplified yarn zones.</p>
                 </div>
               ) : previewTab === 'pattern' ? (
                 <div>
@@ -411,6 +411,7 @@ export function Workspace({
                     onPunchGuideChange={(patch) =>
                       onPatternViewSettingsChange({ punchGuide: patch })
                     }
+                    contourSource={isImageSource ? 'color' : 'height'}
                   />
                 </div>
               ) : (

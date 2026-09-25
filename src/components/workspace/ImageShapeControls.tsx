@@ -32,16 +32,7 @@ export function ImageShapeControls({
         <span className="section-number">1</span>
         <div>
           <h3>Simplify the image</h3>
-          <p>Turn visual detail into connected shapes that can actually be punched.</p>
         </div>
-      </div>
-
-      <div className="image-method-note">
-        <strong>Smart zones, not pixels</strong>
-        <p>
-          The filter keeps strong boundaries, smooths texture, and combines small neighboring areas.
-          The result starts at one pile height so lighting is not mistaken for real depth.
-        </p>
       </div>
 
       <div className="shape-size-block">
@@ -83,9 +74,6 @@ export function ImageShapeControls({
           value={settings.smoothingStrength}
           onChange={(event) => onChange({ smoothingStrength: Number(event.target.value) })}
         />
-        <p className="helper-text">
-          Raise this to quiet photographic texture and create broader, calmer color areas.
-        </p>
       </div>
 
       <details className="advanced-controls">

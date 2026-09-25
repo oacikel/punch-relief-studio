@@ -1,6 +1,6 @@
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
-import type { PatternView } from '@/export/svgPattern';
+import type { ContourSource, PatternView } from '@/export/svgPattern';
 import { PatternCanvas } from '@/components/PatternCanvas';
 import { DecimalNumberInput } from '@/components/DecimalNumberInput';
 import {
@@ -24,6 +24,7 @@ interface Props {
   onShowOnScreenLabelsChange: (show: boolean) => void;
   punchGuide: PunchGuideSettings;
   onPunchGuideChange: (patch: Partial<PunchGuideSettings>) => void;
+  contourSource?: ContourSource;
 }
 
 const VIEWS: PatternView[] = ['combined', 'color-only', 'height-only', 'contour'];
@@ -54,6 +55,7 @@ export function PatternPanel({
   onShowOnScreenLabelsChange,
   punchGuide,
   onPunchGuideChange,
+  contourSource,
 }: Props): JSX.Element {
   return (
     <div className="workspace-panel">
@@ -126,6 +128,7 @@ export function PatternPanel({
         showGrid={showGrid}
         showLabels={showOnScreenLabels}
         mirrored={mirrored}
+        {...(contourSource ? { contourSource } : {})}
         punchGuide={punchGuide}
       />
     </div>

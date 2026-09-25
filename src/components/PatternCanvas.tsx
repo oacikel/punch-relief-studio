@@ -1,6 +1,6 @@
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
-import type { PatternView } from '@/export/svgPattern';
+import type { ContourSource, PatternView } from '@/export/svgPattern';
 import type { PunchGuideSettings } from '@/domain/pattern/punchGuide';
 import { usePatternSvgUrl } from '@/hooks/usePatternSvgUrl';
 
@@ -13,6 +13,7 @@ interface Props {
   showGrid: boolean;
   showLabels: boolean;
   mirrored: boolean;
+  contourSource?: ContourSource;
   /** Iteration 02 Stage C: optional dot-grid placement guide, shared with
    * whatever export/print path renders the same pattern. */
   punchGuide?: PunchGuideSettings;
@@ -34,6 +35,7 @@ export function PatternCanvas({
   showGrid,
   showLabels,
   mirrored,
+  contourSource,
   punchGuide,
 }: Props): JSX.Element {
   // exactOptionalPropertyTypes forbids assigning `undefined` to an
@@ -47,6 +49,7 @@ export function PatternCanvas({
     showGrid,
     showLabels,
     mirrored,
+    ...(contourSource ? { contourSource } : {}),
     ...(punchGuide ? { punchGuide } : {}),
   });
 

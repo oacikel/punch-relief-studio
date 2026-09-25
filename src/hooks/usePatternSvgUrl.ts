@@ -28,7 +28,17 @@ export function usePatternSvgUrl(
   legend: LegendEntry[],
   options: SvgPatternOptions,
 ): { url: string | null; result: SvgPatternResult } {
-  const { widthCm, heightCm, view, showGrid, showLabels, mirrored, pxPerCm, punchGuide } = options;
+  const {
+    widthCm,
+    heightCm,
+    view,
+    showGrid,
+    showLabels,
+    mirrored,
+    pxPerCm,
+    punchGuide,
+    contourSource,
+  } = options;
   // Passing `options` straight through (rather than rebuilding a literal
   // from the destructured fields) avoids explicitly writing `pxPerCm:
   // undefined`/`punchGuide: undefined` into the object when a caller omits
@@ -52,6 +62,7 @@ export function usePatternSvgUrl(
       mirrored,
       pxPerCm,
       punchGuide,
+      contourSource,
     ],
   );
   const [url, setUrl] = useState<string | null>(null);
