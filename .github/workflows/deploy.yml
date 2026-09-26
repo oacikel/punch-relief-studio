@@ -32,6 +32,10 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Opt-in analytics endpoint (docs/ANALYTICS.md). Unset = analytics fully off.
+          VITE_VP_INGEST_URL: ${{ vars.VITE_VP_INGEST_URL }}
+          VITE_VP_PROJECT_TOKEN: ${{ vars.VITE_VP_PROJECT_TOKEN }}
 
       - uses: actions/upload-pages-artifact@v3
         with:
