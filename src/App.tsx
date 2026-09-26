@@ -606,14 +606,6 @@ export default function App(): JSX.Element {
             </>
           )}
 
-          {workflow.currentStage === 'import' &&
-            workflow.hasModel &&
-            state.sourceKind !== 'image-file' && (
-              <ImportOrientSection
-                onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
-              />
-            )}
-
           {/* Rendered once, unconditionally, for both stages that need it, so
               the orientation/rotation chosen on Import survives navigating on
               to Workspace instead of resetting to the default camera on
@@ -630,7 +622,14 @@ export default function App(): JSX.Element {
               also un-mounts (not just hides) the standard-view buttons and
               rotation sliders, so there is never a second, duplicate set of
               interactive rotation controls in the DOM alongside Workspace's
-              own `SimulationPanel` copy -- see docs/DECISIONS.md. */}
+              own `SimulationPanel` copy -- see docs/DECISIONS.md.
+
+              Usability fix #2 (docs/DECISIONS.md, e2e/orient-persistence.spec.ts):
+              this block must render *before* `ImportOrientSection` below --
+              a real DOM reorder, not a CSS `order` trick, so DOM/visual/tab
+              order stay in agreement -- so a user can't reach "Create my
+              pattern" without the viewport having already scrolled into
+              view first. */}
           {(workflow.currentStage === 'import' || workflow.currentStage === 'workspace') &&
             workflow.hasModel &&
             state.sourceKind !== 'image-file' && (
@@ -653,6 +652,14 @@ export default function App(): JSX.Element {
                   showControls={workflow.currentStage === 'import'}
                 />
               </div>
+            )}
+
+          {workflow.currentStage === 'import' &&
+            workflow.hasModel &&
+            state.sourceKind !== 'image-file' && (
+              <ImportOrientSection
+                onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
+              />
             )}
 
           {workflow.currentStage === 'workspace' && (
