@@ -166,37 +166,29 @@ test.describe('Workspace mobile-narrow layout (Iteration 03 Round 2 #2)', () => 
 });
 
 /**
- * Usability fix #5 (docs/DECISIONS.md): a previously-reported 375px-width
- * horizontal-overflow bug (`document.documentElement.scrollWidth: 420` vs
- * `clientWidth: 375`) could not be reproduced by a follow-up audit that
- * toggled every discrete control at 375px width using default settings.
- * The working theory: the original overflow was found while the "N
- * region(s) are smaller than the minimum punchable size... may be
- * difficult to punch reliably" warning banner (`ReliefControls.tsx`,
- * gated on `findSmallRegions` finding at least one leftover small region)
- * was actively showing, and the follow-up sweep never triggered that
- * specific state before checking for overflow.
+ * `e2e/fixtures/sliver.stl` (one large cube plus one tiny, fully detached
+ * sliver positioned well outside it) was originally built to reliably force
+ * an isolated island with no bordering non-background region to merge
+ * into -- the one case `cleanupTinyRegions` (`src/domain/regionCleanup.ts`)
+ * used to leave in place, which `findSmallRegions` then flagged as a
+ * blocking "N region(s) are smaller than the minimum punchable size...
+ * may be difficult to punch reliably" warning banner.
  *
- * `cleanupTinyRegions` (`src/domain/regionCleanup.ts`) already removes/
- * merges every region below the active min-region threshold *except* one
- * kind: an isolated island with no bordering non-background region to
- * merge into. None of the three built-in samples (smooth, single-blob
- * height fields) produce that under any combination of preset/rotation
- * tried by hand -- so this uses a small, deliberately-crafted STL fixture
- * (`e2e/fixtures/sliver.stl`: one large cube plus one tiny, fully
- * detached sliver positioned well outside it) to *reliably* force exactly
- * that state, deterministically, rather than relying on incidental
- * model/setting combinations. Reproduced by hand first (real
- * `getBoundingClientRect`/`scrollWidth` measurements against a running
- * build, both at 375px and at the project's own 390px mobile-narrow
- * width) before writing this regression test -- see docs/DECISIONS.md for
- * the measurements and the explicit "does not reproduce" conclusion.
+ * "fix: simplify tiny pattern regions automatically" changed that: an
+ * isolated speck with no valid neighbor is now silently reassigned to
+ * background instead of being left in place (see the same file's
+ * `cleanupTinyRegions`, `components.length > 1` branch), and
+ * `ReliefControls.tsx`'s warning banner is reserved for the one case that
+ * really is unresolvable -- the *entire* remaining shape sitting below the
+ * threshold, with no other component to fall back on. So this fixture can
+ * no longer trigger any warning at all; this test now asserts that current,
+ * intended behavior (the detached sliver disappears into the pattern
+ * silently) instead of the old blocking-warning behavior.
  */
-test.describe('Mobile-narrow layout with the small-region warning banner active (usability fix #5)', () => {
-  test('no horizontal overflow at 375px width while the small-region warning banner is showing', async ({
+test.describe('Auto-simplified tiny regions ("fix: simplify tiny pattern regions automatically")', () => {
+  test('a disconnected sliver with no valid neighbor is auto-simplified away, with no blocking warning', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/');
     const fileInput = page.getByLabel('Choose a 2D image or 3D model to import');
     await fileInput.setInputFiles(path.join(here, 'fixtures', 'sliver.stl'));
@@ -209,34 +201,10 @@ test.describe('Mobile-narrow layout with the small-region warning banner active 
       timeout: 15_000,
     });
 
-    // The sliver fixture's tiny detached piece has no valid neighbor to
-    // merge into, so it survives cleanup at the default "Balanced" preset
-    // -- no preset change needed to force the warning.
-    await expect(page.locator('.warning-banner')).toContainText(
-      /smaller than the minimum punchable size/,
-    );
-
-    // Diagnostic-rich failure message: if this ever regresses again, the
-    // widest few offending elements (not just true/false) should show up
-    // directly in the CI log without needing an artifact download.
-    const diagnostics = await page.evaluate(() => {
-      const doc = document.documentElement;
-      const all = Array.from(document.querySelectorAll('*')).map((el) => ({
-        tag: el.tagName,
-        cls: (el as HTMLElement).className || '',
-        right: el.getBoundingClientRect().right,
-      }));
-      all.sort((a, b) => b.right - a.right);
-      return {
-        scrollWidth: doc.scrollWidth,
-        clientWidth: doc.clientWidth,
-        innerWidth: window.innerWidth,
-        widest: all.slice(0, 5),
-      };
-    });
-    expect(
-      diagnostics.scrollWidth,
-      `scrollWidth=${diagnostics.scrollWidth} clientWidth=${diagnostics.clientWidth} innerWidth=${diagnostics.innerWidth} widest=${JSON.stringify(diagnostics.widest)}`,
-    ).toBeLessThanOrEqual(diagnostics.clientWidth);
+    // The cube (the main shape) survives; the detached sliver has no valid
+    // neighbor to merge into, so `cleanupTinyRegions` now removes it
+    // outright rather than leaving it for `findSmallRegions` to flag --
+    // no "smaller than the minimum punchable size" (or any other) warning.
+    await expect(page.locator('.warning-banner')).toHaveCount(0);
   });
 });

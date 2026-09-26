@@ -6,9 +6,24 @@
   --color-bg: #f7fbfa;
   --color-surface: #ffffff;
   --color-ink: #17313b;
-  --color-ink-muted: #61717a;
+  /* Darkened from #61717a (WCAG AA fix, e2e/accessibility.spec.ts): the
+     original shade cleared 4.5:1 against white but fell short against
+     several of the app's tinted panel/tab backgrounds (e.g. `.workspace-
+     tabs` at #dfe1dc: ~3.85:1; `.editor-steps`/`--color-soft` at #e8f3f1:
+     ~4.46:1). This value keeps >=4.5:1 against every background muted text
+     actually sits on in this app, with a small safety margin. */
+  --color-ink-muted: #54626a;
   --color-accent: #ef6548;
   --color-accent-ink: #ffffff;
+  /* Same accent hue, darkened for small/bold text use (WCAG AA fix,
+     e2e/accessibility.spec.ts): `--color-accent` itself (#ef6548) is only
+     ~3.16:1 against white and ~2.71:1 against the preview column's
+     `#e3f0ee` background -- fine as a border/button background (paired
+     with white text, `--color-accent-ink`), but not as this app's
+     `.eyebrow` text color. Keeps `--color-accent` itself unchanged (the
+     vibrant brand color, used everywhere contrast isn't the constraint)
+     rather than darkening it globally. */
+  --color-accent-text: #954429;
   --color-border: #d8e3e1;
   --color-soft: #e8f3f1;
   --color-green: #16766f;
@@ -228,7 +243,7 @@ select:focus-visible {
 
 .eyebrow {
   margin: 0 0 5px;
-  color: var(--color-accent);
+  color: var(--color-accent-text);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -607,15 +622,33 @@ select:focus-visible {
    and matching that one too would let two headers both try to stick at
    `top: 0` simultaneously and visually overlap once both containing
    blocks are mid-scroll. Now that `.workspace-controls-col` is itself an
-   `overflow-y: auto` scroll container (see below), each `.rail-section >
-   h3` sticks relative to that column's own scrollport rather than the
+   `overflow-y: auto` scroll container (see below), each sticky header
+   sticks relative to that column's own scrollport rather than the
    document/viewport -- arguably more correct than before, not just
-   carried over unchanged. */
+   carried over unchanged.
+
+   Selector/target fix: this used to apply `position: sticky` straight to
+   the `h3` (back when it was a direct child of `.rail-section`). A later
+   commit wrapped the heading in `.section-intro` (flex row with the
+   `.section-number` badge) with the heading itself nested one level
+   deeper still, inside an unnamed wrapper `<div>` -- so `.rail-section >
+   h3` stopped matching at all, and even fixing the selector to reach the
+   now-nested `h3` isn't enough on its own: a sticky element's containing
+   block is its nearest block-container ancestor, which is now that small
+   wrapper `<div>` (barely taller than the heading itself), not
+   `.rail-section` -- so the heading could only ever "stick" for a few
+   px before its own tiny containing block scrolled away with it. Sticking
+   `.section-intro` itself instead -- still a direct child of
+   `.rail-section`, so its containing block is genuinely the full section
+   -- fixes both problems without touching ReliefControls.tsx/
+   YarnColorsGroup.tsx/ImageShapeControls.tsx's markup: the heading (and
+   its badge/description, now all one sticky unit) correctly pins for the
+   section's whole scroll range. */
 .rail-section {
   scroll-margin-top: var(--space-2);
 }
 
-.rail-section > h3 {
+.rail-section > .section-intro {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -1217,6 +1250,29 @@ select {
     flex: none;
     overflow: visible;
     padding: 0;
+  }
+  /* Page-count regression fix: `.workspace-controls-col` keeps its on-screen
+     rail chrome (28px top padding, a 1px `border-right`, and its own
+     `height: 100%; overflow-y: auto` scrollport) even though `main.
+     workspace-layout` above is reset to plain block flow for print. Since
+     `.print-pages` is this column's own last child (not wrapped by
+     `.screen-only`, unlike the rest of the rail -- see Workspace.tsx), that
+     leftover top padding/border pushed the first `.print-page` down by
+     enough that a page tile sized to exactly fill one physical page (no
+     slack, by design -- see printTiling.ts) no longer fit on the first
+     printed page and spilled a near-empty continuation page onto page 2 --
+     8 tiles printing as 9 physical pages. Every later tile was unaffected
+     (each starts its own fresh page via `page-break-after: always` below),
+     which is why only one extra page appeared. Resetting the column's box
+     model for print (no padding/border/background, natural height/overflow)
+     lets `.print-pages` start flush at the top of the first physical page,
+     matching the space the tiling math assumed. */
+  main.workspace-layout > .workspace-controls-col {
+    height: auto;
+    overflow: visible;
+    padding: 0;
+    border-right: 0;
+    background: none;
   }
   .print-pages {
     display: block;
