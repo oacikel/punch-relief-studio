@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { ImportStage, ImportOrientSection } from '../stages/ImportStage';
 
 describe('ImportStage', () => {
-  it('lists all three built-in samples', () => {
+  it('lists all built-in 3D samples below the shared importer', () => {
     render(
       <ImportStage
         onSelectSample={vi.fn()}
@@ -34,7 +34,7 @@ describe('ImportStage', () => {
     expect(onSelectSample).toHaveBeenCalledWith('sample-ripple');
   });
 
-  it('has an accessible file input for the file picker path', () => {
+  it('uses one accessible picker for 2D images and 3D models', () => {
     render(
       <ImportStage
         onSelectSample={vi.fn()}
@@ -44,7 +44,9 @@ describe('ImportStage', () => {
         loadedModelLabel={null}
       />,
     );
-    expect(screen.getByLabelText('Choose model files to import')).toBeInTheDocument();
+    const picker = screen.getByLabelText('Choose a 2D image or 3D model to import');
+    expect(picker).toHaveAttribute('accept', expect.stringContaining('.png'));
+    expect(picker).toHaveAttribute('accept', expect.stringContaining('.obj'));
   });
 
   // Usability fix (docs/DECISIONS.md, follow-up to "move the Import 3D
@@ -81,7 +83,7 @@ describe('ImportStage', () => {
       );
       const details = container.querySelector<HTMLDetailsElement>('details.import-picker');
       expect(details?.open).toBe(false);
-      expect(screen.getByText(/Source loaded: Concentric Ripple/)).toBeInTheDocument();
+      expect(screen.getByText(/Source: Concentric Ripple · Change/)).toBeInTheDocument();
     });
 
     it('lets the user re-expand the collapsed picker and pick a different sample', async () => {
@@ -98,13 +100,49 @@ describe('ImportStage', () => {
       const details = container.querySelector<HTMLDetailsElement>('details.import-picker');
       expect(details?.open).toBe(false);
 
-      const summary = screen.getByText(/choose a different file/i);
+      const summary = screen.getByText(/Source: Concentric Ripple · Change/i);
       await userEvent.click(summary);
       expect(details?.open).toBe(true);
 
       await userEvent.click(screen.getByText('Geometric Steps'));
       expect(onSelectSample).toHaveBeenCalledWith(expect.stringContaining('steps'));
     });
+  });
+
+  it('routes an image selected through the shared picker to image import', async () => {
+    const onImageSelected = vi.fn();
+    render(
+      <ImportStage
+        onSelectSample={vi.fn()}
+        onFilesSelected={vi.fn()}
+        onImageSelected={onImageSelected}
+        hasModel={false}
+        loadedModelLabel={null}
+      />,
+    );
+    const image = new File(['image'], 'art.png', { type: 'image/png' });
+    await userEvent.upload(screen.getByLabelText('Choose a 2D image or 3D model to import'), image);
+    expect(onImageSelected).toHaveBeenCalledWith(image);
+  });
+
+  it('routes OBJ companion files together through the shared picker', async () => {
+    const onFilesSelected = vi.fn();
+    render(
+      <ImportStage
+        onSelectSample={vi.fn()}
+        onFilesSelected={onFilesSelected}
+        onImageSelected={vi.fn()}
+        hasModel={false}
+        loadedModelLabel={null}
+      />,
+    );
+    const obj = new File(['v 0 0 0'], 'shape.obj', { type: 'text/plain' });
+    const texture = new File(['image'], 'texture.png', { type: 'image/png' });
+    await userEvent.upload(screen.getByLabelText('Choose a 2D image or 3D model to import'), [
+      obj,
+      texture,
+    ]);
+    expect(onFilesSelected).toHaveBeenCalledWith([obj, texture]);
   });
 });
 

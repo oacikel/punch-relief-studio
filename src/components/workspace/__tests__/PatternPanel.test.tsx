@@ -37,7 +37,7 @@ function baseProps() {
     legend: makeLegend(),
     widthCm: 20,
     heightCm: 20,
-    view: 'combined' as const,
+    view: 'color-only' as const,
     onViewChange: vi.fn(),
     showGrid: false,
     onShowGridChange: vi.fn(),
@@ -70,8 +70,16 @@ describe('PatternPanel', () => {
   it('calls onViewChange when a view-mode button is clicked', async () => {
     const onViewChange = vi.fn();
     render(<PatternPanel {...baseProps()} onViewChange={onViewChange} />);
-    await userEvent.click(screen.getByRole('button', { name: 'contour' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outline' }));
     expect(onViewChange).toHaveBeenCalledWith('contour');
+  });
+
+  it('hides height-only and combined views for flat images', () => {
+    render(<PatternPanel {...baseProps()} isImageSource={true} />);
+    expect(screen.getByRole('button', { name: 'Colors' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Outline' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Heights' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /combined/i })).not.toBeInTheDocument();
   });
 
   it('reveals the spacing input only when the punch guide mode is "dots"', () => {

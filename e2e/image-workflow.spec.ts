@@ -21,7 +21,7 @@ test('imports a flat image and opens the smart-zone workflow', async ({ page }) 
   });
   const png = Buffer.from(dataUrl.split(',')[1] ?? '', 'base64');
 
-  await page.getByLabel('Choose image to import').setInputFiles({
+  await page.getByLabel('Choose a 2D image or 3D model to import').setInputFiles({
     name: 'sample-art.png',
     mimeType: 'image/png',
     buffer: png,
@@ -33,7 +33,7 @@ test('imports a flat image and opens the smart-zone workflow', async ({ page }) 
   await page.getByRole('button', { name: 'Source image' }).click();
   await expect(page.getByAltText('Original imported source')).toBeVisible();
   await page.getByRole('button', { name: 'Pattern' }).click();
-  await page.getByRole('button', { name: 'contour', exact: true }).click();
+  await page.getByRole('button', { name: 'Outline', exact: true }).click();
   const contourPattern = page.getByAltText(/contour view/);
   await expect(contourPattern).toBeVisible();
   const contourUrl = await contourPattern.getAttribute('src');

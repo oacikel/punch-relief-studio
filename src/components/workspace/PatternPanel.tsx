@@ -25,9 +25,14 @@ interface Props {
   punchGuide: PunchGuideSettings;
   onPunchGuideChange: (patch: Partial<PunchGuideSettings>) => void;
   contourSource?: ContourSource;
+  isImageSource?: boolean;
 }
 
-const VIEWS: PatternView[] = ['combined', 'color-only', 'height-only', 'contour'];
+const VIEW_LABELS: Record<PatternView, string> = {
+  'color-only': 'Colors',
+  'height-only': 'Heights',
+  contour: 'Outline',
+};
 
 /**
  * "Pattern" panel -- the former Preview stage's pattern column, extracted
@@ -56,14 +61,18 @@ export function PatternPanel({
   punchGuide,
   onPunchGuideChange,
   contourSource,
+  isImageSource = false,
 }: Props): JSX.Element {
+  const views: PatternView[] = isImageSource
+    ? ['color-only', 'contour']
+    : ['color-only', 'height-only', 'contour'];
   return (
     <div className="workspace-panel">
       <h3>Pattern</h3>
       <div role="group" aria-label="Pattern view" style={{ marginBottom: 8 }}>
-        {VIEWS.map((v) => (
+        {views.map((v) => (
           <button key={v} type="button" aria-pressed={view === v} onClick={() => onViewChange(v)}>
-            {v}
+            {VIEW_LABELS[v]}
           </button>
         ))}
       </div>

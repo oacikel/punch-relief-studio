@@ -20,10 +20,11 @@ interface Props {
 }
 
 /**
- * Import stage: built-in samples (no upload required, per product spec
- * §5), plus drag-and-drop / file-picker import for STL and OBJ(+MTL+local
- * textures). Validates before handing files off, and never crashes on a
- * malformed drop -- errors surface as an inline, field-associated message.
+ * Import stage: one drag-and-drop / file-picker entry point for flat images
+ * and 3D models, followed by built-in 3D samples (no upload required, per
+ * product spec §5). OBJ companion MTL/texture files remain selectable as a
+ * group. The primary file type routes to the corresponding image or model
+ * handler, and malformed/unsupported drops surface an inline error.
  *
  * As of Iteration 02 Stage A, model orientation also happens on this stage
  * (formerly a separate "Orient" stage -- see docs/ITERATION_02_PLAN.md):
@@ -53,17 +54,24 @@ export function ImportStage({
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleFiles = (fileList: FileList | File[]): void => {
     const files = Array.from(fileList);
     if (files.length === 0) return;
     try {
-      const primary = files.find((f) => /\.(stl|obj)$/i.test(f.name)) ?? files[0];
-      if (!primary) return;
-      validateFile(primary);
+      const model = files.find((file) => /\.(stl|obj)$/i.test(file.name));
+      if (model) {
+        validateFile(model);
+        setError(null);
+        onFilesSelected(files);
+        return;
+      }
+      const image = files.find((file) => /\.(png|jpe?g|webp)$/i.test(file.name));
+      if (!image) {
+        throw new Error('Choose a PNG, JPEG, WebP, STL, or OBJ file.');
+      }
       setError(null);
-      onFilesSelected(files);
+      onImageSelected(image);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not import this file.');
     }
@@ -72,9 +80,9 @@ export function ImportStage({
   return (
     <section className="stage-panel" aria-labelledby="import-heading">
       <p className="eyebrow">Start a new pattern</p>
-      <h2 id="import-heading">Choose what to turn into a pattern</h2>
+      <h2 id="import-heading">Start with your artwork</h2>
       <p className="stage-lede">
-        Start from a 3D relief or a flat image. Everything stays private in your browser.
+        Import a 2D image or 3D model. Everything stays private in your browser.
       </p>
 
       {/* Usability fix (docs/DECISIONS.md): `open={!hasModel}` is only
@@ -87,30 +95,9 @@ export function ImportStage({
           component. */}
       <details className="import-picker" open={!hasModel}>
         <summary>
-          {hasModel
-            ? `Source loaded: ${loadedModelLabel ?? 'your source'} — choose a different file`
-            : 'Choose a source to import'}
+          {hasModel ? `Source: ${loadedModelLabel ?? 'your file'} · Change` : 'Import your artwork'}
         </summary>
         <div className="import-picker__body">
-          <h3>Start with a sample</h3>
-          <div className="sample-grid">
-            {BUILTIN_SAMPLES.map((sample) => (
-              <button
-                className="sample-card"
-                key={sample.id}
-                type="button"
-                onClick={() => onSelectSample(sample.id)}
-              >
-                <strong>{sample.name}</strong>
-                <span className="helper-text">{sample.description}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="section-divider">
-            <span>or</span>
-          </div>
-          <h3>Import your own</h3>
           <div
             className={dragActive ? 'drop-zone drop-zone--active' : 'drop-zone'}
             onDragOver={(e) => {
@@ -127,53 +114,46 @@ export function ImportStage({
             <span className="drop-zone__icon" aria-hidden="true">
               ↥
             </span>
-            <strong>Drop your model here</strong>
-            <p className="helper-text">STL or OBJ, including local MTL and texture files</p>
+            <strong>Drop a 2D image or 3D model here</strong>
+            <p className="helper-text">
+              PNG, JPEG, WebP, STL, or OBJ with optional MTL and texture files
+            </p>
             <button
               className="primary-button"
               type="button"
               onClick={() => inputRef.current?.click()}
             >
-              Choose files
+              Choose file(s)
             </button>
             <input
               ref={inputRef}
               type="file"
               multiple
-              accept=".stl,.obj,.mtl,image/*"
+              accept=".stl,.obj,.mtl,.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
               className="visually-hidden"
-              onChange={(e) => e.target.files && handleFiles(e.target.files)}
-              aria-label="Choose model files to import"
+              onChange={(event) => {
+                if (event.target.files) handleFiles(event.target.files);
+                event.target.value = '';
+              }}
+              aria-label="Choose a 2D image or 3D model to import"
             />
           </div>
 
           <div className="section-divider">
-            <span>or use a flat image</span>
+            <span>or try a 3D sample</span>
           </div>
-          <div className="image-import-card">
-            <div>
-              <h3>Turn a 2D image into punchable zones</h3>
-              <p className="helper-text">PNG, JPEG, or WebP.</p>
-            </div>
-            <button
-              className="primary-button"
-              type="button"
-              onClick={() => imageInputRef.current?.click()}
-            >
-              Choose an image
-            </button>
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
-              className="visually-hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) onImageSelected(file);
-                event.target.value = '';
-              }}
-              aria-label="Choose image to import"
-            />
+          <div className="sample-grid">
+            {BUILTIN_SAMPLES.map((sample) => (
+              <button
+                className="sample-card"
+                key={sample.id}
+                type="button"
+                onClick={() => onSelectSample(sample.id)}
+              >
+                <strong>{sample.name}</strong>
+                <span className="helper-text">{sample.description}</span>
+              </button>
+            ))}
           </div>
         </div>
       </details>

@@ -7,6 +7,7 @@
 import type { ColorMode, ReliefSettings } from './types';
 import type { CalibrationProfile } from './calibration';
 import type { NeedleGeometry } from './pattern/needleGeometry';
+import type { ImageDetailSettings } from './image/simplifyImage';
 
 export const PROJECT_SCHEMA_VERSION = 1 as const;
 
@@ -58,6 +59,9 @@ export interface ProjectFile {
    * project file simply has no needle-geometry constraint applied on
    * reload, matching its original behavior exactly. */
   needleGeometry?: NeedleGeometry;
+  /** Image-only cleanup preference. Optional so existing schema-v1 files
+   * load with the current default. */
+  imageDetailSettings?: ImageDetailSettings;
 }
 
 export class UnsupportedSchemaVersionError extends Error {

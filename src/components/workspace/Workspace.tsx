@@ -16,6 +16,7 @@ import type {
   PunchGuideSettings,
   RotationDeg,
   NeedleGeometry,
+  ImageDetailSettings,
 } from '@/state/appState';
 import { ExportPanel } from '@/components/ExportPanel';
 import type { PatternView } from '@/export/svgPattern';
@@ -76,6 +77,8 @@ interface Props {
   onRotationChange: (patch: Partial<RotationDeg>) => void;
   needleGeometry: NeedleGeometry;
   onNeedleGeometryChange: (patch: Partial<NeedleGeometry>) => void;
+  imageDetailSettings: ImageDetailSettings;
+  onImageDetailSettingsChange: (patch: Partial<ImageDetailSettings>) => void;
   /** Real in-flight state from `useLiveRelief` (via `AppState.processing`)
    * -- drives the rail heading's live-status pill. */
   processing: boolean;
@@ -144,10 +147,12 @@ export function Workspace({
   onRotationChange,
   needleGeometry,
   onNeedleGeometryChange,
+  imageDetailSettings,
+  onImageDetailSettingsChange,
   processing,
   processingError,
 }: Props): JSX.Element {
-  const [view, setView] = useState<PatternView>('combined');
+  const [view, setView] = useState<PatternView>(isImageSource ? 'color-only' : 'height-only');
   const [showGrid, setShowGrid] = useState(false);
   const [mirrored, setMirrored] = useState(false);
   const [previewTab, setPreviewTab] = useState<PreviewTab>('pattern');
@@ -228,6 +233,8 @@ export function Workspace({
                   onNeedleGeometryChange={onNeedleGeometryChange}
                   dimensions={dimensions}
                   onDimensionsChange={onDimensionsChange}
+                  imageDetailSettings={imageDetailSettings}
+                  onImageDetailSettingsChange={onImageDetailSettingsChange}
                 />
               ) : (
                 <ReliefControls
@@ -412,6 +419,7 @@ export function Workspace({
                       onPatternViewSettingsChange({ punchGuide: patch })
                     }
                     contourSource={isImageSource ? 'color' : 'height'}
+                    isImageSource={isImageSource}
                   />
                 </div>
               ) : (

@@ -893,6 +893,28 @@ failures reproduce outside the new image path; the new image-workflow spec is
 green. Existing E2E files were left unchanged rather than folding an unrelated
 test-suite migration into this feature.
 
+## Session 12: protected 2D symbols and linework
+
+Run from the repository root on 2026-09-26. Added an image-only detail rescue
+pass and a user-facing “Keep tiny symbols and thin lines” control. The pass
+uses pre-smoothed local luminance contrast, restores qualifying marks to the
+nearest quantized yarn color, slightly widens them, and exempts them from the
+flat area cleanup. The exact `sky is us` source artwork was used for manual
+browser comparison; its small stars and connected swimmer outlines remain
+recognizable in the generated pattern instead of being deleted.
+
+The same session also consolidated 2D/3D upload into one primary importer,
+moved optional 3D samples below it, removed the duplicate Combined pattern
+view, and made the remaining modes source-aware. Manual desktop and 390 px
+mobile checks covered the unified first page plus the 2D and 3D mode sets.
+
+`npm run format`, `npm run lint`, `npm run typecheck`, all **327
+unit/component tests in 40 files**, and `npm run build` passed. The focused
+image Playwright workflow passed in desktop Chromium and the mobile-narrow
+project (**2 passed**) using Node 22. The two existing build warnings remain:
+the main bundle exceeds Vite's default size warning and `projectStore.ts` is
+imported both statically and dynamically.
+
 ## Session 1 (prior, sandboxed): what was reviewed manually
 
 This MVP was originally built in a sandboxed session with no outbound

@@ -14,8 +14,10 @@ import {
   type PunchGuideSettings,
 } from '@/domain/pattern/punchGuide';
 import { DEFAULT_NEEDLE_GEOMETRY, type NeedleGeometry } from '@/domain/pattern/needleGeometry';
+import type { ImageDetailSettings } from '@/domain/image/simplifyImage';
 
 export type { NeedleGeometry } from '@/domain/pattern/needleGeometry';
+export type { ImageDetailSettings } from '@/domain/image/simplifyImage';
 
 export type { PunchGuideMode, PunchGuideSettings } from '@/domain/pattern/punchGuide';
 
@@ -116,6 +118,7 @@ export interface AppState {
   calibrationProfile: CalibrationProfile;
   savedProfiles: CalibrationProfile[];
   patternDimensions: PatternDimensions;
+  imageDetailSettings: ImageDetailSettings;
   renderSettings: RenderSettings;
   exportSettings: ExportSettings;
   patternViewSettings: PatternViewSettings;
@@ -138,6 +141,7 @@ export type AppAction =
   | { type: 'SET_CALIBRATION_PROFILE'; profile: CalibrationProfile }
   | { type: 'SET_SAVED_PROFILES'; profiles: CalibrationProfile[] }
   | { type: 'SET_PATTERN_DIMENSIONS'; dimensions: Partial<PatternDimensions> }
+  | { type: 'SET_IMAGE_DETAIL_SETTINGS'; settings: Partial<ImageDetailSettings> }
   | { type: 'SET_RENDER_SETTINGS'; settings: Partial<RenderSettings> }
   | { type: 'SET_EXPORT_SETTINGS'; settings: Partial<ExportSettings> }
   | {
@@ -213,6 +217,7 @@ export function initialAppState(): AppState {
     calibrationProfile: createDefaultProfile(),
     savedProfiles: [],
     patternDimensions: { widthCm: 20, heightCm: 20, lockAspect: true },
+    imageDetailSettings: { preserveSmallDetails: true },
     renderSettings: {
       pileStyle: 'loop',
       density: 0.6,
@@ -225,7 +230,7 @@ export function initialAppState(): AppState {
       pageSize: 'a4',
       overlapCm: 1,
       orientation: 'front',
-      view: 'combined',
+      view: 'color-only',
       showLabels: true,
     },
     patternViewSettings: {
@@ -297,6 +302,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, savedProfiles: action.profiles };
     case 'SET_PATTERN_DIMENSIONS':
       return { ...state, patternDimensions: { ...state.patternDimensions, ...action.dimensions } };
+    case 'SET_IMAGE_DETAIL_SETTINGS':
+      return {
+        ...state,
+        imageDetailSettings: { ...state.imageDetailSettings, ...action.settings },
+      };
     case 'SET_RENDER_SETTINGS':
       return { ...state, renderSettings: { ...state.renderSettings, ...action.settings } };
     case 'SET_EXPORT_SETTINGS':

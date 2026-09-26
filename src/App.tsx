@@ -282,6 +282,7 @@ export default function App(): JSX.Element {
           seed: state.reliefSettings.seed,
           needleGeometry: state.needleGeometry,
           patternDimensions: state.patternDimensions,
+          preserveSmallDetails: state.imageDetailSettings.preserveSmallDetails,
         },
       })
         .then((result) => {
@@ -327,6 +328,7 @@ export default function App(): JSX.Element {
     state.reliefSettings.seed,
     state.needleGeometry,
     state.patternDimensions,
+    state.imageDetailSettings.preserveSmallDetails,
   ]);
 
   const regionMap: RegionMap | null = useMemo(() => {
@@ -447,6 +449,10 @@ export default function App(): JSX.Element {
     dispatch({ type: 'SET_CALIBRATION_PROFILE', profile: project.calibrationProfile });
     dispatch({ type: 'SET_PATTERN_DIMENSIONS', dimensions: project.patternDimensions });
     dispatch({ type: 'SET_RENDER_SETTINGS', settings: project.renderSettings });
+    dispatch({
+      type: 'SET_IMAGE_DETAIL_SETTINGS',
+      settings: project.imageDetailSettings ?? { preserveSmallDetails: true },
+    });
     // Iteration 04 schema decision: old (pre-Iteration-04) project files
     // never have `needleGeometry` -- default explicitly to "not set" rather
     // than trusting `??` alone. See docs/ITERATION_04_PLAN.md §7.
@@ -650,6 +656,10 @@ export default function App(): JSX.Element {
               needleGeometry={state.needleGeometry}
               onNeedleGeometryChange={(patch) =>
                 dispatch({ type: 'SET_NEEDLE_GEOMETRY', geometry: patch })
+              }
+              imageDetailSettings={state.imageDetailSettings}
+              onImageDetailSettingsChange={(patch) =>
+                dispatch({ type: 'SET_IMAGE_DETAIL_SETTINGS', settings: patch })
               }
               processing={state.processing}
               processingError={state.processingError}

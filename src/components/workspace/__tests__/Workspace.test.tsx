@@ -57,7 +57,7 @@ function baseProps() {
       pageSize: 'a4' as const,
       overlapCm: 1,
       orientation: 'front' as const,
-      view: 'combined' as const,
+      view: 'color-only' as const,
       showLabels: true,
     },
     onExportSettingsChange: vi.fn(),
@@ -72,12 +72,25 @@ function baseProps() {
     onRotationChange: vi.fn(),
     needleGeometry: { diameterMm: 0, throwMm: 0 },
     onNeedleGeometryChange: vi.fn(),
+    imageDetailSettings: { preserveSmallDetails: true },
+    onImageDetailSettingsChange: vi.fn(),
     processing: false,
     processingError: null,
   };
 }
 
 describe('Workspace', () => {
+  it('offers the small-detail rescue control for image sources', async () => {
+    const props = baseProps();
+    render(<Workspace {...props} isImageSource={true} />);
+    const control = screen.getByRole('checkbox', { name: 'Keep tiny symbols and thin lines' });
+    expect(control).toBeChecked();
+    await userEvent.click(control);
+    expect(props.onImageDetailSettingsChange).toHaveBeenCalledWith({
+      preserveSmallDetails: false,
+    });
+  });
+
   it('shows the rail heading with no status pill when idle', () => {
     render(<Workspace {...baseProps()} />);
     expect(screen.getByRole('heading', { name: 'Make it punchable' })).toBeInTheDocument();

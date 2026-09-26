@@ -112,7 +112,18 @@ a score that combines shared-boundary length and perceptual color distance.
 Fine/Balanced/Bold add progressively stronger local-width cleanup. When a
 needle-tip diameter is set, its physical millimetre width is converted through
 the finished pattern size and combined with that preset floor before the
-existing morphological opening is applied. Unused palette entries are removed
+existing morphological opening is applied.
+
+The optional small-detail rescue pass measures each source pixel against its
+local 5×5 luminance neighborhood before smoothing. A pixel is protected only
+when most neighbors differ strongly, which selects isolated symbols and thin
+strokes without selecting both sides of every ordinary region boundary.
+Protected pixels are restored to their nearest quantized yarn color, widened by
+the active cleanup radius, and exempted from the whole-region area merge. This
+is an explicit scale compromise: an otherwise unpunchable mark becomes slightly
+larger instead of disappearing.
+
+Unused palette entries are removed
 and indices compacted. The output uses a single height level and the standard
 `RegionMap`, so preview, simulation, legend, and export remain shared with the
 3D workflow.

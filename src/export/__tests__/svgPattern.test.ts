@@ -126,7 +126,7 @@ describe('buildSvgPattern contour view', () => {
     const result = buildSvgPattern(regionMap, makeLegend(), {
       widthCm: 4,
       heightCm: 1,
-      view: 'combined',
+      view: 'color-only',
       showGrid: false,
       showLabels: false,
       mirrored: false,
@@ -145,16 +145,16 @@ describe('buildSvgPattern region labels', () => {
       heightIndex: new Int16Array(100).fill(0),
       colorIndex: new Int16Array(100).fill(0),
     };
-    const combined = buildSvgPattern(regionMap, makeLegend(), {
+    const colors = buildSvgPattern(regionMap, makeLegend(), {
       widthCm: 10,
       heightCm: 10,
-      view: 'combined',
+      view: 'color-only',
       showGrid: false,
       showLabels: true,
       mirrored: false,
     });
-    expect(combined.svg).toContain('data-layer="labels"');
-    expect(combined.svg).toContain('>C1-H1<');
+    expect(colors.svg).toContain('data-layer="labels"');
+    expect(colors.svg).toContain('>C1-H1<');
 
     const contour = buildSvgPattern(regionMap, makeLegend(), {
       widthCm: 10,
@@ -178,7 +178,7 @@ describe('buildSvgPattern region labels', () => {
     const result = buildSvgPattern(regionMap, makeLegend(), {
       widthCm: 10,
       heightCm: 10,
-      view: 'combined',
+      view: 'color-only',
       showGrid: false,
       showLabels: false,
       mirrored: false,
@@ -197,7 +197,7 @@ describe('buildSvgPattern region labels', () => {
     const result = buildSvgPattern(regionMap, makeLegend(), {
       widthCm: 3,
       heightCm: 3,
-      view: 'combined',
+      view: 'color-only',
       showGrid: false,
       showLabels: true,
       mirrored: false,
@@ -219,7 +219,7 @@ describe('buildSvgPattern region labels', () => {
     const result = buildSvgPattern(regionMap, makeLegend(), {
       widthCm: 10,
       heightCm: 10,
-      view: 'combined',
+      view: 'color-only',
       showGrid: false,
       showLabels: true,
       mirrored: false,
@@ -248,7 +248,7 @@ describe('buildSvgPattern region labels', () => {
     const result = buildSvgPattern(regionMap, makeLegend(), {
       widthCm: width,
       heightCm: height,
-      view: 'combined',
+      view: 'color-only',
       showGrid: false,
       showLabels: true,
       mirrored: false,
@@ -277,7 +277,7 @@ describe('buildSvgPattern punch guide (Iteration 02 Stage C)', () => {
     const result = buildSvgPattern(makeRegionMap(), makeLegend(), {
       widthCm: 10,
       heightCm: 10,
-      view: 'combined',
+      view: 'color-only',
       showGrid: false,
       showLabels: false,
       mirrored: false,
@@ -289,7 +289,7 @@ describe('buildSvgPattern punch guide (Iteration 02 Stage C)', () => {
     const result = buildSvgPattern(makeRegionMap(), makeLegend(), {
       widthCm: 10,
       heightCm: 10,
-      view: 'combined',
+      view: 'color-only',
       showGrid: false,
       showLabels: false,
       mirrored: false,
@@ -302,7 +302,7 @@ describe('buildSvgPattern punch guide (Iteration 02 Stage C)', () => {
     const result = buildSvgPattern(makeRegionMap(), makeLegend(), {
       widthCm: 10,
       heightCm: 10,
-      view: 'combined',
+      view: 'color-only',
       showGrid: false,
       showLabels: false,
       mirrored: false,
@@ -318,7 +318,7 @@ describe('buildSvgPattern punch guide (Iteration 02 Stage C)', () => {
     const dense = buildSvgPattern(makeRegionMap(), makeLegend(), {
       widthCm: 10,
       heightCm: 10,
-      view: 'combined',
+      view: 'color-only',
       showGrid: false,
       showLabels: false,
       mirrored: false,
@@ -327,7 +327,7 @@ describe('buildSvgPattern punch guide (Iteration 02 Stage C)', () => {
     const sparse = buildSvgPattern(makeRegionMap(), makeLegend(), {
       widthCm: 10,
       heightCm: 10,
-      view: 'combined',
+      view: 'color-only',
       showGrid: false,
       showLabels: false,
       mirrored: false,
@@ -363,7 +363,7 @@ describe('buildSvgPattern punch guide (Iteration 02 Stage C)', () => {
     const result = buildSvgPattern(makeRegionMap(), makeLegend(), {
       widthCm: 10,
       heightCm: 10,
-      view: 'combined',
+      view: 'color-only',
       showGrid: true,
       showLabels: true,
       mirrored: false,

@@ -72,8 +72,9 @@ to discover.
    The preview column shows exactly one of two tabs at a time -- click
    between them, nothing is stacked or hidden below a scroll:
 
-   - **Pattern**: compare pattern views (combined/color-only/height-only/
-     contour), toggle Grid/Mirrored (back side)/Region labels
+   - **Pattern**: switch between Colors and Outline for a flat image, or
+     Colors, Heights, and Outline for a 3D relief. Toggle Grid/Mirrored
+     (back side)/Region labels
      (C1-H1 etc.), and add an optional "Punch guide" (None/Dots) -- an
      evenly spaced grid of dots at a spacing (in cm) you choose, as a rough
      placement guide. This is the spacing you set, not a measurement of

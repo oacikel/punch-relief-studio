@@ -5,7 +5,7 @@ import {
   MIN_REGION_PRESET_ORDER,
   type MinRegionPreset,
 } from '@/domain/pattern/minRegionPreset';
-import type { NeedleGeometry, PatternDimensions } from '@/state/appState';
+import type { ImageDetailSettings, NeedleGeometry, PatternDimensions } from '@/state/appState';
 import { DecimalNumberInput } from '@/components/DecimalNumberInput';
 import { PatternSizeFields } from '@/components/PatternSizeFields';
 
@@ -16,6 +16,8 @@ interface Props {
   onNeedleGeometryChange: (patch: Partial<NeedleGeometry>) => void;
   dimensions: PatternDimensions;
   onDimensionsChange: (patch: Partial<PatternDimensions>) => void;
+  imageDetailSettings: ImageDetailSettings;
+  onImageDetailSettingsChange: (patch: Partial<ImageDetailSettings>) => void;
 }
 
 export function ImageShapeControls({
@@ -25,6 +27,8 @@ export function ImageShapeControls({
   onNeedleGeometryChange,
   dimensions,
   onDimensionsChange,
+  imageDetailSettings,
+  onImageDetailSettingsChange,
 }: Props): JSX.Element {
   return (
     <div className="control-group rail-section" id="rail-shape">
@@ -59,6 +63,22 @@ export function ImageShapeControls({
           ))}
         </select>
         <p className="helper-text">{MIN_REGION_PRESET_DESCRIPTIONS[settings.minRegionPreset]}</p>
+      </div>
+
+      <div className="field">
+        <label>
+          <input
+            type="checkbox"
+            checked={imageDetailSettings.preserveSmallDetails}
+            onChange={(event) =>
+              onImageDetailSettingsChange({ preserveSmallDetails: event.target.checked })
+            }
+          />{' '}
+          Keep tiny symbols and thin lines
+        </label>
+        <p className="helper-text">
+          Slightly enlarges high-contrast details that would otherwise disappear.
+        </p>
       </div>
 
       <div className="field">

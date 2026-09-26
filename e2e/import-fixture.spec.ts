@@ -13,7 +13,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
  */
 test('imports a local STL fixture via the file picker', async ({ page }) => {
   await page.goto('/');
-  const fileInput = page.getByLabel('Choose model files to import');
+  const fileInput = page.getByLabel('Choose a 2D image or 3D model to import');
   await fileInput.setInputFiles(path.join(here, 'fixtures', 'cube.stl'));
   await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible({
     timeout: 10_000,

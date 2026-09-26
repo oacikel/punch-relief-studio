@@ -2299,3 +2299,28 @@ offline-capable, deterministic for identical pixels/settings, and runs in the
 existing worker. The original image is exposed as a comparison tab but, like
 user-imported meshes, is not embedded in project JSON; reopening requires the
 source file to be selected again.
+
+Small high-contrast source marks have an explicit rescue option, enabled by
+default. The pass works from the pre-smoothed source so a one-pixel star or
+figure outline cannot disappear before cleanup has a chance to classify it. It
+widens only locally exceptional light/dark pixels and lets them bypass the flat
+area threshold. This knowingly changes their scale; for punch needle, a
+slightly enlarged symbol is a more useful translation than silently deleting
+the symbol. The setting is saved in project JSON as an optional schema-v1 field,
+with older files defaulting to enabled.
+
+## Import uses one source picker; pattern views follow the source type
+
+The first page has one primary drop zone and file picker for PNG, JPEG, WebP,
+STL, and OBJ. Routing happens from the selected files: an OBJ/STL wins when a
+selection also contains MTL/texture companions; otherwise a supported image is
+handled as a flat source. Built-in 3D samples sit below this primary action as
+an optional shortcut. This removes the former up-front choice between two
+visually separate upload systems.
+
+The on-screen pattern no longer exposes the misleading `combined` view, whose
+fill was identical to `color-only`. Flat images offer Colors and Outline only,
+because their single pile height makes Heights meaningless. 3D reliefs offer
+Colors, Heights, and Outline and open on Heights; flat images open on Colors.
+The dead `combined` value was also removed from the internal view type so it
+cannot silently return through a future control.

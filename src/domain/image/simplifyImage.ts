@@ -5,6 +5,10 @@ import type { MinRegionPreset } from '@/domain/pattern/minRegionPreset';
 import type { Mask, RgbColor } from '@/domain/types';
 import type { NeedleGeometry } from '@/domain/pattern/needleGeometry';
 
+export interface ImageDetailSettings {
+  preserveSmallDetails: boolean;
+}
+
 export interface ImageSimplificationSettings {
   paletteSize: number;
   detail: MinRegionPreset;
@@ -13,6 +17,7 @@ export interface ImageSimplificationSettings {
   seed: number;
   needleGeometry: NeedleGeometry;
   patternDimensions: { widthCm: number; heightCm: number };
+  preserveSmallDetails: boolean;
 }
 
 export interface SimplifiedImage {
@@ -68,14 +73,6 @@ export function simplifyImage(
     2,
     Math.round(width * height * MIN_REGION_FRACTION[settings.detail]),
   );
-  let colorIndex = mergeSmallColorRegions(
-    quantized.assignment,
-    width,
-    height,
-    quantized.palette,
-    minRegionPx,
-  );
-
   const needleWidthPx = minimumZoneWidthPx(
     settings.needleGeometry,
     settings.patternDimensions.widthCm,
@@ -84,9 +81,36 @@ export function simplifyImage(
     height,
   );
   const radius = Math.max(PRESET_RADIUS[settings.detail], Math.round(needleWidthPx / 2));
+  const prepared = settings.preserveSmallDetails
+    ? preserveHighContrastSourceDetails(
+        rgba,
+        mask,
+        quantized.assignment,
+        width,
+        height,
+        quantized.palette,
+        radius,
+      )
+    : { assignment: quantized.assignment, protectedMask: undefined };
+  let colorIndex = mergeSmallColorRegions(
+    prepared.assignment,
+    width,
+    height,
+    quantized.palette,
+    minRegionPx,
+    prepared.protectedMask,
+  );
+
   if (radius > 0) {
     colorIndex = applyNeedleWidthOpening(colorIndex, width, height, () => radius);
-    colorIndex = mergeSmallColorRegions(colorIndex, width, height, quantized.palette, minRegionPx);
+    colorIndex = mergeSmallColorRegions(
+      colorIndex,
+      width,
+      height,
+      quantized.palette,
+      minRegionPx,
+      prepared.protectedMask,
+    );
   }
 
   const compact = compactPalette(colorIndex, quantized.palette);
@@ -102,6 +126,133 @@ export function simplifyImage(
     colorIndex: compact.assignment,
     palette: compact.palette,
   };
+}
+
+// Deliberately below a black/white edge but above ordinary tonal texture.
+// Quantization can turn a tiny white mark into a mid-grey yarn swatch; a
+// threshold around 30 discarded those still-obvious marks in the real star
+// artwork used as the regression case.
+const MIN_PROTECTED_LUMINANCE_CONTRAST = 38;
+
+/**
+ * Preserve deliberate marks without bringing ordinary tonal texture back
+ * into the pattern. Pixels that strongly differ in luminance from a local
+ * 5×5 neighborhood are restored from the original image after smoothing and
+ * color quantization. They are then widened by the configured cleanup radius
+ * and exempted from the whole-region area merge.
+ * This intentionally changes their scale: a tiny star that cannot be
+ * punched literally is represented by a slightly larger star instead of
+ * being silently deleted.
+ */
+function preserveHighContrastSourceDetails(
+  rgba: Uint8ClampedArray,
+  mask: Mask,
+  input: Int16Array,
+  width: number,
+  height: number,
+  palette: RgbColor[],
+  cleanupRadius: number,
+): { assignment: Int16Array; protectedMask: Uint8Array } {
+  const result = input.slice();
+  const labs = palette.map(rgbToLab);
+  const seeds: Array<{ pixel: number; value: number; contrast: number }> = [];
+  const seedMask = new Uint8Array(input.length);
+  const protectedMask = new Uint8Array(input.length);
+
+  for (let pixel = 0; pixel < input.length; pixel++) {
+    if (mask.data[pixel] !== 1) continue;
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    const sourceLuminance = luminanceAt(pixel);
+    let neighborLuminance = 0;
+    let neighborCount = 0;
+    let stronglyDifferentNeighbors = 0;
+    for (let oy = -2; oy <= 2; oy++) {
+      const ny = y + oy;
+      if (ny < 0 || ny >= height) continue;
+      for (let ox = -2; ox <= 2; ox++) {
+        if (ox === 0 && oy === 0) continue;
+        const nx = x + ox;
+        if (nx < 0 || nx >= width) continue;
+        const neighbor = ny * width + nx;
+        if (mask.data[neighbor] !== 1) continue;
+        const neighborValue = luminanceAt(neighbor);
+        neighborLuminance += neighborValue;
+        if (Math.abs(sourceLuminance - neighborValue) >= 50) stronglyDifferentNeighbors += 1;
+        neighborCount += 1;
+      }
+    }
+    if (neighborCount === 0) continue;
+    const contrast = Math.abs(sourceLuminance - neighborLuminance / neighborCount);
+    if (
+      contrast < MIN_PROTECTED_LUMINANCE_CONTRAST ||
+      stronglyDifferentNeighbors / neighborCount < 0.55
+    ) {
+      continue;
+    }
+    const base = pixel * 4;
+    const sourceLab = rgbToLab({
+      r: rgba[base] ?? 0,
+      g: rgba[base + 1] ?? 0,
+      b: rgba[base + 2] ?? 0,
+    });
+    let value = 0;
+    let closest = Infinity;
+    for (let paletteIndex = 0; paletteIndex < labs.length; paletteIndex++) {
+      const paletteLab = labs[paletteIndex];
+      if (!paletteLab) continue;
+      const distance = labDistance(sourceLab, paletteLab);
+      if (distance < closest) {
+        closest = distance;
+        value = paletteIndex;
+      }
+    }
+    seeds.push({ pixel, value, contrast });
+    seedMask[pixel] = 1;
+  }
+
+  seeds.sort((a, b) => b.contrast - a.contrast || a.pixel - b.pixel);
+  for (const seed of seeds) {
+    result[seed.pixel] = seed.value;
+    protectedMask[seed.pixel] = 1;
+  }
+
+  const layersToGrow = Math.max(cleanupRadius, 1);
+  for (const seed of seeds) {
+    let frontier = [seed.pixel];
+    for (let layer = 0; layer < layersToGrow && frontier.length > 0; layer++) {
+      const next: number[] = [];
+      for (const pixel of frontier) {
+        const x = pixel % width;
+        const y = Math.floor(pixel / width);
+        for (let oy = -1; oy <= 1; oy++) {
+          const ny = y + oy;
+          if (ny < 0 || ny >= height) continue;
+          for (let ox = -1; ox <= 1; ox++) {
+            if (ox === 0 && oy === 0) continue;
+            const nx = x + ox;
+            if (nx < 0 || nx >= width) continue;
+            const neighbor = ny * width + nx;
+            if (mask.data[neighbor] !== 1 || protectedMask[neighbor] === 1) continue;
+            if (seedMask[neighbor] === 1) continue;
+            result[neighbor] = seed.value;
+            protectedMask[neighbor] = 1;
+            next.push(neighbor);
+          }
+        }
+      }
+      frontier = next;
+    }
+  }
+
+  return { assignment: result, protectedMask };
+
+  function luminanceAt(pixel: number): number {
+    const base = pixel * 4;
+    return (
+      (rgba[base] ?? 0) * 0.2126 + (rgba[base + 1] ?? 0) * 0.7152 + (rgba[base + 2] ?? 0) * 0.0722
+    );
+  }
 }
 
 function alphaMask(rgba: Uint8ClampedArray, width: number, height: number): Mask {
@@ -181,6 +332,7 @@ function mergeSmallColorRegions(
   height: number,
   palette: RgbColor[],
   minSizePx: number,
+  protectedMask?: Uint8Array,
 ): Int16Array {
   const result = input.slice();
   const labs = palette.map(rgbToLab);
@@ -188,7 +340,11 @@ function mergeSmallColorRegions(
   for (let iteration = 0; iteration < 24; iteration++) {
     const components = findConnectedComponents(result, width, height);
     const small = components
-      .filter((component) => component.pixels.length < minSizePx)
+      .filter(
+        (component) =>
+          component.pixels.length < minSizePx &&
+          !component.pixels.some((pixel) => protectedMask?.[pixel] === 1),
+      )
       .sort((a, b) => a.pixels.length - b.pixels.length || a.id - b.id);
     if (small.length === 0) break;
     let changed = false;

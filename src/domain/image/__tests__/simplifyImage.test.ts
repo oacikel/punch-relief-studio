@@ -10,6 +10,7 @@ const baseSettings = {
   seed: 123,
   needleGeometry: { diameterMm: 0, throwMm: 0 },
   patternDimensions: { widthCm: 20, heightCm: 20 },
+  preserveSmallDetails: false,
 };
 
 function image(width: number, height: number, colorAt: (x: number, y: number) => number[]) {
@@ -39,6 +40,64 @@ describe('simplifyImage', () => {
     );
     const result = simplifyImage(rgba, 40, 40, baseSettings);
     expect(findConnectedComponents(result.colorIndex, 40, 40)).toHaveLength(1);
+  });
+
+  it('enlarges tiny high-contrast marks so they survive region cleanup', () => {
+    const rgba = image(80, 80, (x, y) =>
+      (x === 20 && y === 20) || (x === 55 && y === 42) ? [245, 245, 240, 255] : [10, 18, 24, 255],
+    );
+    const withoutProtection = simplifyImage(rgba, 80, 80, {
+      ...baseSettings,
+      detail: 'fine',
+      smoothingStrength: 0,
+    });
+    const withProtection = simplifyImage(rgba, 80, 80, {
+      ...baseSettings,
+      detail: 'fine',
+      smoothingStrength: 0,
+      preserveSmallDetails: true,
+    });
+
+    expect(findConnectedComponents(withoutProtection.colorIndex, 80, 80)).toHaveLength(1);
+    expect(findConnectedComponents(withProtection.colorIndex, 80, 80)).toHaveLength(3);
+  });
+
+  it('does not rescue low-contrast texture', () => {
+    const rgba = image(80, 80, (x, y) =>
+      x === 40 && y === 40 ? [45, 48, 52, 255] : [38, 41, 45, 255],
+    );
+    const result = simplifyImage(rgba, 80, 80, {
+      ...baseSettings,
+      paletteSize: 2,
+      detail: 'fine',
+      smoothingStrength: 0,
+      preserveSmallDetails: true,
+    });
+    expect(findConnectedComponents(result.colorIndex, 80, 80)).toHaveLength(1);
+  });
+
+  it('keeps a thin high-contrast line even when it joins a much larger region', () => {
+    const rgba = image(80, 80, (x, y) =>
+      y < 25 || (x === 40 && y < 70) ? [10, 14, 18, 255] : [245, 243, 238, 255],
+    );
+    const withoutProtection = simplifyImage(rgba, 80, 80, {
+      ...baseSettings,
+      detail: 'balanced',
+      smoothingStrength: 0.3,
+    });
+    const withProtection = simplifyImage(rgba, 80, 80, {
+      ...baseSettings,
+      detail: 'balanced',
+      smoothingStrength: 0.3,
+      preserveSmallDetails: true,
+    });
+
+    expect(withoutProtection.colorIndex[60 * 80 + 40]).toBe(
+      withoutProtection.colorIndex[60 * 80 + 45],
+    );
+    expect(withProtection.colorIndex[60 * 80 + 40]).not.toBe(
+      withProtection.colorIndex[60 * 80 + 45],
+    );
   });
 
   it('keeps transparent pixels outside the punchable pattern', () => {

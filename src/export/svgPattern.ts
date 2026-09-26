@@ -1,5 +1,5 @@
 /**
- * Compose the printable SVG pattern: combined color+height regions,
+ * Compose the printable SVG pattern: yarn-color or pile-height regions,
  * region-outline contours (height boundaries for 3D reliefs, color-zone
  * boundaries for 2D images), per-region "C{n}-H{n}" labels, grid,
  * legend, scale bar, and registration marks. Kept separate from React so
@@ -13,7 +13,7 @@ import { findConnectedComponents } from '@/domain/regionCleanup';
 import { computePunchGuideDots, type PunchGuideSettings } from '@/domain/pattern/punchGuide';
 import { placeLabels, type LabelCandidate } from '@/domain/pattern/labelPlacement';
 
-export type PatternView = 'combined' | 'color-only' | 'height-only' | 'contour';
+export type PatternView = 'color-only' | 'height-only' | 'contour';
 export type ContourSource = 'height' | 'color';
 
 export interface SvgPatternOptions {

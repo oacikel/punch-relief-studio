@@ -38,7 +38,7 @@ function baseExportSettings(overrides: Partial<ExportSettings> = {}): ExportSett
     pageSize: 'a4',
     overlapCm: 1,
     orientation: 'front',
-    view: 'combined',
+    view: 'color-only',
     showLabels: true,
     ...overrides,
   };
@@ -49,18 +49,18 @@ function basePunchGuide(overrides: Partial<PunchGuideSettings> = {}): PunchGuide
 }
 
 /** Baseline props matching Preview's default on-screen state
- * (view=combined, grid off, not mirrored, labels on) -- see
+ * (view=color-only, grid off, not mirrored, labels on) -- see
  * docs/ITERATION_03_PLAN.md #11: ExportPanel no longer owns its own
  * view/label controls, it reads Preview's current on-screen state
  * directly via these props. */
 function baseScreenProps(): {
-  screenView: 'combined';
+  screenView: 'color-only';
   screenShowGrid: boolean;
   screenMirrored: boolean;
   screenShowLabels: boolean;
 } {
   return {
-    screenView: 'combined',
+    screenView: 'color-only',
     screenShowGrid: false,
     screenMirrored: false,
     screenShowLabels: true,

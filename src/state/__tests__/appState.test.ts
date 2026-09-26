@@ -52,6 +52,16 @@ describe('appReducer', () => {
     state = appReducer(state, { type: 'SET_NEEDLE_GEOMETRY', geometry: { throwMm: 40 } });
     expect(state.needleGeometry).toEqual({ diameterMm: 2, throwMm: 40 });
   });
+
+  it('preserves small image details by default and allows disabling the rescue pass', () => {
+    const state = initialAppState();
+    expect(state.imageDetailSettings.preserveSmallDetails).toBe(true);
+    const next = appReducer(state, {
+      type: 'SET_IMAGE_DETAIL_SETTINGS',
+      settings: { preserveSmallDetails: false },
+    });
+    expect(next.imageDetailSettings.preserveSmallDetails).toBe(false);
+  });
 });
 
 describe('patternViewSettings (Iteration 02 Stage C)', () => {
