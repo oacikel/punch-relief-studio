@@ -48,14 +48,14 @@ async function expectNoViolations(page: Page): Promise<void> {
 test.describe('Accessibility sweep (Iteration 03 Round 2 #5)', () => {
   test('Import stage (before a model is loaded)', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Import a model' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Start with your artwork' })).toBeVisible();
     await expectNoViolations(page);
   });
 
   test('Import stage (with a model loaded, orientation section visible)', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Is this the view you want?' })).toBeVisible();
     await expectNoViolations(page);
   });
 
@@ -76,15 +76,15 @@ test.describe('Accessibility sweep (Iteration 03 Round 2 #5)', () => {
   test('Workspace stage, immediately on arrival', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
-    await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
+    await expect(page.getByRole('heading', { name: 'Make it punchable' })).toBeVisible();
     await expectNoViolations(page);
   });
 
   test('Workspace stage, after live regeneration has produced a result', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
     await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
       timeout: 15_000,
     });
@@ -94,12 +94,15 @@ test.describe('Accessibility sweep (Iteration 03 Round 2 #5)', () => {
   test('Workspace stage, including the opened Export & print panel', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
     await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
       timeout: 15_000,
     });
 
-    await page.locator('.export-panel summary').click();
+    // The export panel now starts open as soon as the "Export" step is
+    // reached (see Workspace.tsx) -- no summary click needed (clicking it
+    // would just toggle it closed).
+    await page.getByRole('button', { name: '3 Export' }).click();
     await expect(page.locator('.export-panel[open]')).toBeVisible();
     await expectNoViolations(page);
   });

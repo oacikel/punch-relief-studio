@@ -48,8 +48,8 @@ test.describe('Workspace two-column redesign', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
-    await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
+    await expect(page.getByRole('heading', { name: 'Make it punchable' })).toBeVisible();
 
     // Basic controls visible immediately.
     await expect(page.getByLabel(/Number of pile heights/)).toBeVisible();
@@ -57,10 +57,10 @@ test.describe('Workspace two-column redesign', () => {
     await expect(page.getByLabel('Smoothing')).toBeVisible();
     await expect(page.getByLabel('Smallest punchable region')).toBeVisible();
 
-    // Advanced controls are collapsed by default (product owner's own
-    // "Advanced shape controls" label from item 7, per §5's table).
+    // Advanced controls are collapsed by default (relabeled "Needle &
+    // advanced settings" since this test was last updated).
     await expect(page.getByLabel('Height band spacing')).toBeHidden();
-    await page.getByText('Advanced shape controls').click();
+    await page.getByText('Needle & advanced settings').click();
     await expect(page.getByLabel('Height band spacing')).toBeVisible();
 
     // "Detail resolution" was removed entirely in Iteration 03 Round 1
@@ -101,7 +101,7 @@ test.describe('Workspace two-column redesign', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
     await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
       timeout: 15_000,
     });
@@ -121,13 +121,16 @@ test.describe('Workspace two-column redesign', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
     await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
       timeout: 15_000,
     });
 
     await page.getByLabel(/Number of pile heights/).fill('12');
-    await page.getByText('Advanced shape controls').click();
+    await page.getByText('Needle & advanced settings').click();
+    // Color controls (and the legend table asserted below) live on the
+    // rail's "Yarn" step now (step-gated -- see Workspace.tsx).
+    await page.getByRole('button', { name: '2 Yarn' }).click();
     await page.getByLabel('Color by height', { exact: false }).check();
     await expect(page.locator('.legend-table tbody tr')).toHaveCount(12, { timeout: 15_000 });
 
@@ -142,8 +145,8 @@ test.describe('Workspace two-column redesign', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
-    await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
+    await expect(page.getByRole('heading', { name: 'Make it punchable' })).toBeVisible();
 
     for (const selector of ['.workspace-controls-col', '.workspace-preview-col']) {
       const overflowY = await page
@@ -176,7 +179,7 @@ test.describe('Workspace two-column redesign', () => {
   }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
     await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
       timeout: 15_000,
     });
@@ -188,7 +191,11 @@ test.describe('Workspace two-column redesign', () => {
     await expect(page.getByRole('button', { name: /Calibrate needle settings/ })).toHaveCount(0);
     await expect(page.getByText('not yet calibrated')).toHaveCount(0);
 
-    await page.locator('.export-panel summary').click();
+    // The export panel only renders once the rail's "Export" step is
+    // reached, and it now starts open at that point (see Workspace.tsx) --
+    // no summary click needed.
+    await page.getByRole('button', { name: '3 Export' }).click();
+    await expect(page.locator('.export-panel[open]')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Calibration', level: 3 })).toHaveCount(0);
     await expect(page.getByLabel('Profile name')).toHaveCount(0);
   });
@@ -209,13 +216,13 @@ test.describe('Workspace two-column redesign', () => {
   }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
     await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
       timeout: 15_000,
     });
 
     const patternTab = page.getByRole('button', { name: 'Pattern' });
-    const simulationTab = page.getByRole('button', { name: 'Finished-piece simulation' });
+    const simulationTab = page.getByRole('button', { name: 'Textile preview' });
 
     // The simulation tab button is visible without any scrolling, right
     // next to the Pattern tab -- discoverable, not hidden below the fold.
@@ -238,17 +245,27 @@ test.describe('Workspace two-column redesign', () => {
   });
 
   /**
-   * Locks in the "true 50/50" requirement explicitly -- both columns are
-   * within a few pixels of exactly half the available width at a
-   * representative desktop viewport, not the previous asymmetric
-   * `minmax(280px, 420px)`-capped preview column.
+   * Locks in the current, deliberate rail:preview split -- neither column
+   * falls back to the previous asymmetric `minmax(280px, 420px)`-capped
+   * preview column. Updated for a later visual-refresh commit ("feat:
+   * simplify pattern workspace") that changed `main.workspace-layout`'s
+   * `grid-template-columns` from an even `1fr 1fr` to `minmax(340px, 0.8fr)
+   * minmax(0, 1.2fr)` -- the rail needs less width now that it's step-gated
+   * (only one step's controls show at a time), so the preview column gets
+   * more of it (a 512px/768px, i.e. 1.5x, split at this test's 1280px
+   * viewport) instead of an even half. This still guards the original
+   * regression (the preview column capped narrow) -- it asserts the
+   * preview column is now the *wider* of the two, well past the old 420px
+   * cap, rather than pinning the exact literal ratio.
    */
-  test('the two columns split the available width 50/50 on desktop', async ({ page }) => {
+  test('the two columns split the available width with the preview column wider on desktop', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
-    await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
+    await expect(page.getByRole('heading', { name: 'Make it punchable' })).toBeVisible();
 
     const railWidth = await page
       .locator('.workspace-controls-col')
@@ -256,7 +273,12 @@ test.describe('Workspace two-column redesign', () => {
     const previewWidth = await page
       .locator('.workspace-preview-col')
       .evaluate((el) => el.getBoundingClientRect().width);
-    expect(Math.abs(railWidth - previewWidth)).toBeLessThanOrEqual(2);
+    // Well past the old 420px cap this test was written to guard against.
+    expect(previewWidth).toBeGreaterThan(420);
+    // Matches the current 0.8fr/1.2fr split (1.5x) with a tolerance for
+    // future minor rebalancing, rather than pinning the exact ratio.
+    expect(previewWidth / railWidth).toBeGreaterThan(1.3);
+    expect(previewWidth / railWidth).toBeLessThan(1.7);
   });
 
   /**
@@ -280,14 +302,18 @@ test.describe('Workspace two-column redesign', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
     await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
       timeout: 15_000,
     });
 
     const rail = page.locator('.workspace-controls-col');
-    const needleSection = page.locator('#rail-needle-pile');
-    const needleHeading = page.locator('#rail-needle-pile > h3');
+    // The former standalone "Needle & pile" rail section (#rail-needle-pile)
+    // was merged into the single "Shape the relief" section (#rail-shape,
+    // ReliefControls.tsx) by a later commit -- substituting the id here,
+    // same sticky-heading assertion.
+    const needleSection = page.locator('#rail-shape');
+    const needleHeading = page.locator('#rail-shape h3');
     const needleTopUnscrolled = await needleHeading.evaluate(
       (el) => el.getBoundingClientRect().top,
     );
@@ -328,8 +354,9 @@ test.describe('Workspace two-column redesign', () => {
       .toBe(topAtFirst);
 
     // The nested "Color story palettes" group never gets the sticky
-    // treatment -- switch to color-by-height mode to reveal it, and
-    // confirm it's plain `position: static`.
+    // treatment -- switch to the "Yarn" step and color-by-height mode to
+    // reveal it, and confirm it's plain `position: static`.
+    await page.getByRole('button', { name: '2 Yarn' }).click();
     await page.getByLabel('Color by height', { exact: false }).check();
     const nestedHeading = page.getByText('Color story palettes');
     await expect(nestedHeading).toBeVisible();
@@ -350,21 +377,26 @@ test.describe('Workspace two-column redesign', () => {
   }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
-    await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
+    await expect(page.getByRole('heading', { name: 'Make it punchable' })).toBeVisible();
 
-    await expect(page.getByText('Model:')).toBeVisible();
-    await expect(page.getByText('Concentric Ripple', { exact: false })).toBeVisible();
+    // The model bar's label reads "Source:" now (ModelBar.tsx), not "Model:".
+    const modelBar = page.getByRole('region', { name: 'Loaded source' });
+    await expect(modelBar).toBeVisible();
+    await expect(modelBar).toContainText('Concentric Ripple');
     const changeButton = page.getByRole('button', { name: 'Change' });
     await expect(changeButton).toBeVisible();
 
     await changeButton.click();
-    await expect(page.getByRole('heading', { name: 'Import a model' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Start with your artwork' })).toBeVisible();
     // Not framed as a step "back" -- ambient state persists: the model is
-    // still loaded, and the picker shows it rather than resetting.
-    await expect(page.getByText(/Model loaded: Concentric Ripple/)).toBeVisible();
+    // still loaded, and the (collapsed) picker's summary shows it rather
+    // than resetting.
+    await expect(page.locator('details.import-picker summary')).toHaveText(
+      /Source: Concentric Ripple/,
+    );
     // The model bar itself only makes sense on Workspace -- Import is
     // already where "Change" would take you.
-    await expect(page.getByText('Model:')).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Loaded source' })).toHaveCount(0);
   });
 });

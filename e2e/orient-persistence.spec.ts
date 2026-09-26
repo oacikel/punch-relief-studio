@@ -3,7 +3,8 @@ import { expect, test, type Page } from '@playwright/test';
 /**
  * Usability fix #2 (docs/DECISIONS.md): on Import, the 3D orient viewport
  * used to render (in DOM/visual order) *after* the "Orient the model"
- * heading/explanation/"Continue to Workspace" button, so at a realistic
+ * heading/explanation/"Continue to Workspace" button (both since renamed --
+ * see the live selectors below for current copy), so at a realistic
  * window size the button was reachable long before the viewport ever
  * scrolled into view -- a user could click through without ever seeing or
  * rotating the model they were meant to orient. Fixed by moving
@@ -44,16 +45,16 @@ test('the 3D orient viewport lands near the top on Import, and the Continue butt
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   await page.getByText('Concentric Ripple').click();
-  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Is this the view you want?' })).toBeVisible();
 
   const viewportTop = await page
     .locator('.viewport-container')
     .evaluate((el) => el.getBoundingClientRect().top);
   const headingTop = await page
-    .getByRole('heading', { name: 'Orient the model' })
+    .getByRole('heading', { name: 'Is this the view you want?' })
     .evaluate((el) => el.getBoundingClientRect().top);
   const continueTop = await page
-    .getByRole('button', { name: 'Continue to Workspace' })
+    .getByRole('button', { name: /Create my pattern/ })
     .evaluate((el) => el.getBoundingClientRect().top);
 
   // The viewport must be visible without scrolling (or very close to the
@@ -92,19 +93,19 @@ test('the sample picker collapses once a model loads, and can be reopened to loa
   const picker = page.locator('details.import-picker');
   await expect(picker).toHaveJSProperty('open', true);
   await page.getByText('Concentric Ripple').click();
-  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Is this the view you want?' })).toBeVisible();
 
   // Once loaded, the picker collapses and a one-line summary names what's
   // loaded, instead of the cards/drop-zone staying fully expanded.
   await expect(picker).toHaveJSProperty('open', false);
-  await expect(page.getByText(/Model loaded: Concentric Ripple/)).toBeVisible();
+  await expect(picker.locator('summary')).toHaveText(/Source: Concentric Ripple/);
 
   // Reopening it and picking a different sample must still actually work --
   // this is the "don't just delete the re-import path" requirement.
-  await page.getByText(/choose a different file/i).click();
+  await picker.locator('summary').click();
   await expect(picker).toHaveJSProperty('open', true);
   await page.getByText('Geometric Steps').click();
-  await expect(page.getByText(/Model loaded: Geometric Steps/)).toBeVisible();
+  await expect(picker.locator('summary')).toHaveText(/Source: Geometric Steps/);
 });
 
 /**
@@ -141,31 +142,37 @@ test('the sample picker collapses once a model loads, and can be reopened to loa
 test('camera orientation chosen on Import carries over to relief generation', async ({ page }) => {
   await page.goto('/');
   await page.getByText('Concentric Ripple').click();
-  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Is this the view you want?' })).toBeVisible();
 
   await page.getByRole('button', { name: 'top', exact: true }).click();
 
-  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
-  await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+  await page.getByRole('button', { name: /Create my pattern/ }).click();
+  await expect(page.getByRole('heading', { name: 'Make it punchable' })).toBeVisible();
 
   // Live regeneration auto-fires on arrival (no manual "Generate relief"
-  // button anymore). Switching to "Color by height" doubles as the wait
-  // for the first pass to land -- the default 4 swatch rows only appear
-  // once the first relief has actually finished generating.
+  // button anymore). The "Yarn" step holds the color controls; switching
+  // to "Color by height" doubles as the wait for the first pass to land --
+  // the default 4 swatch rows only appear once the first relief has
+  // actually finished generating.
+  await page.getByRole('button', { name: '2 Yarn' }).click();
   await page.getByLabel('Color by height').check();
   await expect(page.locator('.legend-table tbody tr')).toHaveCount(4, { timeout: 15_000 });
 
   // Labels/grouping updated in Iteration 02 Stage B -- see
   // docs/ITERATION_02_PLAN.md §5. "Height band spacing" (formerly
-  // "Quantization mode") now lives behind the "Advanced shape controls"
-  // disclosure, so it must be opened before the select is reachable.
+  // "Quantization mode") now lives behind the "Needle & advanced settings"
+  // disclosure on the "Shape" step, so it must be opened before the select
+  // is reachable.
+  await page.getByRole('button', { name: '1 Shape' }).click();
   await page.getByLabel(/Number of pile heights/).fill('8');
-  await page.getByText('Advanced shape controls').click();
+  await page.getByText('Needle & advanced settings').click();
   await page.getByLabel('Height band spacing').selectOption('quantile');
 
   // The swatch table growing to 8 rows is the proof the regeneration
   // actually completed with the new level count, not just that the
-  // control accepted the input.
+  // control accepted the input -- switch back to "Yarn" where the table
+  // lives.
+  await page.getByRole('button', { name: '2 Yarn' }).click();
   await expect(page.locator('.legend-table tbody tr')).toHaveCount(8, { timeout: 15_000 });
 });
 
@@ -194,24 +201,24 @@ test('camera orientation chosen on Import carries over to relief generation', as
 test('model rotation chosen on Import carries over to the Workspace', async ({ page }) => {
   await page.goto('/');
   await page.getByText('Concentric Ripple').click();
-  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Is this the view you want?' })).toBeVisible();
 
   const rollInput = page.getByLabel(/^Roll/);
   await rollInput.fill('45');
   await rollInput.blur();
   await expect(rollInput).toHaveValue('45');
 
-  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
-  await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+  await page.getByRole('button', { name: /Create my pattern/ }).click();
+  await expect(page.getByRole('heading', { name: 'Make it punchable' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Finished-piece simulation' }).click();
+  await page.getByRole('button', { name: 'Textile preview' }).click();
   await expect(page.getByLabel(/^Roll/)).toHaveValue('45');
 });
 
 test('"Reset rotation" zeroes all three axes', async ({ page }) => {
   await page.goto('/');
   await page.getByText('Concentric Ripple').click();
-  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Is this the view you want?' })).toBeVisible();
 
   await page.getByLabel(/^Roll/).fill('30');
   await page.getByLabel(/^Pitch/).fill('-15');
@@ -278,7 +285,7 @@ test("rotating the model from Workspace's own controls changes the live-regenera
 }) => {
   await page.goto('/');
   await page.getByText('Concentric Ripple').click();
-  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+  await page.getByRole('button', { name: /Create my pattern/ }).click();
 
   // Pattern is the default active tab -- its <img> is visible without any
   // extra navigation. Waiting for it also confirms the initial live
@@ -293,7 +300,7 @@ test("rotating the model from Workspace's own controls changes the live-regenera
   // an accessible name ("Pitch ..."), so scope to the one visible copy
   // (only Workspace's is mounted while on the Workspace stage -- Import's
   // is unmounted, not just hidden, per docs/DECISIONS.md).
-  await page.getByRole('button', { name: 'Finished-piece simulation' }).click();
+  await page.getByRole('button', { name: 'Textile preview' }).click();
 
   // Uses Pitch, not Roll: the "Concentric Ripple" fixture is radially
   // symmetric around the view axis, so a pure Roll (rotation around that
@@ -362,9 +369,9 @@ test('clicking a standard-view button alone (no other setting touched) changes t
   // bug incorrectly kept producing regardless of which view was selected.
   await page.goto('/');
   await page.getByText('Concentric Ripple').click();
-  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
-  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
-  await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Is this the view you want?' })).toBeVisible();
+  await page.getByRole('button', { name: /Create my pattern/ }).click();
+  await expect(page.getByRole('heading', { name: 'Make it punchable' })).toBeVisible();
   await expect(page.getByAltText(/Punch-needle pattern/)).toBeVisible({ timeout: 15_000 });
   // Let the initial live-generation debounce chain fully settle before
   // reading -- reading too early risks capturing a transient blob that's
@@ -379,10 +386,10 @@ test('clicking a standard-view button alone (no other setting touched) changes t
   // way the older "camera orientation ... carries over" test above does.
   await page.goto('/');
   await page.getByText('Concentric Ripple').click();
-  await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Is this the view you want?' })).toBeVisible();
   await page.getByRole('button', { name: 'top', exact: true }).click();
-  await page.getByRole('button', { name: 'Continue to Workspace' }).click();
-  await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+  await page.getByRole('button', { name: /Create my pattern/ }).click();
+  await expect(page.getByRole('heading', { name: 'Make it punchable' })).toBeVisible();
   await expect(page.getByAltText(/Punch-needle pattern/)).toBeVisible({ timeout: 15_000 });
 
   // Poll rather than a fixed wait: the fix's debounce chain (goToView's

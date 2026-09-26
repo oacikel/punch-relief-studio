@@ -33,7 +33,7 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
     await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
       timeout: 15_000,
     });
@@ -52,12 +52,15 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
     const onScreenLabels = page.getByRole('checkbox', { name: 'Region labels (C1-H1 etc.)' });
     await expect(onScreenLabels).toBeChecked(); // on by default
 
-    await page.locator('.export-panel summary').click();
+    // The export panel only renders once the rail's "Export" step is
+    // reached (see Workspace.tsx), and it starts open at that point -- no
+    // summary click needed.
+    await page.getByRole('button', { name: '3 Export' }).click();
     await expect(page.getByRole('checkbox', { name: /Print region labels/i })).toHaveCount(0);
   });
 
   test('the export panel has no "Export pattern view" selector of its own', async ({ page }) => {
-    await page.locator('.export-panel summary').click();
+    await page.getByRole('button', { name: '3 Export' }).click();
     const exportPanel = page.locator('.export-panel');
     await expect(exportPanel.getByText('Export pattern view')).toHaveCount(0);
     await expect(exportPanel.getByRole('button', { name: 'contour' })).toHaveCount(0);
@@ -93,7 +96,7 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
 
     // Export panel reuses whatever was set on Preview rather than exposing
     // a second, separate "Punch guide" selector of its own.
-    await page.locator('.export-panel summary').click();
+    await page.getByRole('button', { name: '3 Export' }).click();
     const exportPanel = page.locator('.export-panel');
     await expect(exportPanel.getByLabel('Punch guide')).toHaveCount(0);
     await expect(exportPanel.getByLabel('Dot spacing (cm)')).toHaveCount(0);
@@ -129,8 +132,8 @@ test.describe('Workspace mobile-narrow layout (Iteration 03 Round 2 #2)', () => 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
-    await expect(page.getByRole('heading', { name: 'Workspace' })).toBeVisible();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
+    await expect(page.getByRole('heading', { name: 'Make it punchable' })).toBeVisible();
     await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
       timeout: 15_000,
     });
@@ -140,20 +143,25 @@ test.describe('Workspace mobile-narrow layout (Iteration 03 Round 2 #2)', () => 
     );
     expect(hasHorizontalOverflow).toBe(false);
 
-    await page.getByRole('button', { name: 'Finished-piece simulation' }).click();
+    await page.getByRole('button', { name: 'Textile preview' }).click();
     await expect(page.getByRole('img', { name: 'Finished-piece simulation' })).toBeVisible();
     const simulationHasHorizontalOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     );
     expect(simulationHasHorizontalOverflow).toBe(false);
 
-    // A real click, not just a visibility check -- this is exactly the
-    // interaction the original bug broke (the toggle was "visible" per
-    // Playwright's own definition, but off-screen/overlapped enough that a
-    // real click was intercepted by another element).
+    // Reach the "Export" step, where the panel now starts open by itself
+    // (see Workspace.tsx) -- then exercise a real click on the summary,
+    // not just a visibility check, which is exactly the interaction the
+    // original bug broke (the toggle was "visible" per Playwright's own
+    // definition, but off-screen/overlapped enough that a real click was
+    // intercepted by another element). If the click lands, the panel
+    // toggles closed; if it were intercepted, it would stay open.
+    await page.getByRole('button', { name: '3 Export' }).click();
     const summary = page.locator('.export-panel summary');
-    await summary.click();
     await expect(page.locator('.export-panel[open]')).toBeVisible();
+    await summary.click();
+    await expect(page.locator('.export-panel[open]')).toHaveCount(0);
   });
 });
 
@@ -192,11 +200,11 @@ test.describe('Mobile-narrow layout with the small-region warning banner active 
     await page.goto('/');
     const fileInput = page.getByLabel('Choose a 2D image or 3D model to import');
     await fileInput.setInputFiles(path.join(here, 'fixtures', 'sliver.stl'));
-    await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Is this the view you want?' })).toBeVisible({
       timeout: 10_000,
     });
 
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
     await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
       timeout: 15_000,
     });
