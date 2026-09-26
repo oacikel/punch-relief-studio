@@ -53,7 +53,19 @@ browser is available). Once captured they'll live in `docs/screenshots/`.
 ## Privacy
 
 Everything runs client-side. Your model, textures, and pattern data never
-leave your browser -- there's no account, no upload, and no analytics.
+leave your browser -- there's no account and no upload.
+
+Analytics is opt-in and off by default. It is completely inert -- no
+consent prompt, no storage, no network calls -- unless the app was built
+with a VenturePilot analytics endpoint configured, which the public build
+of this app is not. When it is configured, nothing is stored or sent until
+you click **Allow** in the one-time prompt (or your browser signals Global
+Privacy Control, in which case the prompt never appears and nothing is
+ever sent); a **Privacy** control lets you change your choice at any time.
+Only a handful of anonymous, coarse product events are ever counted (e.g.
+"pattern created", "exported as PNG") -- never your models, images, file
+names, patterns, or settings. See docs/ANALYTICS.md for the full event
+dictionary and docs/DECISIONS.md for the design rationale.
 
 ## Local setup
 

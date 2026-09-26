@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { trackExportFailed, trackExportSucceeded } from '@/analytics';
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
 import type { PatternDimensions, ExportSettings } from '@/state/appState';
@@ -88,6 +89,7 @@ export function ExportPanel({
   onOpenChange,
 }: Props): JSX.Element {
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [internalDetailsOpen, setInternalDetailsOpen] = useState(false);
   const detailsOpen = openProp ?? internalDetailsOpen;
   const setDetailsOpen = onOpenChange ?? setInternalDetailsOpen;
@@ -148,23 +150,31 @@ export function ExportPanel({
       ...(contourSource ? { contourSource } : {}),
     });
     downloadSvg(result.svg, withExtension('punch-relief-pattern', 'svg'));
+    trackExportSucceeded('svg');
   };
 
   const exportPng = async (): Promise<void> => {
-    const result = buildSvgPattern(regionMap, legend, {
-      widthCm: safeDimensions.widthCm,
-      heightCm: safeDimensions.heightCm,
-      view: screenView,
-      showGrid: screenShowGrid,
-      showLabels: screenShowLabels,
-      mirrored: screenMirrored,
-      punchGuide,
-      ...(contourSource ? { contourSource } : {}),
-    });
-    const widthPx = Math.round(safeDimensions.widthCm * 40);
-    const heightPx = Math.round(safeDimensions.heightCm * 40);
-    const blob = await svgToPngBlob(result.svg, widthPx, heightPx);
-    downloadBlob(blob, withExtension('punch-relief-pattern', 'png'));
+    setExportError(null);
+    try {
+      const result = buildSvgPattern(regionMap, legend, {
+        widthCm: safeDimensions.widthCm,
+        heightCm: safeDimensions.heightCm,
+        view: screenView,
+        showGrid: screenShowGrid,
+        showLabels: screenShowLabels,
+        mirrored: screenMirrored,
+        punchGuide,
+        ...(contourSource ? { contourSource } : {}),
+      });
+      const widthPx = Math.round(safeDimensions.widthCm * 40);
+      const heightPx = Math.round(safeDimensions.heightCm * 40);
+      const blob = await svgToPngBlob(result.svg, widthPx, heightPx);
+      downloadBlob(blob, withExtension('punch-relief-pattern', 'png'));
+      trackExportSucceeded('png');
+    } catch (err) {
+      trackExportFailed('unknown');
+      setExportError(err instanceof Error ? err.message : 'Could not export this pattern as PNG.');
+    }
   };
 
   const printPdf = (): void => {
@@ -172,7 +182,10 @@ export function ExportPanel({
     // docs/DECISIONS.md for why. window.print() respects the print
     // stylesheet (@page sizing, tiling markup) rendered on this page --
     // specifically the .print-pages block below, which is the only thing
-    // the print stylesheet leaves visible.
+    // the print stylesheet leaves visible. "Succeeded" here means the
+    // print dialog opened, not that the user actually saved a PDF --
+    // window.print() gives no signal either way.
+    trackExportSucceeded('pdf');
     window.print();
   };
 
@@ -263,6 +276,11 @@ export function ExportPanel({
           {loadError && (
             <p role="alert" className="warning-banner">
               {loadError}
+            </p>
+          )}
+          {exportError && (
+            <p role="alert" className="warning-banner">
+              {exportError}
             </p>
           )}
           <p className="helper-text">

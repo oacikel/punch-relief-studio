@@ -229,6 +229,31 @@ blob-URL lifecycle for `PatternCanvas`/`ExportPanel`).
 quota-error handling) and `projectStore.ts` (project JSON
 serialize/deserialize on top of `domain/projectSchema.ts`).
 
+`src/analytics/**` (T10, new) -- the one deliberate exception to "no
+network calls in `src/`" (see CLAUDE.md), and the only layer allowed to
+touch `fetch`. Fully inert (no consent prompt, no storage, no network)
+unless both `VITE_VP_INGEST_URL` and `VITE_VP_PROJECT_TOKEN` are set at
+build time; neither is set for the public GitHub Pages build. Submodules:
+`contract.ts` (a local mirror of the small subset of VenturePilot's ingest
+contract this app emits -- deliberately not imported cross-repo),
+`config.ts` (reads/validates the two build-time env vars, cached),
+`consent.ts` (consent state + Global Privacy Control check), `ids.ts`
+(anonymous/session ID generation, created only after consent), `source.ts`
+(coarse acquisition-source classification and experiment-ref/variant
+capture, once per session), `eventBuilder.ts` (whitelisting event builders
+-- the single choke point that guarantees only known fields can ever reach
+an outgoing event, regardless of what a caller passes in), `queue.ts`
+(capped, 7-day-expiring localStorage queue), `transport.ts` (batched
+`fetch` with 2xx/4xx/429/5xx/network-error handling and backoff),
+`scheduler.ts` (periodic + `visibilitychange`/`pagehide`/`online` flush
+triggers), and `index.ts` (the public API -- `initAnalytics`/`trackX`/
+`allowAnalytics`/`declineAnalytics` -- the only module the UI layer imports
+from). `src/components/PrivacyControl.tsx` is the one UI surface, covering
+both the one-time consent prompt and an always-reachable Privacy toggle;
+it renders nothing when unconfigured. See `docs/ANALYTICS.md` for the
+event dictionary and data flow, and `docs/DECISIONS.md` for the design
+rationale.
+
 ## Data flow (relief pipeline)
 
 `Viewport3D` (live Three.js scene) --`captureDepth()`--> raw depth/color

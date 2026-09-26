@@ -3,6 +3,13 @@ import * as THREE from 'three';
 import { APP_NAME, APP_TAGLINE, APP_VERSION } from '@/config/branding';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ModelBar } from '@/components/ModelBar';
+import { PrivacyControl } from '@/components/PrivacyControl';
+import {
+  initAnalytics,
+  trackPageViewed,
+  trackPatternCompleted,
+  trackProjectCreated,
+} from '@/analytics';
 import { Viewport3D, type Viewport3DHandle } from '@/components/Viewport3D';
 import { ImportStage, ImportOrientSection } from '@/components/stages/ImportStage';
 import { Workspace } from '@/components/workspace/Workspace';
@@ -50,6 +57,37 @@ export default function App(): JSX.Element {
   const viewportHandle = useRef<Viewport3DHandle | null>(null);
   const { process, processImage } = useProcessingWorker();
   const imageProcessGeneration = useRef(0);
+
+  // T10 analytics: a no-op unless VITE_VP_INGEST_URL/VITE_VP_PROJECT_TOKEN
+  // are set at build time -- see src/analytics/config.ts and
+  // docs/ANALYTICS.md. `page_viewed{path:"/"}` fires once, at mount.
+  useEffect(() => {
+    initAnalytics();
+    trackPageViewed('/');
+  }, []);
+
+  // `pattern_completed{durationSeconds}` fires once per project, on the
+  // first successful generation after it was created -- these two refs
+  // track "when did the current project start" and "have we already sent
+  // pattern_completed for it", reset together whenever a new project is
+  // created (see markProjectCreated below).
+  const projectCreatedAtRef = useRef<number | null>(null);
+  const patternCompletedSentRef = useRef(false);
+
+  const markProjectCreated = useCallback((origin: 'sample' | 'import'): void => {
+    projectCreatedAtRef.current = Date.now();
+    patternCompletedSentRef.current = false;
+    trackProjectCreated(origin);
+  }, []);
+
+  const markPatternCompletedIfFirst = useCallback((): void => {
+    if (patternCompletedSentRef.current) return;
+    patternCompletedSentRef.current = true;
+    const startedAt = projectCreatedAtRef.current;
+    const durationSeconds =
+      startedAt !== null ? Math.max(0, Math.round((Date.now() - startedAt) / 1000)) : undefined;
+    trackPatternCompleted(durationSeconds);
+  }, []);
 
   // Loads any locally-saved calibration profiles into state even though
   // there's currently no UI surface that reads state.savedProfiles --
@@ -109,6 +147,14 @@ export default function App(): JSX.Element {
     };
   }, [workflow.currentStage]);
 
+  // T10 analytics: `page_viewed{path:"/workspace"}` fires each time the
+  // workspace stage is entered -- separate effect from the scroll-lock one
+  // above so a future change to either doesn't accidentally couple them.
+  useEffect(() => {
+    if (workflow.currentStage !== 'workspace') return;
+    trackPageViewed('/workspace');
+  }, [workflow.currentStage]);
+
   const handleSelectSample = (sampleId: string): void => {
     const sample = getSampleById(sampleId);
     if (!sample) return;
@@ -117,6 +163,7 @@ export default function App(): JSX.Element {
     setImagePreviewUrl(null);
     dispatch({ type: 'SET_SOURCE', sourceKind: 'built-in-sample', sampleId });
     dispatchWorkflow({ type: 'MODEL_LOADED' });
+    markProjectCreated('sample');
     // Iteration 02 Stage A: orientation now happens on the Import stage
     // itself (see ImportOrientSection below) -- no separate stage to
     // navigate to. The user is already on 'import'.
@@ -157,6 +204,7 @@ export default function App(): JSX.Element {
         return;
       }
       dispatchWorkflow({ type: 'MODEL_LOADED' });
+      markProjectCreated('import');
       // See handleSelectSample above -- already on 'import', which now
       // shows the orientation section once hasModel is true.
     } catch (err) {
@@ -183,6 +231,7 @@ export default function App(): JSX.Element {
       });
       dispatchWorkflow({ type: 'MODEL_LOADED' });
       dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' });
+      markProjectCreated('import');
     } catch (err) {
       setImportWarning(err instanceof Error ? err.message : 'Could not import this image.');
     }
@@ -251,7 +300,7 @@ export default function App(): JSX.Element {
     buildProcessArgs,
     process,
     onStart: () => dispatch({ type: 'PROCESSING_STARTED' }),
-    onSuccess: (result, capturedWidth, capturedHeight) =>
+    onSuccess: (result, capturedWidth, capturedHeight) => {
       dispatch({
         type: 'PROCESSING_SUCCEEDED',
         result: {
@@ -261,7 +310,9 @@ export default function App(): JSX.Element {
           colorIndex: result.colorIndex ?? new Int16Array(result.heightIndex.length).fill(0),
           levels: result.levels,
         },
-      }),
+      });
+      markPatternCompletedIfFirst();
+    },
     onError: (message) => dispatch({ type: 'PROCESSING_FAILED', message }),
   });
 
@@ -307,6 +358,7 @@ export default function App(): JSX.Element {
               })),
             });
           }
+          markPatternCompletedIfFirst();
         })
         .catch((err: unknown) => {
           if (generation !== imageProcessGeneration.current) return;
@@ -329,6 +381,7 @@ export default function App(): JSX.Element {
     state.needleGeometry,
     state.patternDimensions,
     state.imageDetailSettings.preserveSmallDetails,
+    markPatternCompletedIfFirst,
   ]);
 
   const regionMap: RegionMap | null = useMemo(() => {
@@ -666,6 +719,7 @@ export default function App(): JSX.Element {
             />
           )}
         </main>
+        <PrivacyControl />
       </div>
     </ErrorBoundary>
   );

@@ -52,7 +52,16 @@ TypeScript strict mode, no `any` outside tests, `noUncheckedIndexedAccess`
 on. Prefer small pure functions with explicit input/output types over
 classes. No default exports for domain functions (named exports only, so
 `grep` finds call sites). No `dangerouslySetInnerHTML`. No network calls
-anywhere in `src/` — this app must work offline after first load.
+anywhere in `src/` — this app must work offline after first load — **with
+one exception**: `src/analytics/**` (plus `src/components/PrivacyControl.tsx`
+and the `trackX`/`initAnalytics` call sites in `App.tsx`/`ExportPanel.tsx`)
+implements opt-in, privacy-scoped product analytics per T10. It is inert —
+no consent prompt, no storage, no network — unless both
+`VITE_VP_INGEST_URL` and `VITE_VP_PROJECT_TOKEN` are set at build time;
+neither is set for the public GitHub Pages build. Even when configured, it
+sends nothing until the user clicks Allow (or nothing at all if the
+browser's Global Privacy Control is on). See `docs/ANALYTICS.md` for the
+event dictionary and `docs/DECISIONS.md` for the design rationale.
 
 ## Verification requirements
 

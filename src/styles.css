@@ -436,6 +436,67 @@ select:focus-visible {
   margin-bottom: var(--space-3);
 }
 
+/* T10 opt-in analytics: only ever rendered when analytics is configured at
+   build time (see src/analytics/config.ts) -- fixed so it's reachable from
+   every screen (Import or Workspace) without needing rail/header space on
+   either. See docs/ANALYTICS.md. */
+.privacy-control {
+  position: fixed;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 40;
+}
+
+.privacy-control-toggle {
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 2px 8px rgba(23, 49, 59, 0.12);
+}
+
+.privacy-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: 220px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  box-shadow: 0 4px 16px rgba(23, 49, 59, 0.18);
+}
+
+.privacy-panel p {
+  margin: 0 0 var(--space-2);
+  font-size: 0.82rem;
+}
+
+.consent-prompt {
+  position: fixed;
+  right: var(--space-3);
+  bottom: calc(var(--space-3) + 46px);
+  z-index: 41;
+  max-width: 340px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  box-shadow: 0 6px 24px rgba(23, 49, 59, 0.22);
+}
+
+.consent-prompt p {
+  margin: 0 0 var(--space-3);
+  font-size: 0.84rem;
+}
+
+.consent-prompt-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 /* Wraps `.legend-table` so a wide table (more columns than a narrow screen
    can show at readable font size) scrolls horizontally inside its own box
    instead of forcing the whole page wider (Iteration 03 Round 2 #3). */
@@ -1118,7 +1179,9 @@ select {
   .model-bar,
   .screen-only,
   .export-panel,
-  .export-controls {
+  .export-controls,
+  .privacy-control,
+  .consent-prompt {
     display: none !important;
   }
   .stage-panel {

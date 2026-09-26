@@ -115,4 +115,15 @@ your physical dimensions.
 ## Privacy
 
 Your model, textures, and patterns stay on your device. There is no
-account, no upload, and no analytics.
+account and no upload.
+
+Analytics is off by default and, in the version of this app you're using
+right now (the public build), permanently inactive -- there's no consent
+prompt, no Privacy control, nothing stored, nothing sent. On a build where
+it's enabled, you'd see a one-time prompt asking to count anonymous steps
+like "pattern created" or "exported as PNG" against a random ID, with
+**Allow**/**No thanks** buttons and a matching exact-copy prompt described
+in docs/ANALYTICS.md; a small **Privacy** button would stay reachable so
+you could switch it on or off at any time, and opting out deletes your
+random ID and anything queued to send. Your models, images, file names,
+and patterns are never included, on any build.
