@@ -565,6 +565,46 @@ select:focus-visible {
   position: relative;
 }
 
+/* Narrow/touch fix (docs/DECISIONS.md's flagged, previously-unaddressed
+   gap): on Import, Viewport3D's own "Standard views" + "Straighten model"
+   controls -- rendered directly under the 3D viewport, between it and the
+   "Orient the model" heading/"Continue to Workspace" button -- are tall
+   enough in their default spacing that, combined with a touch/narrow
+   context (real phones, and Playwright's `mobile-narrow` project), the
+   heading/button can be pushed low enough to erode the safety margin
+   e2e/orient-persistence.spec.ts's "not pushed further down by the sample
+   picker" test checks for. These two groups have stable `aria-label`s
+   already (no markup change needed) -- tightened here rather than
+   removing any control or helper text, so the fix is pure spacing, not a
+   content cut. Gated on real narrow viewports (matching the app's
+   existing `max-width: 720px` breakpoint) *or* `hover: none` +
+   `pointer: coarse` (true for touch devices generally, including
+   Playwright's `mobile-narrow` project even when a test forces a wider
+   viewport size) -- either condition means a phone-shaped or touch-driven
+   context, which is exactly the case this fix targets. `!important` is
+   needed because both groups' spacing is set via inline `style` props in
+   Viewport3D.tsx/RotationControls.tsx, which always outrank an external
+   stylesheet rule otherwise. */
+@media (max-width: 720px), (hover: none) and (pointer: coarse) {
+  div[aria-label='Standard views'] {
+    margin-top: 4px !important;
+    gap: 6px !important;
+  }
+
+  div[aria-label='Standard views'] button {
+    padding: 4px 10px;
+  }
+
+  div[aria-label='Straighten model'] {
+    margin-top: 4px !important;
+    gap: 2px !important;
+  }
+
+  div[aria-label='Straighten model'] button {
+    padding: 4px 10px;
+  }
+}
+
 .simulation-label {
   position: absolute;
   top: var(--space-2);
