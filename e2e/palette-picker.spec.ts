@@ -12,10 +12,13 @@ test.describe('Color story palettes', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
     await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
       timeout: 15_000,
     });
+    // Color controls live on the rail's "Yarn" step now (step-gated -- see
+    // Workspace.tsx), not always visible alongside Shape/Export.
+    await page.getByRole('button', { name: '2 Yarn' }).click();
     await page.getByLabel('Color by height').check();
   });
 

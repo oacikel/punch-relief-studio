@@ -34,7 +34,7 @@ test.describe('main workflow', () => {
     // 1-2: load the ripple sample; Import shows the orientation section
     // once a model has loaded.
     await page.getByText('Concentric Ripple').click();
-    await expect(page.getByRole('heading', { name: 'Orient the model' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Is this the view you want?' })).toBeVisible();
 
     // Move to the combined Workspace.
     await page.getByRole('button', { name: /Create my pattern/ }).click();
@@ -82,6 +82,6 @@ test.describe('main workflow', () => {
 
     // 9-10: reload the app and confirm it comes back to a consistent, usable state
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Import a model' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Start with your artwork' })).toBeVisible();
   });
 });

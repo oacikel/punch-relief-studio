@@ -21,14 +21,20 @@ test.describe('Print/PDF output (Iteration 02 Stage D)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.getByText('Concentric Ripple').click();
-    await page.getByRole('button', { name: 'Continue to Workspace' }).click();
+    await page.getByRole('button', { name: /Create my pattern/ }).click();
     await expect(page.getByRole('group', { name: 'Pattern view' })).toBeVisible({
       timeout: 15_000,
     });
+
+    // Color controls live on the "Yarn" step now (the rail is step-gated
+    // -- see Workspace.tsx), not always visible alongside Shape/Export.
+    await page.getByRole('button', { name: '2 Yarn' }).click();
     await page.getByLabel('Color by height').check();
 
     // Punch guide: Dots at a small spacing, so a realistic-density dot
-    // grid actually reaches the print output.
+    // grid actually reaches the print output. These controls live in the
+    // preview column's Pattern panel, unaffected by which rail step tab
+    // is active.
     await page.locator('#punch-guide-mode').selectOption('dots');
     await page.locator('#punch-guide-spacing').fill('0.5');
 
@@ -36,8 +42,17 @@ test.describe('Print/PDF output (Iteration 02 Stage D)', () => {
     // multi-page tiling -- matches the fixture in
     // src/export/__tests__/printTiling.test.ts (60cm x 40cm, a4, 1cm
     // overlap -> 4 cols x 2 rows = 8 pages) so the e2e and unit coverage
-    // are provably exercising the same scenario.
-    await page.locator('.export-panel summary').click();
+    // are provably exercising the same scenario. The "Export" step's own
+    // dimension fields are used here (the "Shape" step's copy unmounts
+    // once we switch tabs) -- the export panel now starts open as soon as
+    // this step is reached (see Workspace.tsx), so no summary click is
+    // needed (clicking it would just toggle it closed). "Lock aspect
+    // ratio" (new since this test was last updated) defaults on, which
+    // would otherwise silently distort a deliberately non-square 60x40
+    // request into a locked square -- turn it off first so both axes land
+    // exactly where this scenario needs them.
+    await page.getByRole('button', { name: '3 Export' }).click();
+    await page.getByLabel('Lock aspect ratio').uncheck();
     await page.getByLabel('Width (cm)').fill('60');
     await page.getByLabel('Height (cm)').fill('40');
   });
