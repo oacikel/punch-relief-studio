@@ -193,9 +193,12 @@ As of Iteration 03 Round 1 (see `docs/ITERATION_03_PLAN.md` and
 
 Entirely client-side (static site, no backend), deterministic given the same
 input + settings (stable seeds where randomness would otherwise occur),
-privacy-preserving (no network calls for model/texture data, no analytics),
-responsive down to a documented minimum viewport, and resilient to malformed
-input (never crash to a blank page).
+privacy-preserving (no network calls for model/texture data; the only
+network call this app ever makes is a small set of anonymous, opt-in
+product-analytics events -- off by default, inert unless explicitly
+configured at build time, and never active in the public build -- see
+docs/ANALYTICS.md), responsive down to a documented minimum viewport, and
+resilient to malformed input (never crash to a blank page).
 
 See docs/ARCHITECTURE.md for module boundaries, docs/ALGORITHMS.md for the
 processing pipeline in detail, docs/LIMITATIONS.md for what is intentionally

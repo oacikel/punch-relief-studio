@@ -2324,3 +2324,68 @@ because their single pile height makes Heights meaningless. 3D reliefs offer
 Colors, Heights, and Outline and open on Heights; flat images open on Colors.
 The dead `combined` value was also removed from the internal view type so it
 cannot silently return through a future control.
+
+## Opt-in product analytics (T10, 2026-09-26)
+
+Owner decision, following the T10 discovery note: ship a minimal,
+consent-first analytics path into VenturePilot rather than staying fully
+silent forever, because "what share of first-time projects reach a
+successful pattern export, and where do they stop?" cannot be answered
+from local-only telemetry a solo-maintained app never sees. Four points
+were decided together:
+
+1. **Consent-first, not opt-out.** No event is ever built, stored, or sent
+   until the person clicks **Allow** in a one-time prompt with fixed,
+   plain-language copy (see `docs/ANALYTICS.md`). The browser's Global
+   Privacy Control signal is honored as a standing "No" -- the prompt
+   never even appears, and `getConsentState()` returns `'denied'`
+   unconditionally regardless of any stored choice, so a stray direct call
+   to the "allow" path can't override it either (see
+   `src/analytics/consent.ts`). A **Privacy** control stays reachable from
+   both stages so the choice can be changed at any time; opting out
+   deletes the anonymous ID and the entire local queue immediately.
+2. **A first-party VenturePilot endpoint, not a third-party SDK.** Per the
+   T10 brief, no third-party analytics vendor is introduced. Events post
+   to VenturePilot's own `POST {base}/v1/ingest/events` (T01's contract),
+   identified only by a public, write-only project token that grants no
+   read access. `src/analytics/contract.ts` mirrors the small subset of
+   that contract PRS actually emits by hand, rather than importing across
+   repos, so PRS stays independently buildable/testable and VenturePilot's
+   contract stays the one place that type is allowed to change.
+3. **90-day raw retention, then daily rollups (VenturePilot-side).**
+   Matches T10's ingest design: raw per-event rows are kept for 90 days for
+   funnel/debugging queries, then rolled up into daily totals by app
+   version and coarse acquisition source, which is all the "did a project
+   reach export, and where did it stop" question actually needs
+   long-term. This is a VenturePilot-side (not PRS-side) retention policy;
+   PRS's own local queue only ever holds up to ~200 events and drops
+   anything older than 7 days, since the server rejects it as stale
+   anyway (`src/analytics/contract.ts`'s `MAX_EVENT_AGE_MS`, mirroring
+   the ingest contract's own limit).
+4. **Off in the public build until VenturePilot is publicly hosted.**
+   Analytics is gated on two build-time env vars, `VITE_VP_INGEST_URL` and
+   `VITE_VP_PROJECT_TOKEN` (see `src/analytics/config.ts`); neither is set
+   for the GitHub Pages build this app currently ships as, so the whole
+   feature -- prompt, storage, queue, network -- is provably inert there
+   (see `docs/ANALYTICS.md`'s "inert unless configured" tests). This isn't
+   a permanent decision, just a sequencing one: turning analytics on for
+   real is a matter of setting those two build variables once VenturePilot
+   has a real, publicly reachable ingest endpoint, with no further PRS
+   code change required.
+
+A whitelisting event builder (`src/analytics/eventBuilder.ts`) constructs
+every outgoing event field-by-field from typed arguments rather than ever
+spreading a caller-supplied object, so a file name, image/mesh buffer, or
+project setting passed in by mistake at a call site cannot reach the wire
+even accidentally -- proven by tests that pass exactly such prohibited
+values in and assert they never serialize (see
+`src/analytics/__tests__/eventBuilder.test.ts`). Six event/location pairs
+are wired in total: `page_viewed` (mount, and again on entering
+Workspace), `project_created` (after a sample/import/image successfully
+loads), `pattern_completed` (first successful generation per project,
+timed from `project_created`), and `export_succeeded`/`export_failed`
+(`ExportPanel.tsx`'s SVG/PNG/PDF export actions). `ExportPanel.tsx`'s PNG
+export previously left its rejection unhandled (an unhandled promise
+rejection, not surfaced to the user); wiring `export_failed` also fixed
+that, catching it and showing the existing warning-banner pattern already
+used for project-load errors.
