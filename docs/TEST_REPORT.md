@@ -926,3 +926,42 @@ blocking + 1 high + 3 medium + 2 low severity issues, and a manual
 scripting-mistake scan). All of that is superseded by the actual compiler/
 test-runner/browser results in this document, which is the first time any
 of it has actually been executed.
+
+## Session 13: EXP-007 fit-to-screen preview pan/zoom (sandboxed, not executed)
+
+This worktree had no `node_modules` and no network access (see CLAUDE.md's
+"Known environment limitation"), so `npm install` and every command below
+could not be run in this session:
+
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test`
+- `npm run build`
+- `npm run test:e2e`
+
+Implemented EXP-007 ("ship fit-to-screen default plus pan and zoom as a
+standalone release"): `PatternCanvas.tsx` now renders its `<img>` through a
+new `PatternPreview.tsx`, which opens the pattern scaled to fit the current
+viewport (plain CSS `object-fit: contain`, not a computed scale) with a
+visible "Fit to screen" control, wheel/pinch zoom, and pointer-drag pan.
+The zoom/pan arithmetic is factored into `patternPreviewGestures.ts`,
+covered by `src/components/__tests__/patternPreviewGestures.test.ts` (pure
+functions, no DOM dependency). `src/components/__tests__/PatternPreview.
+test.tsx` covers what jsdom can exercise of the component itself (render,
+Fit-button enabled/disabled state, wheel-driven zoom); the pointer-driven
+pan gesture itself is authored but unexecuted in
+`e2e/pattern-preview-pan-zoom.spec.ts` (jsdom implements neither
+`PointerEvent` nor `ResizeObserver`, so it's real-browser-only).
+`src/analytics/fitToScreenPreview.ts` self-assigns every session into a
+single `fit` variant so `track()` stamps `experimentRef: 'EXP-007'` on this
+release window's events, without touching any `track*` call site; covered
+by `src/analytics/__tests__/fitToScreenPreview.test.ts` and an added case
+in `src/analytics/__tests__/index.test.ts`. `docs/ANALYTICS.md`,
+`docs/DECISIONS.md`, `docs/ARCHITECTURE.md`, `docs/USER_GUIDE.md`, and
+`README.md` were updated accordingly.
+
+All source was written to compile and pass under the exact dependency
+versions pinned in `package.json`; a future networked session should run
+`npm install && npm run verify` (and `npm run test:e2e` where a browser is
+available) and update this section with the actual results, per CLAUDE.md's
+"never report a check as passing without having actually run it."

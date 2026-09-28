@@ -3,6 +3,7 @@ import type { LegendEntry } from '@/domain/pattern/legend';
 import type { ContourSource, PatternView } from '@/export/svgPattern';
 import type { PunchGuideSettings } from '@/domain/pattern/punchGuide';
 import { usePatternSvgUrl } from '@/hooks/usePatternSvgUrl';
+import { PatternPreview } from '@/components/PatternPreview';
 
 interface Props {
   regionMap: RegionMap;
@@ -24,7 +25,10 @@ interface Props {
  * injecting markup into the DOM directly (no dangerouslySetInnerHTML
  * anywhere in this app, per CLAUDE.md/security constraints, even though
  * this SVG is entirely app-generated from numeric data and never contains
- * user-supplied text).
+ * user-supplied text). The `<img>` itself lives inside `PatternPreview`
+ * (EXP-007 -- see docs/ANALYTICS.md), which opens fit-to-screen and adds
+ * pan/pinch/scroll zoom on top of it; this component's own job is still
+ * just building the blob URL from `regionMap`/`legend`/the display options.
  */
 export function PatternCanvas({
   regionMap,
@@ -54,15 +58,9 @@ export function PatternCanvas({
   });
 
   return (
-    <img
-      src={url ?? undefined}
+    <PatternPreview
+      src={url}
       alt={`Punch-needle pattern, ${view} view, ${widthCm} by ${heightCm} centimetres`}
-      style={{
-        width: '100%',
-        border: '1px solid var(--color-border)',
-        borderRadius: 6,
-        background: '#f7f3ec',
-      }}
     />
   );
 }

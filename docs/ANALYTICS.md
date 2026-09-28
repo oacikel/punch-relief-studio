@@ -76,7 +76,28 @@ the event builder itself:
   category.
 - `experimentRef`/`variant` -- parsed from the landing URL's `?exp=EXP-002
 &v=b`, validated against the ingest contract's patterns, cached in
-  `sessionStorage` for the rest of the session.
+  `sessionStorage` for the rest of the session. If no landing link supplied
+  one, `initAnalytics()` may self-assign one instead -- see "EXP-007" below.
+
+## EXP-007 -- fit-to-screen preview, standalone release
+
+"Ship fit-to-screen default plus pan and zoom as a standalone release": the
+pattern preview (`PatternCanvas.tsx` -> `PatternPreview.tsx`) now opens
+scaled so the whole pattern is visible on the current viewport, with a
+visible "Fit to screen" control and working pointer-drag pan plus
+wheel/pinch zoom. Unlike an A/B-tested experiment, this change ships to
+*everyone* who opens the preview during the release window -- there is no
+withheld control variant to compare against concurrently. Instead it's
+measured against an equal-length window immediately *before* the release,
+by manually counting `export_succeeded`/`export_failed` events in each
+window (see docs/DECISIONS.md).
+
+For that pre/post comparison to be possible, every event from a
+release-window session needs to carry `experimentRef: 'EXP-007'`, so
+`initAnalytics()` self-assigns the session into EXP-007's single variant,
+`fit` (`src/analytics/fitToScreenPreview.ts`), unless a landing `?exp=` link
+already put it in some other experiment. Pre-release events have no
+`experimentRef` at all, which is what tells the two windows apart.
 
 **Never sent, under any configuration:** the query string, the referrer
 URL, file names, images, mesh/model data, project settings, or project

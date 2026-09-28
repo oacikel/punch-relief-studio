@@ -4,6 +4,7 @@ import { clearConsent } from '@/analytics/consent';
 import { clearQueue, loadQueue } from '@/analytics/queue';
 import { resetBackoffForTests } from '@/analytics/transport';
 import { resetFlushSchedulerForTests } from '@/analytics/scheduler';
+import { FIT_TO_SCREEN_PREVIEW_VARIANTS } from '@/analytics/fitToScreenPreview';
 import {
   allowAnalytics,
   declineAnalytics,
@@ -124,6 +125,52 @@ describe('analytics public API', () => {
 
       expect(fetchMock).not.toHaveBeenCalled();
       expect(loadQueue()).toEqual([]);
+    });
+  });
+
+  describe('EXP-007 measurement', () => {
+    it('labels every product event with experimentRef EXP-007 and the fit variant', async () => {
+      configure();
+      initAnalytics();
+      allowAnalytics();
+
+      trackPageViewed('/workspace');
+      trackProjectCreated('import');
+      trackExportSucceeded('svg');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const events = fetchMock.mock.calls
+        .map(([, init]: [string, RequestInit]) => JSON.parse(init.body as string) as { events: Array<{ name: string; experimentRef?: string; variant?: string }> })
+        .flatMap((body) => body.events);
+
+      expect(events.map((e) => e.name)).toEqual(
+        expect.arrayContaining(['page_viewed', 'project_created', 'export_succeeded']),
+      );
+      for (const event of events) {
+        expect(event.experimentRef).toBe('EXP-007');
+        expect(FIT_TO_SCREEN_PREVIEW_VARIANTS).toContain(event.variant);
+      }
+    });
+
+    it('leaves a link-recruited session labelled with its own experiment', async () => {
+      window.history.pushState({}, '', '/?exp=EXP-002&v=b');
+      configure();
+      initAnalytics();
+      allowAnalytics();
+
+      trackPageViewed('/');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const events = fetchMock.mock.calls
+        .map(([, init]: [string, RequestInit]) => JSON.parse(init.body as string) as { events: Array<{ experimentRef?: string; variant?: string }> })
+        .flatMap((body) => body.events);
+      for (const event of events) {
+        expect(event.experimentRef).toBe('EXP-002');
+        expect(event.variant).toBe('b');
+      }
+      window.history.pushState({}, '', '/');
     });
   });
 });

@@ -29,6 +29,7 @@ import {
   getOrCreateSessionId,
 } from '@/analytics/ids';
 import { captureLandingContext, getCachedExperiment, getCachedSource } from '@/analytics/source';
+import { assignFitToScreenPreviewExperiment } from '@/analytics/fitToScreenPreview';
 import { enqueueEvent, clearQueue } from '@/analytics/queue';
 import { flushQueue } from '@/analytics/transport';
 import { startFlushScheduler } from '@/analytics/scheduler';
@@ -48,6 +49,11 @@ export function initAnalytics(): void {
   if (!isAnalyticsConfigured()) return;
   if (!hasGlobalPrivacyControl()) {
     captureLandingContext();
+    // EXP-007 (fit-to-screen default plus pan/zoom, standalone release --
+    // ships to everyone regardless of assignment; the self-assignment
+    // exists only so this release window's events carry experimentRef
+    // EXP-007 for the pre/post comparison, see fitToScreenPreview.ts).
+    assignFitToScreenPreviewExperiment();
   }
   startFlushScheduler();
   if (getConsentState() === 'granted') void flushQueue();

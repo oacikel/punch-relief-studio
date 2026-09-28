@@ -107,6 +107,18 @@ export function getCachedExperiment(storage: Storage = window.sessionStorage): E
   }
 }
 
+/** Writes the session's experiment context, overwriting whatever was there.
+ * The only caller is `fitToScreenPreview.ts`'s EXP-007 self-assignment,
+ * which checks first that the session isn't already in an experiment --
+ * this function deliberately owns nothing but the storage write, so the
+ * sessionStorage key stays defined in exactly one module. */
+export function writeExperimentContext(
+  context: ExperimentContext,
+  storage: Storage = window.sessionStorage,
+): void {
+  storage.setItem(EXPERIMENT_KEY, JSON.stringify(context));
+}
+
 /** Classifies source and captures `?exp=EXP-002&v=b` once per session, from
  * the current landing URL/referrer, caching both in sessionStorage. A
  * no-op on repeat calls within the same session (sessionStorage already

@@ -2389,3 +2389,51 @@ export previously left its rejection unhandled (an unhandled promise
 rejection, not surfaced to the user); wiring `export_failed` also fixed
 that, catching it and showing the existing warning-banner pattern already
 used for project-load errors.
+
+## EXP-007 -- fit-to-screen preview plus pan/zoom, shipped as a standalone release
+
+Task brief: find out whether the pattern preview's framing/legibility moves
+export success at all, and get a clean baseline for a queued follow-up
+preview-clarity experiment. Change: the preview (`PatternCanvas.tsx`) now
+opens scaled so the whole pattern fits the current viewport by default,
+with a visible "Fit to screen" control, and pointer-drag pan plus
+wheel/pinch/scroll zoom for looking at detail.
+
+Two decisions worth recording:
+
+1. **Standalone release, not an A/B split.** Every other self-assigned
+   experiment in this codebase withholds the change from a control group
+   measured concurrently. This one ships to 100% of sessions during the
+   release window instead -- there is no old-behaviour branch worth
+   keeping around to compare against, since the whole point is "does
+   fit-to-screen framing move the number at all", not "which of two
+   framings wins". It's measured pre/post instead: the owner manually
+   counts `export_succeeded`/`export_failed` for the release window and an
+   equal-length window immediately before it, using the metric key that
+   already exists (`docs/ANALYTICS.md`). Fewer than 15 attempts across 3
+   weeks in the post window is defined as underpowered -- read as
+   inconclusive, not as a negative result.
+2. **Self-assignment still exists, with one variant.** Even though nothing
+   branches on it, `src/analytics/fitToScreenPreview.ts` self-assigns every
+   session into a single `fit` variant so `track()` stamps `experimentRef:
+   'EXP-007'` on this release window's events -- the only mechanism that
+   lets the pre/post windows be told apart after the fact (pre-release
+   events simply predate this file and carry no `experimentRef`). It
+   defers to a landing `?exp=` link the same way every other self-assigned
+   experiment here does, so a session recruited into some other named
+   experiment via a link is left alone.
+
+The fit-to-screen default is plain CSS (`object-fit: contain` on a
+fixed-height box, `.pattern-preview-viewport` in `styles.css`), not a
+computed scale factor -- it does the "whole pattern visible" job for any
+pattern aspect ratio with no JS. Zoom/pan are layered on top of that base
+fit as a `transform: translate(...) scale(...)` on the `<img>` itself:
+`zoom === 1` means exactly the CSS fit, so "Fit to screen" is just
+resetting zoom/offset back to their defaults, and panning is disabled
+(nothing to pan to) until zoomed in past that point. The arithmetic
+(clamping, wheel-delta zoom, pinch-distance-ratio zoom, drag-offset pan) is
+factored into a pure module, `src/components/patternPreviewGestures.ts`,
+specifically so it's unit-testable -- jsdom implements neither
+`PointerEvent` nor `ResizeObserver`, so the pointer-driven pan/pinch
+gestures themselves are covered only in `e2e/pattern-preview-pan-zoom.spec.ts`,
+a real-browser test.
