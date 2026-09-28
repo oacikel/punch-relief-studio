@@ -132,6 +132,34 @@ describe('Workspace', () => {
       screen.queryByRole('navigation', { name: 'Jump to rail section' }),
     ).not.toBeInTheDocument();
   });
+
+  describe('EXP-002: move yarn palette selection earlier', () => {
+    it('defaults to Shape-then-Yarn (control) when the prop is omitted', () => {
+      render(<Workspace {...baseProps()} />);
+      expect(screen.getByRole('button', { name: '1 Shape' })).toHaveAttribute(
+        'aria-current',
+        'step',
+      );
+      expect(screen.getByRole('button', { name: '2 Yarn' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Shape the relief' })).toBeInTheDocument();
+    });
+
+    it('opens on Yarn-then-Shape when enrolled in the earlier variant', async () => {
+      render(<Workspace {...baseProps()} moveYarnColorsEarlier={true} />);
+      expect(screen.getByRole('button', { name: '1 Yarn' })).toHaveAttribute(
+        'aria-current',
+        'step',
+      );
+      expect(screen.getByRole('heading', { name: 'Choose your yarn' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Shape the relief' })).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: '2 Shape' }));
+      expect(screen.getByRole('heading', { name: 'Shape the relief' })).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: '3 Export' }));
+      expect(screen.getByText(/Export options will appear as soon as/)).toBeInTheDocument();
+    });
+  });
 });
 
 function makeRegionMap(): RegionMap {

@@ -6,6 +6,7 @@ import { ModelBar } from '@/components/ModelBar';
 import { PrivacyControl } from '@/components/PrivacyControl';
 import {
   initAnalytics,
+  shouldMoveYarnColorsEarlier,
   trackPageViewed,
   trackPatternCompleted,
   trackProjectCreated,
@@ -58,12 +59,22 @@ export default function App(): JSX.Element {
   const { process, processImage } = useProcessingWorker();
   const imageProcessGeneration = useRef(0);
 
+  // EXP-002 ("move yarn palette selection earlier"): whether this session's
+  // Workspace rail shows the Yarn step before the Shape step. Read once at
+  // mount -- the variant is fixed for the session
+  // (src/analytics/paletteOrder.ts), and it has to be known before the
+  // Workspace stage first renders.
+  const [moveYarnColorsEarlier, setMoveYarnColorsEarlier] = useState(false);
+
   // T10 analytics: a no-op unless VITE_VP_INGEST_URL/VITE_VP_PROJECT_TOKEN
   // are set at build time -- see src/analytics/config.ts and
   // docs/ANALYTICS.md. `page_viewed{path:"/"}` fires once, at mount.
+  // `initAnalytics()` also assigns the session's experiment variant, so it
+  // must stay ahead of both the first event and the variant read below.
   useEffect(() => {
     initAnalytics();
     trackPageViewed('/');
+    setMoveYarnColorsEarlier(shouldMoveYarnColorsEarlier());
   }, []);
 
   // `pattern_completed{durationSeconds}` fires once per project, on the
@@ -666,6 +677,7 @@ export default function App(): JSX.Element {
             <Workspace
               isImageSource={state.sourceKind === 'image-file'}
               sourceImageUrl={imagePreviewUrl}
+              moveYarnColorsEarlier={moveYarnColorsEarlier}
               reliefSettings={state.reliefSettings}
               onReliefSettingsChange={(patch) =>
                 dispatch({ type: 'SET_RELIEF_SETTINGS', settings: patch })

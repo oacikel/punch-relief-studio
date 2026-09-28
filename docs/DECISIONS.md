@@ -2389,3 +2389,32 @@ export previously left its rejection unhandled (an unhandled promise
 rejection, not surfaced to the user); wiring `export_failed` also fixed
 that, catching it and showing the existing warning-banner pattern already
 used for project-load errors.
+
+## EXP-002 ("move yarn palette selection earlier"): self-assigned, defaults to `control`
+
+`src/analytics/paletteOrder.ts` self-assigns a session into EXP-002's
+`earlier`/`control` split the same way the T10 landing-URL `?exp=` parser
+already labels link-recruited sessions (same sessionStorage slot, same
+`experimentRef`/`variant` fields on every event) -- the assignment just
+happens client-side, in `initAnalytics()`, since which order the Workspace
+rail opens in has to be decided before the person does anything, not
+inferred from a campaign link.
+
+Deliberate choice: an **unassigned** session (analytics unconfigured, GPC,
+or a link-provided different experiment) gets `control` -- today's
+Shape-then-Yarn order -- not the `earlier` treatment. This reorders the
+Workspace rail's existing, *numbered* setup steps
+(`src/components/workspace/Workspace.tsx`'s
+`EDITOR_STEPS_CONTROL`/`EDITOR_STEPS_EARLIER`), which button labels
+("2 Yarn"), several e2e specs, and screenshots already assume a fixed
+position for. Shipping the reorder to every unmeasured session (including
+the public GitHub Pages build for as long as analytics stays unconfigured
+there) would be a real, permanent product change with no way to attribute
+its effect -- exactly the outcome self-assignment exists to avoid.
+Defaulting to `control` keeps every existing surface's behaviour unchanged
+outside of sessions actually enrolled in the measurement; only a session
+landing in the `earlier` half of a *configured* build's 50/50 split ever
+sees Yarn before Shape. A future additive self-assigned experiment (new
+copy, a new panel with no dependents elsewhere) may reasonably choose the
+opposite default, the way T10's own inert-until-configured fallback works
+for the app's baseline behaviour -- this decision is scoped to EXP-002.

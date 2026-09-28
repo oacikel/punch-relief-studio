@@ -76,7 +76,39 @@ the event builder itself:
   category.
 - `experimentRef`/`variant` -- parsed from the landing URL's `?exp=EXP-002
 &v=b`, validated against the ingest contract's patterns, cached in
-  `sessionStorage` for the rest of the session.
+  `sessionStorage` for the rest of the session. When the landing URL carries
+  no experiment, `initAnalytics()` assigns EXP-002 instead (see below) and
+  caches it in the same slot, so every event of a session carries one
+  experiment label or the other -- never both, and never a relabelled one.
+
+## EXP-002: "move yarn palette selection earlier"
+
+Hypothesis: choosing yarn colors before tuning depth/shape may reduce
+unfinished patterns. Implementation: `src/analytics/paletteOrder.ts`
+(assignment) plus `src/components/workspace/Workspace.tsx` (the reordered
+rail, swapping the Shape and Yarn setup steps -- Export always stays last).
+
+- **Variants, 50/50, session-scoped:** `earlier` (rail opens on Yarn, then
+  Shape, then Export) and `control` (today's Shape, then Yarn, then Export).
+  Assigned once per session in `initAnalytics()`, from the parity of a fresh
+  random ID, and stored in the same sessionStorage experiment slot the
+  landing-URL parser uses. A session that arrived via an `?exp=` link keeps
+  that experiment and stays out of EXP-002 entirely.
+- **No new events, no new fields.** Measured entirely from the existing
+  funnel, split by `variant`: `project_created` -> `pattern_completed` ->
+  `export_succeeded`. "Finished a pattern" is `export_succeeded` (any
+  format).
+- **Defaults to `control`, unlike a purely additive self-assigned
+  experiment would.** Reordering the rail's numbered steps has effects
+  beyond what EXP-002 measures -- button labels like "2 Yarn", screenshots,
+  e2e specs -- so an unassigned session (analytics unconfigured, GPC, or a
+  link-provided experiment) gets today's order rather than the treatment.
+  The public GitHub Pages build, when analytics is unconfigured for it,
+  therefore keeps today's order for everyone rather than shipping the
+  reorder unmeasured. See docs/DECISIONS.md.
+- **Consent gates the measurement, not the order.** Which version of the
+  product someone gets isn't personal data, and branching on consent would
+  make the two variants' populations differ by more than the step order.
 
 **Never sent, under any configuration:** the query string, the referrer
 URL, file names, images, mesh/model data, project settings, or project

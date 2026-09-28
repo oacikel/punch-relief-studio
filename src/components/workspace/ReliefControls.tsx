@@ -24,6 +24,9 @@ interface Props {
   onNeedleGeometryChange: (patch: Partial<NeedleGeometry>) => void;
   dimensions: PatternDimensions;
   onDimensionsChange: (patch: Partial<PatternDimensions>) => void;
+  /** EXP-002: the step number shown in this group's own heading -- see
+   * `YarnColorsGroup`'s matching prop. Defaults to '1', today's position. */
+  stepNumber?: string;
 }
 
 /**
@@ -59,6 +62,7 @@ export function ReliefControls({
   onNeedleGeometryChange,
   dimensions,
   onDimensionsChange,
+  stepNumber = '1',
 }: Props): JSX.Element {
   const minRegionPx = useMemo(
     () => minRegionPxForPreset(settings.minRegionPreset, width, height),
@@ -73,7 +77,7 @@ export function ReliefControls({
   return (
     <div className="control-group rail-section" id="rail-shape">
       <div className="section-intro">
-        <span className="section-number">1</span>
+        <span className="section-number">{stepNumber}</span>
         <div>
           <h3>Shape the relief</h3>
           <p>Choose how much height and detail your textile should keep.</p>

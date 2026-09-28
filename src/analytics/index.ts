@@ -29,6 +29,7 @@ import {
   getOrCreateSessionId,
 } from '@/analytics/ids';
 import { captureLandingContext, getCachedExperiment, getCachedSource } from '@/analytics/source';
+import { assignPaletteOrderExperiment, getPaletteOrderVariant } from '@/analytics/paletteOrder';
 import { enqueueEvent, clearQueue } from '@/analytics/queue';
 import { flushQueue } from '@/analytics/transport';
 import { startFlushScheduler } from '@/analytics/scheduler';
@@ -48,6 +49,13 @@ export function initAnalytics(): void {
   if (!isAnalyticsConfigured()) return;
   if (!hasGlobalPrivacyControl()) {
     captureLandingContext();
+    // EXP-002 ("move yarn palette selection earlier"): self-assigns 50/50
+    // into earlier/control, in the same sessionStorage slot the ?exp=
+    // landing parser uses, so every product event this session sends
+    // carries experimentRef EXP-002 + variant with no change at any
+    // track* call site. A no-op when a link already put this session in
+    // another experiment -- see paletteOrder.ts.
+    assignPaletteOrderExperiment();
   }
   startFlushScheduler();
   if (getConsentState() === 'granted') void flushQueue();
@@ -59,6 +67,18 @@ export function shouldShowConsentPrompt(): boolean {
 
 export function isAnalyticsAllowed(): boolean {
   return isAnalyticsConfigured() && getConsentState() === 'granted';
+}
+
+/**
+ * EXP-002: whether this session should see the Yarn step before the Shape
+ * step in the Workspace rail. Reads the variant assigned in
+ * `initAnalytics()`; an unassigned session (analytics unconfigured, GPC, or
+ * a link-provided experiment) gets `false` -- today's order -- rather than
+ * the treatment, since reordering numbered steps has effects well beyond
+ * what's being measured (see `paletteOrder.ts`).
+ */
+export function shouldMoveYarnColorsEarlier(): boolean {
+  return getPaletteOrderVariant() === 'earlier';
 }
 
 /** User clicked "Allow". Only now does an anonymous ID get created. */

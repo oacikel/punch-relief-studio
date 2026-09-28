@@ -4,12 +4,14 @@ import { clearConsent } from '@/analytics/consent';
 import { clearQueue, loadQueue } from '@/analytics/queue';
 import { resetBackoffForTests } from '@/analytics/transport';
 import { resetFlushSchedulerForTests } from '@/analytics/scheduler';
+import { PALETTE_ORDER_VARIANTS } from '@/analytics/paletteOrder';
 import {
   allowAnalytics,
   declineAnalytics,
   initAnalytics,
   isAnalyticsAllowed,
   isAnalyticsConfigured,
+  shouldMoveYarnColorsEarlier,
   shouldShowConsentPrompt,
   trackExportSucceeded,
   trackPageViewed,
@@ -62,6 +64,15 @@ describe('analytics public API', () => {
       expect(window.sessionStorage.length).toBe(0);
       expect(fetchMock).not.toHaveBeenCalled();
     });
+
+    // EXP-002 reorders existing numbered steps rather than adding something
+    // new, so -- with no measurement to record it against -- the unmeasured
+    // default is today's order, not the treatment. See paletteOrder.ts.
+    it('keeps todays Shape-then-Yarn order, since there is no measurement to run EXP-002 against', () => {
+      initAnalytics();
+      expect(shouldMoveYarnColorsEarlier()).toBe(false);
+      expect(window.sessionStorage.length).toBe(0);
+    });
   });
 
   describe('Global Privacy Control', () => {
@@ -101,6 +112,56 @@ describe('analytics public API', () => {
 
       expect(fetchMock).toHaveBeenCalled();
       expect(loadQueue()).toEqual([]); // sent and dropped on the mocked 2xx
+    });
+  });
+
+  describe('EXP-002 measurement', () => {
+    it('labels every product event with experimentRef EXP-002 and the assigned variant', async () => {
+      configure();
+      initAnalytics();
+      allowAnalytics();
+
+      trackPageViewed('/');
+      trackProjectCreated('sample');
+      trackExportSucceeded('svg');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const [, init] = fetchMock.mock.calls[0] as [string, { body: string }];
+      const events: Array<{ name: string; experimentRef?: string; variant?: string }> = JSON.parse(
+        init.body,
+      ).events;
+
+      expect(events.map((e) => e.name)).toEqual(
+        expect.arrayContaining(['page_viewed', 'project_created', 'export_succeeded']),
+      );
+      for (const event of events) {
+        expect(event.experimentRef).toBe('EXP-002');
+        expect(PALETTE_ORDER_VARIANTS).toContain(event.variant);
+      }
+      // The variant the UI branches on is the same one the events carry.
+      const variantOnTheWire = events[0]?.variant;
+      expect(shouldMoveYarnColorsEarlier()).toBe(variantOnTheWire === 'earlier');
+    });
+
+    it('leaves a link-recruited session labelled with its own experiment', async () => {
+      configure();
+      window.history.pushState({}, '', '/?exp=EXP-777&v=b');
+      initAnalytics();
+      allowAnalytics();
+      window.history.pushState({}, '', '/');
+
+      trackProjectCreated('sample');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const [, init] = fetchMock.mock.calls[0] ?? [];
+      const body = JSON.parse(String((init as RequestInit).body)) as {
+        events: Array<{ experimentRef?: string; variant?: string }>;
+      };
+      expect(body.events[0]?.experimentRef).toBe('EXP-777');
+      expect(body.events[0]?.variant).toBe('b');
+      expect(shouldMoveYarnColorsEarlier()).toBe(false);
     });
   });
 
