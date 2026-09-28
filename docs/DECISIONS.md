@@ -2389,3 +2389,31 @@ export previously left its rejection unhandled (an unhandled promise
 rejection, not surfaced to the user); wiring `export_failed` also fixed
 that, catching it and showing the existing warning-banner pattern already
 used for project-load errors.
+
+## EXP-004: first-project guide shown once, above the Workspace rail
+
+Experiment, testing the hypothesis "a short, contextual guide will help
+more first-time visitors finish a pattern." Implementation:
+`FirstProjectGuide` (`src/components/workspace/FirstProjectGuide.tsx`) is a
+small, dismissible callout rendered above the Workspace rail heading,
+naming the same three rail steps (`Shape` / `Yarn` / `Export`) the visitor
+is about to work through plus one line reassuring them the live preview
+means nothing is final until export. It shows at most once per device --
+`src/persistence/firstProjectGuideStore.ts` records a single localStorage
+flag on dismissal, checked once at `App.tsx` mount (`showFirstProjectGuide`
+state), rather than once per project or per session, so returning visitors
+who already dismissed it are never shown it again on a later import.
+
+`Workspace.tsx` stays a plain controlled component for this, same as every
+other Workspace setting (`showFirstProjectGuide`/`onDismissFirstProjectGuide`
+props, both optional and defaulting to "hidden" so existing callers/tests
+that don't pass them are unaffected) -- `App.tsx` alone owns the localStorage
+read/write. No new analytics event was added for this: `project_created`,
+`pattern_completed`, and `export_succeeded`/`export_failed` already cover
+the "did this project reach export" funnel the hypothesis is measured
+against, and already carry `experimentRef`/`variant` automatically for any
+session landing on `?exp=EXP-004` (`src/analytics/source.ts`'s existing
+landing-context capture, unchanged by this experiment) -- inventing a
+guide-specific event here would mean extending the local contract mirror
+(`src/analytics/contract.ts`) with a shape the real VenturePilot ingest
+endpoint doesn't yet accept.
