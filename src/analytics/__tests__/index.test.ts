@@ -4,6 +4,7 @@ import { clearConsent } from '@/analytics/consent';
 import { clearQueue, loadQueue } from '@/analytics/queue';
 import { resetBackoffForTests } from '@/analytics/transport';
 import { resetFlushSchedulerForTests } from '@/analytics/scheduler';
+import { PREVIEW_EXPECTATIONS_VARIANTS } from '@/analytics/previewExpectations';
 import {
   allowAnalytics,
   declineAnalytics,
@@ -11,6 +12,7 @@ import {
   isAnalyticsAllowed,
   isAnalyticsConfigured,
   shouldShowConsentPrompt,
+  shouldShowPreviewExpectations,
   trackExportSucceeded,
   trackPageViewed,
   trackProjectCreated,
@@ -61,6 +63,12 @@ describe('analytics public API', () => {
       expect(window.localStorage.length).toBe(0);
       expect(window.sessionStorage.length).toBe(0);
       expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('still shows EXP-003s notice, since there is no measurement to hold a control group back for', () => {
+      initAnalytics();
+      expect(shouldShowPreviewExpectations()).toBe(true);
+      expect(window.sessionStorage.length).toBe(0);
     });
   });
 
@@ -124,6 +132,56 @@ describe('analytics public API', () => {
 
       expect(fetchMock).not.toHaveBeenCalled();
       expect(loadQueue()).toEqual([]);
+    });
+  });
+
+  describe('EXP-003 measurement', () => {
+    it('labels every product event with experimentRef EXP-003 and the assigned variant', async () => {
+      configure();
+      initAnalytics();
+      allowAnalytics();
+      trackPageViewed('/');
+      trackProjectCreated('sample');
+      trackExportSucceeded('svg');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const events = fetchMock.mock.calls.map((call) => {
+        const body = JSON.parse((call[1] as { body: string }).body) as {
+          events: Array<{ name: string; experimentRef?: string; variant?: string }>;
+        };
+        return body.events;
+      });
+      const flat = events.flat();
+      expect(flat.map((e) => e.name)).toEqual(
+        expect.arrayContaining(['page_viewed', 'project_created', 'export_succeeded']),
+      );
+      for (const event of flat) {
+        expect(event.experimentRef).toBe('EXP-003');
+        expect(PREVIEW_EXPECTATIONS_VARIANTS).toContain(event.variant);
+      }
+      // The variant the UI branches on is the same one the events carry.
+      const variantOnTheWire = flat[0]?.variant;
+      expect(shouldShowPreviewExpectations()).toBe(variantOnTheWire === 'expectations');
+    });
+
+    it('leaves a link-recruited session labelled with its own experiment', async () => {
+      window.history.pushState({}, '', '/?exp=EXP-002&v=b');
+      configure();
+      initAnalytics();
+      allowAnalytics();
+      trackPageViewed('/');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as { body: string }).body) as {
+        events: Array<{ experimentRef?: string; variant?: string }>;
+      };
+      expect(body.events[0]?.experimentRef).toBe('EXP-002');
+      expect(body.events[0]?.variant).toBe('b');
+      expect(shouldShowPreviewExpectations()).toBe(true);
+
+      window.history.pushState({}, '', '/');
     });
   });
 });

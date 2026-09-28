@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { BUILTIN_SAMPLES } from '@/domain/samples';
 import { validateFile } from '@/domain/import/validation';
+import { PreviewExpectations } from '@/components/stages/PreviewExpectations';
 
 interface Props {
   onSelectSample: (sampleId: string) => void;
@@ -169,22 +170,48 @@ export function ImportStage({
 
 interface OrientSectionProps {
   onContinue: () => void;
+  /** EXP-003 ("clarify the single-viewpoint preview"): replace the one-line
+   * single-viewpoint helper text with the fuller `PreviewExpectations`
+   * notice. App.tsx owns the variant read; this component only renders what
+   * it's told to. Defaults to false so every existing render site keeps its
+   * current behaviour. */
+  showPreviewExpectations?: boolean;
 }
 
 /** The post-load half of the merged Import/Orient stage: framing text
  * (moved verbatim from the former OrientStage) plus the "next action" the
  * product owner asked for, so it's never unclear how to move on. The 3D
- * viewport itself renders separately (see ImportStage's own doc comment). */
-export function ImportOrientSection({ onContinue }: OrientSectionProps): JSX.Element {
+ * viewport itself renders separately (see ImportStage's own doc comment).
+ *
+ * This is the last screen before the Workspace preview, which makes it the
+ * only place an expectation about that preview can be set in advance -- hence
+ * EXP-003's notice living here (see `PreviewExpectations`). Either way the
+ * single-viewpoint limitation is stated in-app, per CLAUDE.md; the experiment
+ * only varies how concretely. */
+export function ImportOrientSection({
+  onContinue,
+  showPreviewExpectations = false,
+}: OrientSectionProps): JSX.Element {
   return (
-    <section className="stage-panel orient-actions" aria-labelledby="orient-heading">
+    <section
+      className={
+        showPreviewExpectations
+          ? 'stage-panel orient-actions orient-actions--expanded'
+          : 'stage-panel orient-actions'
+      }
+      aria-labelledby="orient-heading"
+    >
       <div>
         <p className="eyebrow">Almost there</p>
         <h2 id="orient-heading">Is this the view you want?</h2>
-        <p className="helper-text">
-          The visible surface becomes your pattern. Hidden and back surfaces are not included, so
-          this is a single-viewpoint relief rather than a full 3D reconstruction.
-        </p>
+        {showPreviewExpectations ? (
+          <PreviewExpectations />
+        ) : (
+          <p className="helper-text">
+            The visible surface becomes your pattern. Hidden and back surfaces are not included, so
+            this is a single-viewpoint relief rather than a full 3D reconstruction.
+          </p>
+        )}
       </div>
       <button className="primary-button" type="button" onClick={onContinue}>
         Create my pattern &rarr;

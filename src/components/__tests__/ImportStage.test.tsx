@@ -161,4 +161,24 @@ describe('ImportOrientSection', () => {
     await userEvent.click(screen.getByRole('button', { name: /Create my pattern/i }));
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
+
+  // EXP-003: the notice is opt-in per render site, so the control variant
+  // (and every existing caller) keeps exactly the copy it has today.
+  it('shows no EXP-003 notice by default', () => {
+    render(<ImportOrientSection onContinue={vi.fn()} />);
+    expect(screen.queryByRole('region', { name: 'What your pattern will show' })).toBeNull();
+  });
+
+  it('replaces the one-line honesty copy with the EXP-003 notice when asked, rather than stacking both', async () => {
+    const onContinue = vi.fn();
+    render(<ImportOrientSection onContinue={onContinue} showPreviewExpectations />);
+
+    expect(screen.getByRole('region', { name: 'What your pattern will show' })).toBeInTheDocument();
+    expect(screen.queryByText(/single-viewpoint relief rather than a full 3D/i)).toBeNull();
+
+    // Still the same step, with the same forward action -- the notice is
+    // copy, never a gate in front of "Create my pattern".
+    await userEvent.click(screen.getByRole('button', { name: /Create my pattern/i }));
+    expect(onContinue).toHaveBeenCalledTimes(1);
+  });
 });

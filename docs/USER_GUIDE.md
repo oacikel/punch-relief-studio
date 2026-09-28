@@ -22,7 +22,9 @@ to discover.
    once). Once a model is loaded, an orientation section appears on this
    same page: rotate/pan/zoom to the viewpoint you want. Only what's visible
    from this one viewpoint becomes the pattern; back and hidden surfaces are
-   not captured (see the in-app note on this step). If the model itself
+   not captured (see the in-app note on this step -- depending on the session,
+   either a one-line summary or a fuller "What your pattern will show" note,
+   which is what EXP-003 in docs/ANALYTICS.md compares). If the model itself
    isn't aligned upright, use the "Straighten model" Roll/Pitch/Yaw sliders
    (next to the standard-view buttons) to rotate the model itself -- not
    just the view -- before generating the relief; "Reset rotation" clears

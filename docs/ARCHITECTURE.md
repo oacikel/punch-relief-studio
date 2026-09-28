@@ -246,9 +246,12 @@ an outgoing event, regardless of what a caller passes in), `queue.ts`
 (capped, 7-day-expiring localStorage queue), `transport.ts` (batched
 `fetch` with 2xx/4xx/429/5xx/network-error handling and backoff),
 `scheduler.ts` (periodic + `visibilitychange`/`pagehide`/`online` flush
-triggers), and `index.ts` (the public API -- `initAnalytics`/`trackX`/
-`allowAnalytics`/`declineAnalytics` -- the only module the UI layer imports
-from). `src/components/PrivacyControl.tsx` is the one UI surface, covering
+triggers), `previewExpectations.ts` (EXP-003's self-assignment -- its own
+ref/variants/assignment, written into `source.ts`'s experiment slot), and
+`index.ts` (the public API -- `initAnalytics`/`trackX`/`allowAnalytics`/
+`declineAnalytics`, plus `shouldShowPreviewExpectations()`, the variant read
+the UI branches on -- the only module the UI layer imports from).
+`src/components/PrivacyControl.tsx` is the one UI surface, covering
 both the one-time consent prompt and an always-reachable Privacy toggle;
 it renders nothing when unconfigured. See `docs/ANALYTICS.md` for the
 event dictionary and data flow, and `docs/DECISIONS.md` for the design

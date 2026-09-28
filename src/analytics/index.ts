@@ -29,6 +29,10 @@ import {
   getOrCreateSessionId,
 } from '@/analytics/ids';
 import { captureLandingContext, getCachedExperiment, getCachedSource } from '@/analytics/source';
+import {
+  assignPreviewExpectationsExperiment,
+  getPreviewExpectationsVariant,
+} from '@/analytics/previewExpectations';
 import { enqueueEvent, clearQueue } from '@/analytics/queue';
 import { flushQueue } from '@/analytics/transport';
 import { startFlushScheduler } from '@/analytics/scheduler';
@@ -48,6 +52,13 @@ export function initAnalytics(): void {
   if (!isAnalyticsConfigured()) return;
   if (!hasGlobalPrivacyControl()) {
     captureLandingContext();
+    // EXP-003 ("clarify the single-viewpoint preview"): must happen here,
+    // before the first `track()` call of the session (App.tsx's mount
+    // effect calls this immediately before `trackPageViewed('/')`), so even
+    // the landing event carries the variant it belongs to. A no-op when a
+    // link already put this session in another experiment -- see
+    // previewExpectations.ts.
+    assignPreviewExpectationsExperiment();
   }
   startFlushScheduler();
   if (getConsentState() === 'granted') void flushQueue();
@@ -55,6 +66,22 @@ export function initAnalytics(): void {
 
 export function shouldShowConsentPrompt(): boolean {
   return isAnalyticsConfigured() && !hasGlobalPrivacyControl() && getConsentState() === 'unknown';
+}
+
+/**
+ * EXP-003: whether this session should see the expanded single-viewpoint
+ * notice on the Import/Orient step, before the first preview. Reads the
+ * variant assigned in `initAnalytics()`; when analytics isn't configured
+ * there is no assignment (and no storage to read), and the notice is simply
+ * on -- see `previewExpectations.ts` for why the control group only exists
+ * where it can actually be measured.
+ *
+ * Deliberately not gated on *consent*: consent decides whether events are
+ * recorded, not which version of the product a person gets.
+ */
+export function shouldShowPreviewExpectations(): boolean {
+  if (!isAnalyticsConfigured()) return true;
+  return getPreviewExpectationsVariant() === 'expectations';
 }
 
 export function isAnalyticsAllowed(): boolean {

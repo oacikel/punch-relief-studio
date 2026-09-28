@@ -67,6 +67,13 @@ Only a handful of anonymous, coarse product events are ever counted (e.g.
 names, patterns, or settings. See docs/ANALYTICS.md for the full event
 dictionary and docs/DECISIONS.md for the design rationale.
 
+A build with analytics configured may also run a small in-product
+experiment -- currently EXP-003, whether the Import step spells out in
+detail what a single-viewpoint pattern will and won't contain before you
+reach the preview -- decided by a coin flip kept only for the current tab
+session. No extra data is collected either way: the comparison is made from
+the same coarse events listed above.
+
 ## Local setup
 
 ```bash

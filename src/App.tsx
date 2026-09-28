@@ -6,6 +6,7 @@ import { ModelBar } from '@/components/ModelBar';
 import { PrivacyControl } from '@/components/PrivacyControl';
 import {
   initAnalytics,
+  shouldShowPreviewExpectations,
   trackPageViewed,
   trackPatternCompleted,
   trackProjectCreated,
@@ -58,12 +59,24 @@ export default function App(): JSX.Element {
   const { process, processImage } = useProcessingWorker();
   const imageProcessGeneration = useRef(0);
 
+  // EXP-003 ("clarify the single-viewpoint preview"): whether this session
+  // gets the fuller expectation-setting notice on the Import/Orient step
+  // instead of the one-line version. Read once at mount, since the variant
+  // is fixed for the session (src/analytics/previewExpectations.ts) and has
+  // to be known before the person can reach that step, which is any time
+  // after the first import.
+  const [previewExpectationsEnabled, setPreviewExpectationsEnabled] = useState(false);
+
   // T10 analytics: a no-op unless VITE_VP_INGEST_URL/VITE_VP_PROJECT_TOKEN
   // are set at build time -- see src/analytics/config.ts and
   // docs/ANALYTICS.md. `page_viewed{path:"/"}` fires once, at mount.
+  // `initAnalytics()` also assigns the EXP-003 variant, so it must stay
+  // ahead of both the first event and the `shouldShowPreviewExpectations()`
+  // read below.
   useEffect(() => {
     initAnalytics();
     trackPageViewed('/');
+    setPreviewExpectationsEnabled(shouldShowPreviewExpectations());
   }, []);
 
   // `pattern_completed{durationSeconds}` fires once per project, on the
@@ -659,6 +672,7 @@ export default function App(): JSX.Element {
             state.sourceKind !== 'image-file' && (
               <ImportOrientSection
                 onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
+                showPreviewExpectations={previewExpectationsEnabled}
               />
             )}
 
