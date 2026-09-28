@@ -828,6 +828,48 @@ main.workspace-layout > .workspace-preview-col {
   }
 }
 
+/* EXP-004 ("Show a first-project guide after import"): a dismissible
+   callout shown once per device, above the rail heading. Left accent
+   border (rather than a full tinted background like `.warning-banner`)
+   keeps it visually distinct from an error/warning state while still
+   standing out from the plain-white rail. */
+.first-project-guide {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent);
+  border-radius: var(--radius);
+  background: var(--color-soft);
+}
+
+.first-project-guide h2 {
+  margin: 2px 0 8px;
+  font-size: 1rem;
+}
+
+.first-project-guide ol {
+  margin: 0 0 8px;
+  padding-left: 1.1em;
+  font-size: 0.86rem;
+}
+
+.first-project-guide li + li {
+  margin-top: 4px;
+}
+
+.first-project-guide .helper-text {
+  margin: 0;
+}
+
+.first-project-guide__dismiss {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .workspace-rail-heading {
   display: flex;
   align-items: center;
