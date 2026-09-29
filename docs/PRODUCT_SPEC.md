@@ -187,7 +187,10 @@ As of Iteration 03 Round 1 (see `docs/ITERATION_03_PLAN.md` and
   note.
 - Yarn Colors gained a small "Color story palettes" gallery (four
   hand-picked, bundled collections) that fills color-by-height swatches
-  in one click, still hand-editable afterward.
+  in one click, still hand-editable afterward. For a 2D template (image
+  import), the same gallery also fills the "Simplified image palette"
+  swatches, and the chosen scheme survives re-simplifying the image after
+  a settings change (see EXP-006 in `docs/DECISIONS.md`).
 
 ## 7. Non-Functional Requirements
 

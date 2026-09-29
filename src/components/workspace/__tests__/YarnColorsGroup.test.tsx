@@ -79,6 +79,69 @@ describe('YarnColorsGroup', () => {
     expect(onApplyPalette).toHaveBeenCalledWith(firstPalette.id);
   });
 
+  it('shows the color story gallery for a 2D template (image source) in source-material mode', () => {
+    render(
+      <YarnColorsGroup
+        isImageSource
+        mode="source-material"
+        swatches={makeSwatches(3)}
+        paletteSize={4}
+        levelCount={3}
+        hasSourceColor
+        onModeChange={vi.fn()}
+        onSwatchesChange={vi.fn()}
+        onPaletteSizeChange={vi.fn()}
+        onApplyPalette={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Color story palettes')).toBeInTheDocument();
+    for (const palette of COLOR_STORY_PALETTES) {
+      expect(screen.getByRole('button', { name: new RegExp(palette.name) })).toBeInTheDocument();
+    }
+  });
+
+  it('does not show the color story gallery for a non-image source in source-material mode', () => {
+    render(
+      <YarnColorsGroup
+        mode="source-material"
+        swatches={makeSwatches(3)}
+        paletteSize={4}
+        levelCount={3}
+        hasSourceColor
+        onModeChange={vi.fn()}
+        onSwatchesChange={vi.fn()}
+        onPaletteSizeChange={vi.fn()}
+        onApplyPalette={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('Color story palettes')).not.toBeInTheDocument();
+  });
+
+  it('applying a color story from a 2D template calls onApplyPalette with the clicked palette id', async () => {
+    const onApplyPalette = vi.fn();
+    render(
+      <YarnColorsGroup
+        isImageSource
+        mode="source-material"
+        swatches={makeSwatches(3)}
+        paletteSize={4}
+        levelCount={3}
+        hasSourceColor
+        onModeChange={vi.fn()}
+        onSwatchesChange={vi.fn()}
+        onPaletteSizeChange={vi.fn()}
+        onApplyPalette={onApplyPalette}
+      />,
+    );
+
+    const firstPalette = COLOR_STORY_PALETTES[0];
+    if (!firstPalette) throw new Error('expected at least one bundled palette');
+    await userEvent.click(screen.getByRole('button', { name: new RegExp(firstPalette.name) }));
+    expect(onApplyPalette).toHaveBeenCalledWith(firstPalette.id);
+  });
+
   it('no longer references a manual "Generate relief" button in its swatch-count helper text', () => {
     render(
       <YarnColorsGroup

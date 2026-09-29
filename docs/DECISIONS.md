@@ -2417,3 +2417,42 @@ landing-context capture, unchanged by this experiment) -- inventing a
 guide-specific event here would mean extending the local contract mirror
 (`src/analytics/contract.ts`) with a shape the real VenturePilot ingest
 endpoint doesn't yet accept.
+
+## EXP-006: color story palettes offered to 2D templates too
+
+Experiment, testing whether letting a 2D template (image import) use one
+of the bundled "color story" palettes on its "Simplified image palette"
+swatches makes people more likely to finish a pattern. **This narrows, but
+does not reverse, the "Yarn color-story palettes (#7)" decision above**:
+that decision's "source-material mode's swatches are meant to approximate
+the model's actual captured surface colors" reasoning still holds for a
+real 3D model (a photographed/textured mesh) and that path is unchanged --
+the gallery stays hidden there. A 2D template's "source-material" swatches
+are different in kind: they're an auto-*simplified* palette extracted from
+flat starter art, not a physically captured surface, so swapping in a
+tasteful bundled scheme is a reasonable creative option rather than a
+data-fidelity loss. `YarnColorsGroup.tsx`'s gallery condition becomes
+`mode === 'by-height' || (isImageSource && mode === 'source-material')`.
+
+**Surviving re-simplification.** A 2D template's swatches are normally
+overwritten wholesale on every successful re-simplification (any relief-
+setting or palette-size change re-runs the image pipeline and recomputes
+the auto-detected palette from scratch) -- fine when nothing else has been
+chosen, but it would silently discard an applied color story the next time
+the user adjusts an unrelated slider. `AppState.colorStoryId` (`src/state/
+appState.ts`) tracks which bundled palette, if any, is currently applied;
+a new `APPLY_COLOR_STORY` action sets it alongside the recolored swatches,
+while plain `SET_SWATCHES` (a hand edit, or the auto-detected palette with
+no story chosen) clears it, and a fresh `SET_SOURCE` (a new import) clears
+it too, so a story doesn't unexpectedly carry over onto a different image.
+`App.tsx`'s image-processing success handler reapplies the active story
+(by re-running `applyPaletteToSwatches` against the freshly detected
+swatch list) instead of using the raw auto-detected colors, whenever
+`colorStoryId` is set -- read via a ref (`colorStoryIdRef`), not a
+dependency of that effect, since applying a story is not itself a reason
+to re-simplify the image.
+
+No new analytics event was added: `project_created`/`pattern_completed`/
+`export_succeeded` already cover the funnel this experiment is measured
+against, and already carry `experimentRef` for sessions landing on
+`?exp=EXP-006`, same precedent as EXP-004 above.
