@@ -246,7 +246,10 @@ an outgoing event, regardless of what a caller passes in), `queue.ts`
 (capped, 7-day-expiring localStorage queue), `transport.ts` (batched
 `fetch` with 2xx/4xx/429/5xx/network-error handling and backoff),
 `scheduler.ts` (periodic + `visibilitychange`/`pagehide`/`online` flush
-triggers), and `index.ts` (the public API -- `initAnalytics`/`trackX`/
+triggers), `fitToScreenPreview.ts` (EXP-007's self-assignment -- a single
+`fit` variant, so `track()` stamps `experimentRef: 'EXP-007'` on a
+release-window session's events for a pre/post comparison, not an A/B
+split), and `index.ts` (the public API -- `initAnalytics`/`trackX`/
 `allowAnalytics`/`declineAnalytics` -- the only module the UI layer imports
 from). `src/components/PrivacyControl.tsx` is the one UI surface, covering
 both the one-time consent prompt and an always-reachable Privacy toggle;
@@ -260,13 +263,18 @@ rationale.
 buffers --`postMessage`--> `processing.worker.ts` --domain functions in
 sequence (mask -> normalize -> invert -> intensity -> smooth -> quantize ->
 cleanup [-> color quantize -> cleanup])--> `RegionMap` --`postMessage`
-back--> `App.tsx` state --> `PatternCanvas` / `SimulationView` /
-`ExportPanel`, all rendering from the _same_ `RegionMap` + `LegendEntry[]`,
-so the on-screen pattern, the simulation, and every export/print path can
-never disagree with each other about what a region is. (The on-screen
-`Legend` table itself was removed in the Workspace two-column redesign --
-see `docs/DECISIONS.md` -- but `LegendEntry`/`buildLegend()` are unchanged
-and still the single source every one of those consumers reads from.)
+back--> `App.tsx` state --> `PatternCanvas` (which renders its `<img>`
+through `PatternPreview.tsx`, EXP-007's fit-to-screen/pan/zoom viewer --
+gesture math factored into `patternPreviewGestures.ts` so it's
+unit-testable without a real `PointerEvent`, see docs/ANALYTICS.md) /
+`SimulationView` / `ExportPanel`, all rendering from the _same_ `RegionMap`
+
+- `LegendEntry[]`,
+  so the on-screen pattern, the simulation, and every export/print path can
+  never disagree with each other about what a region is. (The on-screen
+  `Legend` table itself was removed in the Workspace two-column redesign --
+  see `docs/DECISIONS.md` -- but `LegendEntry`/`buildLegend()` are unchanged
+  and still the single source every one of those consumers reads from.)
 
 ## Why no React Three Fiber
 

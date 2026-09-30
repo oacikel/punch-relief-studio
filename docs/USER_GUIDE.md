@@ -80,7 +80,10 @@ to discover.
      placement guide. This is the spacing you set, not a measurement of
      your printer's actual output; always check the printed scale-check
      square with a ruler before punching. The same guide and view settings
-     are used both on screen and in every SVG/PNG/print export.
+     are used both on screen and in every SVG/PNG/print export. The
+     pattern opens scaled to fit the whole thing on screen; scroll or
+     pinch over it to zoom in on detail, drag to pan around once zoomed
+     in, and click "Fit to screen" to snap back to the full view.
    - **Finished-piece simulation**: your actual yarn colors on a simulated
      pile texture (loop or cut), with an adjustable lighting direction and
      the same Roll/Pitch/Yaw "Straighten model" controls from Import --

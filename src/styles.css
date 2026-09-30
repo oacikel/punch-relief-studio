@@ -1077,6 +1077,64 @@ main.workspace-layout > .workspace-preview-col {
   box-shadow: 0 2px 8px rgba(34, 45, 39, 0.1);
 }
 
+/* Pattern preview pan/zoom (EXP-007 -- docs/ANALYTICS.md). A fixed-height
+   box with `object-fit: contain` is the fit-to-screen default itself: it
+   scales the pattern image to fit *within* the box on both axes, whatever
+   the pattern's own aspect ratio, with no script computing that fit.
+   `touch-action: none` hands pinch/drag entirely to PatternPreview.tsx's
+   own pointer handlers instead of the browser's native page pinch-zoom/
+   scroll, and `overflow: hidden` clips the image once zoomed in past that
+   base fit. */
+.pattern-preview-viewport {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  touch-action: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #f7f3ec;
+}
+
+.pattern-preview-viewport--fit {
+  height: min(70vh, 640px);
+}
+
+.pattern-preview-viewport--zoom {
+  height: auto;
+}
+
+.pattern-preview-image {
+  display: block;
+  width: 100%;
+  transform-origin: center center;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pattern-preview-image--fit {
+  height: 100%;
+  max-height: 65vh;
+  object-fit: contain;
+}
+
+.pattern-preview-image--zoom {
+  height: auto;
+  max-height: none;
+}
+
+.pattern-preview-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.pattern-preview-controls span {
+  color: var(--color-ink-muted);
+  font-size: 0.9em;
+}
+
 .preview-heading {
   display: flex;
   align-items: end;
