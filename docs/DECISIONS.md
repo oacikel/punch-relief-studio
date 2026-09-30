@@ -2428,7 +2428,7 @@ that decision's "source-material mode's swatches are meant to approximate
 the model's actual captured surface colors" reasoning still holds for a
 real 3D model (a photographed/textured mesh) and that path is unchanged --
 the gallery stays hidden there. A 2D template's "source-material" swatches
-are different in kind: they're an auto-*simplified* palette extracted from
+are different in kind: they're an auto-_simplified_ palette extracted from
 flat starter art, not a physically captured surface, so swapping in a
 tasteful bundled scheme is a reasonable creative option rather than a
 data-fidelity loss. `YarnColorsGroup.tsx`'s gallery condition becomes
