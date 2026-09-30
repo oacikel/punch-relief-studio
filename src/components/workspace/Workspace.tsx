@@ -60,6 +60,12 @@ interface Props {
   onSwatchesChange: (swatches: ColorSwatch[]) => void;
   onPaletteSizeChange: (size: number) => void;
   onApplyPalette: (paletteId: string) => void;
+  /** EXP-010: name of the color story "Undo <name>" would restore, or
+   * null to hide the button. */
+  undoPaletteName: string | null;
+  onUndoPalette: () => void;
+  canResetColors: boolean;
+  onResetColors: () => void;
   profile: CalibrationProfile;
   dimensions: PatternDimensions;
   onDimensionsChange: (patch: Partial<PatternDimensions>) => void;
@@ -140,6 +146,10 @@ export function Workspace({
   onSwatchesChange,
   onPaletteSizeChange,
   onApplyPalette,
+  undoPaletteName,
+  onUndoPalette,
+  canResetColors,
+  onResetColors,
   profile,
   dimensions,
   onDimensionsChange,
@@ -276,6 +286,10 @@ export function Workspace({
                 onSwatchesChange={onSwatchesChange}
                 onPaletteSizeChange={onPaletteSizeChange}
                 onApplyPalette={onApplyPalette}
+                undoPaletteName={undoPaletteName}
+                onUndoPalette={onUndoPalette}
+                canResetColors={canResetColors}
+                onResetColors={onResetColors}
               />
             )}
 

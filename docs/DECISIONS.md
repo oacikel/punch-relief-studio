@@ -2504,3 +2504,33 @@ No new analytics event was added: `project_created`/`pattern_completed`/
 `export_succeeded` already cover the funnel this experiment is measured
 against, and already carry `experimentRef` for sessions landing on
 `?exp=EXP-006`, same precedent as EXP-004 above.
+
+## EXP-010: reversible palette apply -- one-level undo plus reset to defaults
+
+Experiment, testing whether a maker who tries a color-story palette can
+always get back to their starting colors without re-importing. Two new
+`AppState` fields (`src/state/appState.ts`) sit alongside the existing
+`colorStoryId`:
+
+- `colorStoryUndo` holds the swatches (and whichever story, if any, was
+  active) immediately before the *most recent* `APPLY_COLOR_STORY`, so a
+  single "Undo `<name>`" click (`UNDO_COLOR_STORY`) restores exactly that --
+  true one-level undo, not a full history stack. It's cleared by a manual
+  swatch edit, a new import, or a swatch-count resize, since restoring a
+  stale snapshot in any of those cases would either be meaningless or (for
+  a resize) break the "one swatch per height level" invariant.
+- `originalSwatches` is captured once, on the *first* `APPLY_COLOR_STORY`
+  for a given import, and left untouched by later applies/undos -- it's
+  the actual "where they started" anchor, so "Reset to default colors"
+  (`RESET_TO_DEFAULT_COLORS`) always reaches it regardless of how many
+  stories were tried in between. It survives a `RESET_TO_DEFAULT_COLORS`
+  itself (so the button remains usable after being pressed), but not a new
+  import or a swatch-count resize, for the same reason as above.
+
+Both buttons live in `YarnColorsGroup.tsx`, next to the existing palette
+gallery, and are hidden individually when there's nothing to undo/reset
+(`undoPaletteName`/`canResetColors` props, both plain controlled values
+computed in `App.tsx` from `colorStoryUndo`/`originalSwatches`). No new
+analytics event was added -- this experiment's own collection method is a
+scripted manual task run with the owner tallying attempts and successful
+in-app reverts in a plain notes file, not product analytics.

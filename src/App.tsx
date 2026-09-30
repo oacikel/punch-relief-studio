@@ -728,6 +728,14 @@ export default function App(): JSX.Element {
                   swatches: applyPaletteToSwatches(state.swatches, palette),
                 });
               }}
+              undoPaletteName={
+                state.colorStoryUndo
+                  ? (getPaletteById(state.colorStoryUndo.paletteId)?.name ?? null)
+                  : null
+              }
+              onUndoPalette={() => dispatch({ type: 'UNDO_COLOR_STORY' })}
+              canResetColors={state.originalSwatches !== null}
+              onResetColors={() => dispatch({ type: 'RESET_TO_DEFAULT_COLORS' })}
               profile={state.calibrationProfile}
               dimensions={state.patternDimensions}
               onDimensionsChange={(patch) =>
