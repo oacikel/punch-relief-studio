@@ -86,9 +86,9 @@ pattern preview (`PatternCanvas.tsx` -> `PatternPreview.tsx`) now opens
 scaled so the whole pattern is visible on the current viewport, with a
 visible "Fit to screen" control and working pointer-drag pan plus
 wheel/pinch zoom. Unlike an A/B-tested experiment, this change ships to
-*everyone* who opens the preview during the release window -- there is no
+_everyone_ who opens the preview during the release window -- there is no
 withheld control variant to compare against concurrently. Instead it's
-measured against an equal-length window immediately *before* the release,
+measured against an equal-length window immediately _before_ the release,
 by manually counting `export_succeeded`/`export_failed` events in each
 window (see docs/DECISIONS.md).
 

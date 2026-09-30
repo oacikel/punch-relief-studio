@@ -13,6 +13,8 @@ import {
 interface Props {
   src: string | null;
   alt: string;
+  fit?: boolean;
+  onFitChange?: (fit: boolean) => void;
 }
 
 /**
@@ -29,7 +31,7 @@ interface Props {
  * zoom/pan arithmetic lives in `patternPreviewGestures.ts`, unit-tested on
  * its own -- see that file's header for why (no `PointerEvent` in jsdom).
  */
-export function PatternPreview({ src, alt }: Props): JSX.Element {
+export function PatternPreview({ src, alt, fit = true, onFitChange }: Props): JSX.Element {
   const [zoom, setZoom] = useState(PATTERN_PREVIEW_MIN_ZOOM);
   const [offset, setOffset] = useState<PreviewOffset>({ x: 0, y: 0 });
   // Mutable gesture-tracking state, not React state: it changes on every
@@ -52,11 +54,13 @@ export function PatternPreview({ src, alt }: Props): JSX.Element {
 
   const applyZoom = (nextZoom: number): void => {
     const clamped = clampPreviewZoom(nextZoom);
+    if (clamped > PATTERN_PREVIEW_MIN_ZOOM) onFitChange?.(false);
     setZoom(clamped);
     if (clamped === PATTERN_PREVIEW_MIN_ZOOM) setOffset({ x: 0, y: 0 });
   };
 
   const resetToFit = (): void => {
+    onFitChange?.(true);
     setZoom(PATTERN_PREVIEW_MIN_ZOOM);
     setOffset({ x: 0, y: 0 });
   };
@@ -69,12 +73,12 @@ export function PatternPreview({ src, alt }: Props): JSX.Element {
     panRef.current = remaining.length === 1 && only ? { start: only, offset } : null;
   };
 
-  const atFit = isAtPreviewFit(zoom, offset);
+  const atFit = fit && isAtPreviewFit(zoom, offset);
 
   return (
     <div className="pattern-preview">
       <div
-        className="pattern-preview-viewport"
+        className={`pattern-preview-viewport pattern-preview-viewport--${fit ? 'fit' : 'zoom'}`}
         onWheel={(e) => {
           if (!src) return;
           e.preventDefault();
@@ -121,7 +125,7 @@ export function PatternPreview({ src, alt }: Props): JSX.Element {
           <img
             src={src}
             alt={alt}
-            className="pattern-preview-image"
+            className={`pattern-preview-image pattern-preview-image--${fit ? 'fit' : 'zoom'}`}
             draggable={false}
             style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }}
           />

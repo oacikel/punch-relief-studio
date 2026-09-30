@@ -18,6 +18,15 @@ interface Props {
   /** Iteration 02 Stage C: optional dot-grid placement guide, shared with
    * whatever export/print path renders the same pattern. */
   punchGuide?: PunchGuideSettings;
+  /** EXP-009: when true (the default), bounds the image to the same
+   * max-height + `object-fit: contain` treatment `.source-image-preview`
+   * already uses, so the whole pattern fits the column without scrolling.
+   * When false, the image renders at full column width with no height cap
+   * (the prior, always-on behavior) -- a deliberate "Zoom in" choice. */
+  fit?: boolean;
+  /** Keeps the surrounding EXP-009 Fit/Zoom control in sync when the
+   * richer EXP-007 viewer changes modes from a gesture or its reset button. */
+  onFitChange?: (fit: boolean) => void;
 }
 
 /**
@@ -41,6 +50,8 @@ export function PatternCanvas({
   mirrored,
   contourSource,
   punchGuide,
+  fit = true,
+  onFitChange,
 }: Props): JSX.Element {
   // exactOptionalPropertyTypes forbids assigning `undefined` to an
   // optional field -- omit `punchGuide` entirely when this component
@@ -61,6 +72,8 @@ export function PatternCanvas({
     <PatternPreview
       src={url}
       alt={`Punch-needle pattern, ${view} view, ${widthCm} by ${heightCm} centimetres`}
+      fit={fit}
+      {...(onFitChange ? { onFitChange } : {})}
     />
   );
 }

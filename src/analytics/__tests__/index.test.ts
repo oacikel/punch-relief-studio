@@ -141,7 +141,12 @@ describe('analytics public API', () => {
       await Promise.resolve();
 
       const events = fetchMock.mock.calls
-        .map(([, init]: [string, RequestInit]) => JSON.parse(init.body as string) as { events: Array<{ name: string; experimentRef?: string; variant?: string }> })
+        .map((call) => {
+          const [, init] = call as [string, RequestInit];
+          return JSON.parse(init.body as string) as {
+            events: Array<{ name: string; experimentRef?: string; variant?: string }>;
+          };
+        })
         .flatMap((body) => body.events);
 
       expect(events.map((e) => e.name)).toEqual(
@@ -164,7 +169,12 @@ describe('analytics public API', () => {
       await Promise.resolve();
 
       const events = fetchMock.mock.calls
-        .map(([, init]: [string, RequestInit]) => JSON.parse(init.body as string) as { events: Array<{ experimentRef?: string; variant?: string }> })
+        .map((call) => {
+          const [, init] = call as [string, RequestInit];
+          return JSON.parse(init.body as string) as {
+            events: Array<{ experimentRef?: string; variant?: string }>;
+          };
+        })
         .flatMap((body) => body.events);
       for (const event of events) {
         expect(event.experimentRef).toBe('EXP-002');

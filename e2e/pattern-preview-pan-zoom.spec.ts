@@ -29,7 +29,9 @@ test.describe('Pattern preview pan/zoom (EXP-007)', () => {
 
   test('scrolling over the preview zooms in/out, and Fit to screen resets it', async ({
     page,
+    isMobile,
   }) => {
+    test.skip(isMobile === true, 'Playwright mobile WebKit does not support mouse-wheel input');
     const image = page.getByAltText(/Punch-needle pattern/);
     await expect(image).toBeVisible({ timeout: 15_000 });
     const box = await image.boundingBox();
@@ -47,7 +49,8 @@ test.describe('Pattern preview pan/zoom (EXP-007)', () => {
     await expect(fitButton).toBeDisabled();
   });
 
-  test('dragging while zoomed in pans the pattern', async ({ page }) => {
+  test('dragging while zoomed in pans the pattern', async ({ page, isMobile }) => {
+    test.skip(isMobile === true, 'This setup uses mouse-wheel input before testing pointer drag');
     const image = page.getByAltText(/Punch-needle pattern/);
     await expect(image).toBeVisible({ timeout: 15_000 });
     const box = await image.boundingBox();

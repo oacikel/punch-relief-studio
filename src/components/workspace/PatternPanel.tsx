@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
 import type { ContourSource, PatternView } from '@/export/svgPattern';
@@ -44,6 +45,14 @@ const VIEW_LABELS: Record<PatternView, string> = {
  * `Workspace.tsx`, see docs/DECISIONS.md) rather than this component's own
  * local state, since `ExportPanel` -- a sibling in the rail, not a child
  * of this panel -- needs to read the same on-screen values.
+ *
+ * EXP-009: the canvas now sits right below the view-mode/zoom rows, bounded
+ * to the column's available height by default (`PatternCanvas`'s `fit`
+ * prop) so the whole pattern is visible without scrolling; the Grid/
+ * Mirrored/Region-labels checkboxes, punch-guide selector/spacing, and
+ * helper paragraph moved below the canvas so the pattern itself occupies
+ * the top of the column. `fitMode` is local-only UI state (not lifted, not
+ * persisted) -- purely a display choice, nothing else in the rail reads it.
  */
 export function PatternPanel({
   regionMap,
@@ -66,6 +75,12 @@ export function PatternPanel({
   const views: PatternView[] = isImageSource
     ? ['color-only', 'contour']
     : ['color-only', 'height-only', 'contour'];
+  // EXP-009: "Fit" bounds the canvas to the column's available height
+  // (matches `.source-image-preview img`'s max-height + object-fit: contain
+  // treatment) so the whole pattern is visible without scrolling; "Zoom in"
+  // is the prior always-on full-width/full-magnification behavior, now a
+  // deliberate choice rather than the default.
+  const [fitMode, setFitMode] = useState<'fit' | 'zoom'>('fit');
   return (
     <div className="workspace-panel">
       <h3>Pattern</h3>
@@ -76,7 +91,29 @@ export function PatternPanel({
           </button>
         ))}
       </div>
-      <label>
+      <div role="group" aria-label="Pattern zoom" style={{ marginBottom: 8 }}>
+        <button type="button" aria-pressed={fitMode === 'fit'} onClick={() => setFitMode('fit')}>
+          Fit
+        </button>
+        <button type="button" aria-pressed={fitMode === 'zoom'} onClick={() => setFitMode('zoom')}>
+          Zoom in
+        </button>
+      </div>
+      <PatternCanvas
+        regionMap={regionMap}
+        legend={legend}
+        view={view}
+        widthCm={widthCm}
+        heightCm={heightCm}
+        showGrid={showGrid}
+        showLabels={showOnScreenLabels}
+        mirrored={mirrored}
+        {...(contourSource ? { contourSource } : {})}
+        punchGuide={punchGuide}
+        fit={fitMode === 'fit'}
+        onFitChange={(fit) => setFitMode(fit ? 'fit' : 'zoom')}
+      />
+      <label style={{ marginTop: 12, display: 'inline-block' }}>
         <input
           type="checkbox"
           checked={showGrid}
@@ -128,18 +165,6 @@ export function PatternPanel({
         you set here, not a measurement of your printer&apos;s actual output -- always check the
         printed scale-check square with a ruler before punching.
       </p>
-      <PatternCanvas
-        regionMap={regionMap}
-        legend={legend}
-        view={view}
-        widthCm={widthCm}
-        heightCm={heightCm}
-        showGrid={showGrid}
-        showLabels={showOnScreenLabels}
-        mirrored={mirrored}
-        {...(contourSource ? { contourSource } : {})}
-        punchGuide={punchGuide}
-      />
     </div>
   );
 }

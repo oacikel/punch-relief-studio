@@ -268,12 +268,13 @@ through `PatternPreview.tsx`, EXP-007's fit-to-screen/pan/zoom viewer --
 gesture math factored into `patternPreviewGestures.ts` so it's
 unit-testable without a real `PointerEvent`, see docs/ANALYTICS.md) /
 `SimulationView` / `ExportPanel`, all rendering from the _same_ `RegionMap`
-+ `LegendEntry[]`,
-so the on-screen pattern, the simulation, and every export/print path can
-never disagree with each other about what a region is. (The on-screen
-`Legend` table itself was removed in the Workspace two-column redesign --
-see `docs/DECISIONS.md` -- but `LegendEntry`/`buildLegend()` are unchanged
-and still the single source every one of those consumers reads from.)
+
+- `LegendEntry[]`,
+  so the on-screen pattern, the simulation, and every export/print path can
+  never disagree with each other about what a region is. (The on-screen
+  `Legend` table itself was removed in the Workspace two-column redesign --
+  see `docs/DECISIONS.md` -- but `LegendEntry`/`buildLegend()` are unchanged
+  and still the single source every one of those consumers reads from.)
 
 ## Why no React Three Fiber
 

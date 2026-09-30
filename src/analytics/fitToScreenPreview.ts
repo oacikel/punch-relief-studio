@@ -43,7 +43,10 @@ export function assignFitToScreenPreviewExperiment(storage: Storage = window.ses
   const existing = getCachedExperiment(storage);
   if (existing.experimentRef !== undefined) return;
   writeExperimentContext(
-    { experimentRef: FIT_TO_SCREEN_PREVIEW_EXPERIMENT_REF, variant: 'fit' satisfies FitToScreenPreviewVariant },
+    {
+      experimentRef: FIT_TO_SCREEN_PREVIEW_EXPERIMENT_REF,
+      variant: 'fit' satisfies FitToScreenPreviewVariant,
+    },
     storage,
   );
 }

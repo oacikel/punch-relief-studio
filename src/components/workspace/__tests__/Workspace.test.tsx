@@ -97,6 +97,27 @@ describe('Workspace', () => {
     expect(screen.queryByText(/Processing…/)).not.toBeInTheDocument();
   });
 
+  it('does not show the first-project guide by default', () => {
+    render(<Workspace {...baseProps()} />);
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
+
+  it('shows the first-project guide when requested, and dismisses it via the callback', async () => {
+    const onDismissFirstProjectGuide = vi.fn();
+    render(
+      <Workspace
+        {...baseProps()}
+        showFirstProjectGuide={true}
+        onDismissFirstProjectGuide={onDismissFirstProjectGuide}
+      />,
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Three short steps to your first pattern' }),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(onDismissFirstProjectGuide).toHaveBeenCalledTimes(1);
+  });
+
   it('shows a "Processing…" pill while a live generation is in flight', () => {
     render(<Workspace {...baseProps()} processing={true} />);
     expect(screen.getAllByText(/Processing…/).length).toBeGreaterThan(0);
