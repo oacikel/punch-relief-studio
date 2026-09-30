@@ -26,6 +26,7 @@ import { YarnColorsGroup } from '@/components/workspace/YarnColorsGroup';
 import { PatternPanel } from '@/components/workspace/PatternPanel';
 import { SimulationPanel } from '@/components/workspace/SimulationPanel';
 import { ImageShapeControls } from '@/components/workspace/ImageShapeControls';
+import { FirstProjectGuide } from '@/components/workspace/FirstProjectGuide';
 
 type PreviewTab = 'source' | 'pattern' | 'simulation';
 type EditorStep = 'shape' | 'color' | 'export';
@@ -99,6 +100,13 @@ interface Props {
    * -- drives the rail heading's live-status pill. */
   processing: boolean;
   processingError: string | null;
+  /** EXP-004: whether the first-project guide should render above the rail
+   * heading -- `App.tsx` owns the "has this device already dismissed it"
+   * check (`firstProjectGuideStore.ts`) so this stays a plain controlled
+   * prop, matching every other Workspace setting. Defaults to `false` (no
+   * guide) so existing callers/tests that don't pass it are unaffected. */
+  showFirstProjectGuide?: boolean;
+  onDismissFirstProjectGuide?: () => void;
 }
 
 /**
@@ -168,6 +176,8 @@ export function Workspace({
   onImageDetailSettingsChange,
   processing,
   processingError,
+  showFirstProjectGuide = false,
+  onDismissFirstProjectGuide,
 }: Props): JSX.Element {
   const [view, setView] = useState<PatternView>(isImageSource ? 'color-only' : 'height-only');
   const [showGrid, setShowGrid] = useState(false);
@@ -210,6 +220,10 @@ export function Workspace({
             `.export-panel` selector in styles.css's `@media print` block,
             same as before this change. */}
         <div className="screen-only">
+          {showFirstProjectGuide && onDismissFirstProjectGuide && (
+            <FirstProjectGuide onDismiss={onDismissFirstProjectGuide} />
+          )}
+
           <div className="workspace-rail-heading">
             <div>
               <p className="eyebrow">Pattern editor</p>

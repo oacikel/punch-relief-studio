@@ -2403,7 +2403,7 @@ inferred from a campaign link.
 Deliberate choice: an **unassigned** session (analytics unconfigured, GPC,
 or a link-provided different experiment) gets `control` -- today's
 Shape-then-Yarn order -- not the `earlier` treatment. This reorders the
-Workspace rail's existing, *numbered* setup steps
+Workspace rail's existing, _numbered_ setup steps
 (`src/components/workspace/Workspace.tsx`'s
 `EDITOR_STEPS_CONTROL`/`EDITOR_STEPS_EARLIER`), which button labels
 ("2 Yarn"), several e2e specs, and screenshots already assume a fixed
@@ -2413,8 +2413,36 @@ there) would be a real, permanent product change with no way to attribute
 its effect -- exactly the outcome self-assignment exists to avoid.
 Defaulting to `control` keeps every existing surface's behaviour unchanged
 outside of sessions actually enrolled in the measurement; only a session
-landing in the `earlier` half of a *configured* build's 50/50 split ever
+landing in the `earlier` half of a _configured_ build's 50/50 split ever
 sees Yarn before Shape. A future additive self-assigned experiment (new
 copy, a new panel with no dependents elsewhere) may reasonably choose the
 opposite default, the way T10's own inert-until-configured fallback works
 for the app's baseline behaviour -- this decision is scoped to EXP-002.
+
+## EXP-004: first-project guide shown once, above the Workspace rail
+
+Experiment, testing the hypothesis "a short, contextual guide will help
+more first-time visitors finish a pattern." Implementation:
+`FirstProjectGuide` (`src/components/workspace/FirstProjectGuide.tsx`) is a
+small, dismissible callout rendered above the Workspace rail heading,
+naming the same three rail steps (`Shape` / `Yarn` / `Export`) the visitor
+is about to work through plus one line reassuring them the live preview
+means nothing is final until export. It shows at most once per device --
+`src/persistence/firstProjectGuideStore.ts` records a single localStorage
+flag on dismissal, checked once at `App.tsx` mount (`showFirstProjectGuide`
+state), rather than once per project or per session, so returning visitors
+who already dismissed it are never shown it again on a later import.
+
+`Workspace.tsx` stays a plain controlled component for this, same as every
+other Workspace setting (`showFirstProjectGuide`/`onDismissFirstProjectGuide`
+props, both optional and defaulting to "hidden" so existing callers/tests
+that don't pass them are unaffected) -- `App.tsx` alone owns the localStorage
+read/write. No new analytics event was added for this: `project_created`,
+`pattern_completed`, and `export_succeeded`/`export_failed` already cover
+the "did this project reach export" funnel the hypothesis is measured
+against, and already carry `experimentRef`/`variant` automatically for any
+session landing on `?exp=EXP-004` (`src/analytics/source.ts`'s existing
+landing-context capture, unchanged by this experiment) -- inventing a
+guide-specific event here would mean extending the local contract mirror
+(`src/analytics/contract.ts`) with a shape the real VenturePilot ingest
+endpoint doesn't yet accept.

@@ -66,6 +66,28 @@ test.describe('Preview controls (Iteration 02 Stage C)', () => {
     await expect(exportPanel.getByRole('button', { name: 'contour' })).toHaveCount(0);
   });
 
+  /** EXP-009: "Fit" bounds the pattern canvas to the column's available
+   * height by default; "Zoom in" is a deliberate, explicit choice that
+   * lifts that cap. Asserted via the `max-height` inline style the "Fit"
+   * branch sets (see `PatternCanvas.tsx`) rather than pixel dimensions,
+   * which vary by viewport/pattern aspect ratio. */
+  test('the pattern canvas defaults to "Fit" and a max-height cap; "Zoom in" removes it', async ({
+    page,
+  }) => {
+    const zoomGroup = page.getByRole('group', { name: 'Pattern zoom' });
+    const fitButton = zoomGroup.getByRole('button', { name: 'Fit' });
+    const zoomButton = zoomGroup.getByRole('button', { name: 'Zoom in' });
+    await expect(fitButton).toHaveAttribute('aria-pressed', 'true');
+
+    const patternImg = page.getByRole('img', { name: /Punch-needle pattern/ });
+    await expect(patternImg).toHaveCSS('max-height', /px$/);
+
+    await zoomButton.click();
+    await expect(zoomButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(fitButton).toHaveAttribute('aria-pressed', 'false');
+    await expect(patternImg).toHaveCSS('max-height', 'none');
+  });
+
   test('selecting "Dots" reveals the spacing input; "None" hides it again', async ({ page }) => {
     const guideSelect = page.getByLabel('Punch guide');
     await expect(guideSelect).toHaveValue('none');

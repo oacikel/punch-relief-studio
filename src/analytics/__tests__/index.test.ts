@@ -127,10 +127,14 @@ describe('analytics public API', () => {
       await Promise.resolve();
       await Promise.resolve();
 
-      const [, init] = fetchMock.mock.calls[0] as [string, { body: string }];
-      const events: Array<{ name: string; experimentRef?: string; variant?: string }> = JSON.parse(
-        init.body,
-      ).events;
+      const events = fetchMock.mock.calls
+        .map((call) => {
+          const [, init] = call as [string, RequestInit];
+          return JSON.parse(init.body as string) as {
+            events: Array<{ name: string; experimentRef?: string; variant?: string }>;
+          };
+        })
+        .flatMap((body) => body.events);
 
       expect(events.map((e) => e.name)).toEqual(
         expect.arrayContaining(['page_viewed', 'project_created', 'export_succeeded']),
