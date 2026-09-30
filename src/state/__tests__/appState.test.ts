@@ -62,6 +62,44 @@ describe('appReducer', () => {
     });
     expect(next.imageDetailSettings.preserveSmallDetails).toBe(false);
   });
+
+  it('defaults colorStoryId to null', () => {
+    expect(initialAppState().colorStoryId).toBeNull();
+  });
+
+  it('APPLY_COLOR_STORY sets the swatches and remembers the palette id', () => {
+    const state = initialAppState();
+    const next = appReducer(state, {
+      type: 'APPLY_COLOR_STORY',
+      paletteId: 'terrain',
+      swatches: [{ index: 0, color: { r: 1, g: 2, b: 3 }, yarnName: 'Yarn 1' }],
+    });
+    expect(next.colorStoryId).toBe('terrain');
+    expect(next.swatches[0]?.color).toEqual({ r: 1, g: 2, b: 3 });
+  });
+
+  it('SET_SWATCHES clears any previously applied color story', () => {
+    let state = initialAppState();
+    state = appReducer(state, {
+      type: 'APPLY_COLOR_STORY',
+      paletteId: 'terrain',
+      swatches: state.swatches,
+    });
+    expect(state.colorStoryId).toBe('terrain');
+    state = appReducer(state, { type: 'SET_SWATCHES', swatches: state.swatches });
+    expect(state.colorStoryId).toBeNull();
+  });
+
+  it('SET_SOURCE clears any previously applied color story', () => {
+    let state = initialAppState();
+    state = appReducer(state, {
+      type: 'APPLY_COLOR_STORY',
+      paletteId: 'terrain',
+      swatches: state.swatches,
+    });
+    state = appReducer(state, { type: 'SET_SOURCE', sourceKind: 'image-file', filename: 'x.png' });
+    expect(state.colorStoryId).toBeNull();
+  });
 });
 
 describe('patternViewSettings (Iteration 02 Stage C)', () => {

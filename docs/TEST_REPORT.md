@@ -915,6 +915,31 @@ project (**2 passed**) using Node 22. The two existing build warnings remain:
 the main bundle exceeds Vite's default size warning and `projectStore.ts` is
 imported both statically and dynamically.
 
+## Session 13 (sandboxed, no network): EXP-006 color story palettes for 2D templates
+
+This session's worktree had no `node_modules` (git worktrees don't share
+it with the main checkout, and this session had no network access to run
+`npm install`), so `npm run typecheck`, `npm run lint`, `npm run test`, and
+`npm run test:e2e` were **not executed** -- consistent with this
+document's policy, that is stated here rather than claimed. The change
+(gate the "Color story palettes" gallery in `YarnColorsGroup.tsx` to also
+show for a 2D template's `source-material` swatches, plus `AppState.
+colorStoryId`/`APPLY_COLOR_STORY` so the applied story survives image
+re-simplification -- see EXP-006 in `docs/DECISIONS.md`) was reviewed by
+hand against the existing patterns it extends (the by-height gallery this
+narrows/reuses, and `resizeSwatches`'s precedent for keeping colors
+in sync across regeneration), and unit tests (`appState.test.ts`,
+`YarnColorsGroup.test.tsx`) plus one Playwright spec
+(`e2e/color-story-2d-template.spec.ts`, following `palette-picker.spec.ts`
+and `image-workflow.spec.ts`'s existing conventions) were written but not
+run. **Next networked session's mandatory first step:** `npm install &&
+npm run typecheck && npm run lint && npm run test && npm run test:e2e`,
+checking in particular that the new e2e spec's `#image-smoothing` input
+event actually re-triggers the debounced image-processing effect (the
+existing specs in this file don't exercise a range input, so this is the
+one part of the new coverage with no prior working example to model
+exactly).
+
 ## Session 1 (prior, sandboxed): what was reviewed manually
 
 This MVP was originally built in a sandboxed session with no outbound

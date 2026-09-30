@@ -122,7 +122,7 @@ export function YarnColorsGroup({
         </div>
       )}
 
-      {mode === 'by-height' && (
+      {(mode === 'by-height' || (isImageSource && mode === 'source-material')) && (
         <div className="control-group">
           <h3>Color story palettes</h3>
           <p className="helper-text">
