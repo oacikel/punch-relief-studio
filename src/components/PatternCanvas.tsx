@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
 import type { ContourSource, PatternView } from '@/export/svgPattern';
@@ -17,6 +18,12 @@ interface Props {
   /** Iteration 02 Stage C: optional dot-grid placement guide, shared with
    * whatever export/print path renders the same pattern. */
   punchGuide?: PunchGuideSettings;
+  /** EXP-009: when true (the default), bounds the image to the same
+   * max-height + `object-fit: contain` treatment `.source-image-preview`
+   * already uses, so the whole pattern fits the column without scrolling.
+   * When false, the image renders at full column width with no height cap
+   * (the prior, always-on behavior) -- a deliberate "Zoom in" choice. */
+  fit?: boolean;
 }
 
 /**
@@ -37,6 +44,7 @@ export function PatternCanvas({
   mirrored,
   contourSource,
   punchGuide,
+  fit = true,
 }: Props): JSX.Element {
   // exactOptionalPropertyTypes forbids assigning `undefined` to an
   // optional field -- omit `punchGuide` entirely when this component
@@ -53,6 +61,13 @@ export function PatternCanvas({
     ...(punchGuide ? { punchGuide } : {}),
   });
 
+  // EXP-009: `fit`'s two branches are typed as `CSSProperties` explicitly --
+  // object-literal spreads inside a ternary don't pick up the contextual
+  // type of the outer `style` object, so without this, `objectFit`'s value
+  // would widen to `string` and fail the `CSSProperties['objectFit']`
+  // literal-union check below.
+  const fitStyle: CSSProperties = fit ? { maxHeight: '65vh', objectFit: 'contain' } : {};
+
   return (
     <img
       src={url ?? undefined}
@@ -62,6 +77,7 @@ export function PatternCanvas({
         border: '1px solid var(--color-border)',
         borderRadius: 6,
         background: '#f7f3ec',
+        ...fitStyle,
       }}
     />
   );

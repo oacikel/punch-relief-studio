@@ -83,7 +83,7 @@ the event builder itself:
 
 ## EXP-003: "clarify the single-viewpoint preview"
 
-Hypothesis: setting expectations *before* the first preview will reduce
+Hypothesis: setting expectations _before_ the first preview will reduce
 confusion during export. The product's output is a single-viewpoint bas-relief
 interpretation, not a full 3D reconstruction, and until now that was one line
 of helper text on the Import/Orient step. Implementation:
@@ -102,7 +102,7 @@ Import/Orient step -- the last screen before the Workspace preview exists).
   by `variant`. The step the hypothesis is about is the end of it:
   `pattern_completed` -> `export_succeeded` (and the `export_failed` rate
   beside it). `project_created` -> `pattern_completed` is the control check --
-  copy on the step *before* the preview shouldn't change whether a preview is
+  copy on the step _before_ the preview shouldn't change whether a preview is
   reached, so a variant gap there is a signal the split is skewed rather than
   that the copy worked.
 - **Not measured:** whether the notice was read. That would need either a new
@@ -113,7 +113,7 @@ Import/Orient step -- the last screen before the Workspace preview exists).
   straight to the Workspace, and a flat image has no hidden side to set
   expectations about. `project_created.origin` can't separate the two
   (`"import"` covers both), so image sessions are enrolled but untreated,
-  which biases any measured effect *downward*. Accepted rather than worked
+  which biases any measured effect _downward_. Accepted rather than worked
   around: the alternative is a new field on an event, for an experiment that
   is about 3D models.
 - **Inert where it can't be measured:** with analytics unconfigured (the

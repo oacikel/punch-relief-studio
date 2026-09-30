@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PatternPanel } from '../PatternPanel';
 import type { RegionMap } from '@/domain/types';
@@ -80,6 +80,22 @@ describe('PatternPanel', () => {
     expect(screen.getByRole('button', { name: 'Outline' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Heights' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /combined/i })).not.toBeInTheDocument();
+  });
+
+  /** EXP-009: the canvas is bound to the column's available height by
+   * default ("Fit"); "Zoom in" is a deliberate, explicit choice that turns
+   * that cap off. */
+  it('renders a Fit/Zoom toggle defaulting to "Fit", and switches on click', async () => {
+    render(<PatternPanel {...baseProps()} />);
+    const zoomGroup = screen.getByRole('group', { name: 'Pattern zoom' });
+    const fitButton = within(zoomGroup).getByRole('button', { name: 'Fit' });
+    const zoomButton = within(zoomGroup).getByRole('button', { name: 'Zoom in' });
+    expect(fitButton).toHaveAttribute('aria-pressed', 'true');
+    expect(zoomButton).toHaveAttribute('aria-pressed', 'false');
+
+    await userEvent.click(zoomButton);
+    expect(fitButton).toHaveAttribute('aria-pressed', 'false');
+    expect(zoomButton).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('reveals the spacing input only when the punch guide mode is "dots"', () => {

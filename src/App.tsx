@@ -27,6 +27,10 @@ import { appReducer, initialAppState, DEFAULT_SINGLE_COLOR } from '@/state/appSt
 import { DEFAULT_PUNCH_GUIDE_SPACING_CM } from '@/domain/pattern/punchGuide';
 import { workflowReducer, initialWorkflowState } from '@/state/workflow';
 import { loadProfiles } from '@/persistence/calibrationStore';
+import {
+  hasSeenFirstProjectGuide,
+  markFirstProjectGuideSeen,
+} from '@/persistence/firstProjectGuideStore';
 import { serializeProject, projectFilename } from '@/persistence/projectStore';
 import { downloadText } from '@/export/download';
 import { PROJECT_SCHEMA_VERSION, type ProjectFile } from '@/domain/projectSchema';
@@ -91,6 +95,19 @@ export default function App(): JSX.Element {
     projectCreatedAtRef.current = Date.now();
     patternCompletedSentRef.current = false;
     trackProjectCreated(origin);
+  }, []);
+
+  // EXP-004 ("Show a first-project guide after import"): lazily read once,
+  // at mount, so a dismissal during this session doesn't need to re-derive
+  // from storage -- same pattern as PrivacyControl.tsx's own `allowed`
+  // state. Shown at most once per device (see firstProjectGuideStore.ts),
+  // not once per project/session.
+  const [showFirstProjectGuide, setShowFirstProjectGuide] = useState(
+    () => !hasSeenFirstProjectGuide(),
+  );
+  const dismissFirstProjectGuide = useCallback((): void => {
+    markFirstProjectGuideSeen();
+    setShowFirstProjectGuide(false);
   }, []);
 
   const markPatternCompletedIfFirst = useCallback((): void => {
@@ -737,6 +754,8 @@ export default function App(): JSX.Element {
               }
               processing={state.processing}
               processingError={state.processingError}
+              showFirstProjectGuide={showFirstProjectGuide}
+              onDismissFirstProjectGuide={dismissFirstProjectGuide}
             />
           )}
         </main>
