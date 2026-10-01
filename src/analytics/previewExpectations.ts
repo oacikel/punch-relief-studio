@@ -32,12 +32,10 @@
  * `initAnalytics()` assigns the live one first and every later assignment is
  * then a no-op (the slot is full).
  *
- * **Currently dormant** -- EXP-007 (`fitToScreenPreview.ts`) is the live
- * self-assigned experiment as of its release window. The notice still shows
- * for everyone (an unassigned session falls back to `expectations`, see
- * `getPreviewExpectationsVariant` below); only the comparison against
- * `control` stops for the duration. Nothing in this file needed changing to
- * resume EXP-003; that's one line in `index.ts`. See docs/ANALYTICS.md and
+ * **Currently active** -- EXP-007's standalone release window has ended, while
+ * its fit/pan/zoom behavior remains shipped. `initAnalytics()` now calls this
+ * module's assignment so EXP-003 owns the single experiment slot unless a
+ * landing link already supplied another experiment. See docs/ANALYTICS.md and
  * docs/DECISIONS.md.
  */
 import { generateRandomId } from '@/analytics/ids';

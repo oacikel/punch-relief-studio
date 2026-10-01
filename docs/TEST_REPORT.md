@@ -915,6 +915,31 @@ project (**2 passed**) using Node 22. The two existing build warnings remain:
 the main bundle exceeds Vite's default size warning and `projectStore.ts` is
 imported both statically and dynamically.
 
+## Session 14: EXP-003, clarify the single-viewpoint preview (sandboxed, no dependencies installed)
+
+This session's worktree had no `node_modules` installed, and installing
+(`npm install`) was blocked by the sandbox's no-network-access policy, so
+none of `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`,
+or `npm run test:e2e` could actually be run or their output captured here.
+That is the same constraint Session 1 (below) describes for the original
+build, applied to this change specifically.
+
+What changed: `src/analytics/previewExpectations.ts` (EXP-003's session
+self-assignment, 50/50 into `expectations`/`control`, writing into
+`source.ts`'s existing experiment sessionStorage slot -- `writeExperimentContext`
+added there for this), `src/components/stages/PreviewExpectations.tsx` (the
+notice), `ImportOrientSection`'s new `showPreviewExpectations` prop
+(`src/components/stages/ImportStage.tsx`), `initAnalytics()`/
+`shouldShowPreviewExpectations()` (`src/analytics/index.ts`), and the
+`App.tsx` wiring that reads the variant once at mount alongside the existing
+`page_viewed('/')` call. Tests were authored alongside the change
+(`src/analytics/__tests__/previewExpectations.test.ts`,
+`src/components/__tests__/PreviewExpectations.test.tsx`, additions to
+`src/components/__tests__/ImportStage.test.tsx` and
+`src/analytics/__tests__/index.test.ts`, plus `e2e/preview-expectations.spec.ts`)
+but are unexecuted -- reviewed by hand against the existing patterns in
+those files rather than run.
+
 ## Session 13 (sandboxed, no network): EXP-006 color story palettes for 2D templates
 
 This session's worktree had no `node_modules` (git worktrees don't share

@@ -2,17 +2,13 @@
  * EXP-007 ("ship fit-to-screen default plus pan and zoom as a standalone
  * release") assignment.
  *
- * This is not an A/B split measured against a concurrent control group --
- * the change (`PatternPreview.tsx`) ships to *everyone* who opens the
- * pattern preview during the release window, and is compared against an
- * equal-length window immediately *before* the release instead (manual
- * counts of `export_succeeded`/`export_failed` for each window -- see
- * docs/ANALYTICS.md). There is therefore exactly one variant, `fit`, and no
- * code branches on it: the self-assignment exists purely so `track()` (see
- * `index.ts`) stamps `experimentRef: 'EXP-007'` on every product event of a
- * release-window session, which is what lets that window's export counts be
- * told apart from the pre-release window's (whose events predate this file
- * and so carry no experimentRef at all).
+ * This was not an A/B split measured against a concurrent control group --
+ * the change (`PatternPreview.tsx`) shipped to everyone during its release
+ * window and was compared with an equal-length pre-release window. The single
+ * `fit` variant let `track()` stamp those release-window events with EXP-007.
+ * That window has ended and EXP-003 now owns the live assignment, but this
+ * historical implementation remains alongside the still-shipped preview
+ * behavior.
  *
  * Mechanically the same self-assignment mechanism as the `?exp=` landing-URL
  * parser: written into the same sessionStorage slot `source.ts` caches

@@ -64,13 +64,13 @@ test('the 3D orient viewport lands near the top on Import, and the Continue butt
   expect(viewportTop).toBeLessThan(900);
   expect(viewportTop).toBeLessThan(continueTop);
 
-  // The heading/button must land well above where they sat with the
-  // sample picker fully expanded (1713px / 1835px) -- a real, generous
-  // margin below those broken values, so a regression back to "picker
-  // never collapses" is caught, without over-asserting on Viewport3D's own
-  // (pre-existing, out-of-scope-here) control height.
+  // The heading/button must stay above where they sat with the sample
+  // picker fully expanded (1713px / 1835px). EXP-003 deliberately adds a
+  // multi-line expectations notice above the button, so its valid ceiling
+  // is taller than the original one-line helper text while still leaving a
+  // clear margin below the broken expanded-picker position.
   expect(headingTop).toBeLessThan(1500);
-  expect(continueTop).toBeLessThan(1600);
+  expect(continueTop).toBeLessThan(1750);
 });
 
 /**
