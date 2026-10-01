@@ -63,6 +63,13 @@ interface Props {
    * only renders what it's told to. Defaults to false so every existing
    * render site (including tests) keeps today's order. */
   moveYarnColorsEarlier?: boolean;
+  /** EXP-011: renders Shape, Yarn and Export together on one scrolling
+   * screen -- no step nav, no Back/Continue gating, Export visible from the
+   * first render -- instead of today's gated three-step rail. App.tsx owns
+   * the variant read (`shouldUseExpressLane`); this component only renders
+   * what it's told to. Defaults to false so every existing render site
+   * (including tests) keeps today's gated rail. */
+  expressLane?: boolean;
   reliefSettings: ReliefSettings;
   onReliefSettingsChange: (patch: Partial<ReliefSettings>) => void;
   processed: ProcessedForDisplay | null;
@@ -150,6 +157,7 @@ export function Workspace({
   isImageSource = false,
   sourceImageUrl = null,
   moveYarnColorsEarlier = false,
+  expressLane = false,
   reliefSettings,
   onReliefSettingsChange,
   processed,
@@ -238,7 +246,11 @@ export function Workspace({
             <div>
               <p className="eyebrow">Pattern editor</p>
               <h2>Make it punchable</h2>
-              <p>Work through three short steps. Your preview updates automatically.</p>
+              <p>
+                {expressLane
+                  ? 'Shape, yarn and export are all below. Your preview updates automatically.'
+                  : 'Work through three short steps. Your preview updates automatically.'}
+              </p>
             </div>
             <span className="visually-hidden" aria-live="polite">
               {processing ? 'Processing…' : ''}
@@ -256,25 +268,33 @@ export function Workspace({
             </p>
           )}
 
-          <nav className="editor-steps" aria-label="Pattern setup steps">
-            {editorSteps.map((step) => (
-              <button
-                key={step.id}
-                type="button"
-                className={
-                  editorStep === step.id ? 'editor-step editor-step--active' : 'editor-step'
-                }
-                aria-current={editorStep === step.id ? 'step' : undefined}
-                onClick={() => setEditorStep(step.id)}
-              >
-                <span>{step.number}</span>
-                {step.label}
-              </button>
-            ))}
-          </nav>
+          {!expressLane && (
+            <nav className="editor-steps" aria-label="Pattern setup steps">
+              {editorSteps.map((step) => (
+                <button
+                  key={step.id}
+                  type="button"
+                  className={
+                    editorStep === step.id ? 'editor-step editor-step--active' : 'editor-step'
+                  }
+                  aria-current={editorStep === step.id ? 'step' : undefined}
+                  onClick={() => setEditorStep(step.id)}
+                >
+                  <span>{step.number}</span>
+                  {step.label}
+                </button>
+              ))}
+            </nav>
+          )}
 
+          {/* EXP-011 `express`: every section below renders unconditionally,
+              in a single scroll, instead of being gated behind `editorStep`
+              -- the change under test is the gating itself, not any
+              section's content. `control`/unassigned sessions keep the
+              exact `editorStep === '...'` gating that shipped before this
+              experiment. */}
           <div className="editor-step-content">
-            {editorStep === 'shape' &&
+            {(expressLane || editorStep === 'shape') &&
               (isImageSource ? (
                 <ImageShapeControls
                   settings={reliefSettings}
@@ -302,7 +322,7 @@ export function Workspace({
                 />
               ))}
 
-            {editorStep === 'color' && (
+            {(expressLane || editorStep === 'color') && (
               <YarnColorsGroup
                 isImageSource={isImageSource}
                 mode={colorMode}
@@ -322,7 +342,7 @@ export function Workspace({
               />
             )}
 
-            {editorStep === 'export' && !regionMap && (
+            {(expressLane || editorStep === 'export') && !regionMap && (
               <div className="control-group" id="rail-export-print">
                 <h3>Export your pattern</h3>
                 <p className="helper-text">
@@ -333,7 +353,7 @@ export function Workspace({
           </div>
         </div>
 
-        {editorStep === 'export' && regionMap && processed ? (
+        {(expressLane || editorStep === 'export') && regionMap && processed ? (
           // No controlled `open`/`onOpenChange` passed -- ExportPanel falls
           // back to its own internal `useState` (the rail jump-nav that
           // needed the controlled version to force this open from afar was
@@ -358,24 +378,26 @@ export function Workspace({
           />
         ) : null}
 
-        <div className="editor-step-actions screen-only">
-          <button
-            type="button"
-            disabled={editorStepIndex === 0}
-            onClick={() => setEditorStep(editorSteps[editorStepIndex - 1]?.id ?? 'shape')}
-          >
-            Back
-          </button>
-          {editorStepIndex < editorSteps.length - 1 && (
+        {!expressLane && (
+          <div className="editor-step-actions screen-only">
             <button
               type="button"
-              className="primary-button"
-              onClick={() => setEditorStep(editorSteps[editorStepIndex + 1]?.id ?? 'export')}
+              disabled={editorStepIndex === 0}
+              onClick={() => setEditorStep(editorSteps[editorStepIndex - 1]?.id ?? 'shape')}
             >
-              Continue to {editorSteps[editorStepIndex + 1]?.label}
+              Back
             </button>
-          )}
-        </div>
+            {editorStepIndex < editorSteps.length - 1 && (
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => setEditorStep(editorSteps[editorStepIndex + 1]?.id ?? 'export')}
+              >
+                Continue to {editorSteps[editorStepIndex + 1]?.label}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Entirely screen-only -- no `.print-pages` lives in this column,

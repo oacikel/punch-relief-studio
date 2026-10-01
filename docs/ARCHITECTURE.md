@@ -253,7 +253,11 @@ ref/variants/assignment, written into `source.ts`'s experiment slot), and
 the UI branches on -- the only module the UI layer imports from).
 `fitToScreenPreview.ts` retains EXP-007's historical single-variant release
 assignment; the fit/pan/zoom product behavior remains shipped while EXP-003 is
-the live assignment. `src/components/PrivacyControl.tsx` is the one UI surface, covering
+the live assignment. `expressLane.ts` is EXP-011's variant read -- link-only
+(no self-assignment: a hand-recruited `?exp=EXP-011&v=...` link decides the
+build, falling back to parsing `location.search` directly when nothing is
+cached so it works whether or not this test build has ingest configured).
+`src/components/PrivacyControl.tsx` is the one UI surface, covering
 both the one-time consent prompt and an always-reachable Privacy toggle;
 it renders nothing when unconfigured. See `docs/ANALYTICS.md` for the
 event dictionary and data flow, and `docs/DECISIONS.md` for the design

@@ -14,6 +14,7 @@ import {
   shouldMoveYarnColorsEarlier,
   shouldShowConsentPrompt,
   shouldShowPreviewExpectations,
+  shouldUseExpressLane,
   trackExportSucceeded,
   trackPageViewed,
   trackProjectCreated,
@@ -42,6 +43,10 @@ describe('analytics public API', () => {
   afterEach(() => {
     window.localStorage.clear();
     window.sessionStorage.clear();
+    // EXP-011's variant read falls back to the live URL (see
+    // expressLane.ts), so a test that lands on a `?exp=EXP-011&v=...` link
+    // must not leak that query string into whichever test runs next.
+    window.history.pushState({}, '', '/');
     clearConsent();
     clearQueue();
     setGpc(undefined);
@@ -74,6 +79,22 @@ describe('analytics public API', () => {
       expect(shouldMoveYarnColorsEarlier()).toBe(false);
       expect(shouldShowPreviewExpectations()).toBe(true);
       expect(window.sessionStorage.length).toBe(0);
+    });
+
+    // EXP-011 is link-only and has to apply even when this test build has
+    // no ingest configured at all -- the task brief's collection plan falls
+    // back to a hand-tallied post-session form exactly in that case, so
+    // which screen a recruited maker sees can't depend on analytics config.
+    it('still honors an EXP-011 express link with analytics unconfigured', () => {
+      window.history.pushState({}, '', '/?exp=EXP-011&v=express');
+      initAnalytics();
+      expect(shouldUseExpressLane()).toBe(true);
+      expect(window.sessionStorage.length).toBe(0);
+    });
+
+    it('keeps todays gated rail with no EXP-011 link', () => {
+      initAnalytics();
+      expect(shouldUseExpressLane()).toBe(false);
     });
   });
 
@@ -168,6 +189,59 @@ describe('analytics public API', () => {
       expect(body.events[0]?.experimentRef).toBe('EXP-777');
       expect(body.events[0]?.variant).toBe('b');
       expect(shouldMoveYarnColorsEarlier()).toBe(false);
+    });
+  });
+
+  describe('EXP-011 measurement', () => {
+    it('labels every product event with experimentRef EXP-011 for a maker on the express link', async () => {
+      configure();
+      window.history.pushState({}, '', '/?exp=EXP-011&v=express');
+      initAnalytics();
+      allowAnalytics();
+      window.history.pushState({}, '', '/');
+
+      trackPageViewed('/');
+      trackProjectCreated('sample');
+      trackExportSucceeded('svg');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const events = fetchMock.mock.calls
+        .map((call) => {
+          const [, init] = call as [string, RequestInit];
+          return JSON.parse(init.body as string) as {
+            events: Array<{ name: string; experimentRef?: string; variant?: string }>;
+          };
+        })
+        .flatMap((body) => body.events);
+
+      expect(events.map((e) => e.name)).toEqual(
+        expect.arrayContaining(['page_viewed', 'project_created', 'export_succeeded']),
+      );
+      for (const event of events) {
+        expect(event.experimentRef).toBe('EXP-011');
+        expect(event.variant).toBe('express');
+      }
+      expect(shouldUseExpressLane()).toBe(true);
+    });
+
+    it('labels every product event with experimentRef EXP-011 for a maker on the rail link', async () => {
+      configure();
+      window.history.pushState({}, '', '/?exp=EXP-011&v=rail');
+      initAnalytics();
+      allowAnalytics();
+
+      trackPageViewed('/');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const [, init] = fetchMock.mock.calls[0] ?? [];
+      const body = JSON.parse(String((init as RequestInit).body)) as {
+        events: Array<{ experimentRef?: string; variant?: string }>;
+      };
+      expect(body.events[0]?.experimentRef).toBe('EXP-011');
+      expect(body.events[0]?.variant).toBe('rail');
+      expect(shouldUseExpressLane()).toBe(false);
     });
   });
 

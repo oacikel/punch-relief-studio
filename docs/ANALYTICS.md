@@ -180,6 +180,40 @@ names. `src/analytics/__tests__/eventBuilder.test.ts` proves this by
 passing exactly those values into the builders and asserting they never
 serialize.
 
+## EXP-011: "Express lane: one screen from import to export, with Export always visible"
+
+Hypothesis: it's the Workspace rail's step gating -- Shape, then Yarn, then
+Export, each hidden until its own numbered step is clicked -- that
+suppresses completed exports, separate from the exported output itself.
+Implementation: `src/analytics/expressLane.ts` (variant read) plus
+`src/components/workspace/Workspace.tsx` (the `express` layout -- Shape,
+Yarn and Export render together on one scroll, no step nav, no
+Back/Continue gating, Export visible as soon as it's rendered rather than
+only after clicking into its step).
+
+- **Link-only, not a 50/50 split.** The task brief recruits 8-12 makers
+  directly and hands each one a link, `?exp=EXP-011&v=rail` or
+  `?exp=EXP-011&v=express` -- there is no self-assignment module, unlike
+  every earlier experiment here. `getExpressLaneVariant()` reads the
+  cached landing context when one exists (so it agrees with whatever
+  `experimentRef`/`variant` product events carry) and otherwise parses
+  `exp`/`v` directly off the live URL, so the link decides the build a
+  maker sees whether or not this test build has ingest configured -- see
+  the module doc comment and docs/DECISIONS.md.
+- **No new events, no new fields.** The target metric is exactly
+  `export_succeeded`/`export_failed`, split by `variant`, per the task
+  brief's own collection plan: counted from these events where ingest is
+  configured, tallied by hand from a post-session form otherwise. Either
+  way, every event this session sends carries `experimentRef: 'EXP-011'`
+  whenever the session arrived via one of the two links and ingest is
+  configured.
+- **Defaults to `rail`.** A session with no `?exp=EXP-011` link -- the
+  public GitHub Pages build for all its normal traffic, included -- keeps
+  today's gated three-step rail unchanged.
+- **Consent gates the measurement, not which build renders.** Which layout
+  a maker sees isn't personal data; branching that on consent would make
+  the two builds' populations differ by more than the layout.
+
 ## Transport and offline behavior
 
 - Events queue in a capped (~200), `localStorage`-backed queue
