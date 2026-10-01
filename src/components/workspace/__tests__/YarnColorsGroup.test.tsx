@@ -31,6 +31,10 @@ describe('YarnColorsGroup', () => {
         onSwatchesChange={vi.fn()}
         onPaletteSizeChange={vi.fn()}
         onApplyPalette={vi.fn()}
+        undoPaletteName={null}
+        onUndoPalette={vi.fn()}
+        canResetColors={false}
+        onResetColors={vi.fn()}
       />,
     );
 
@@ -51,6 +55,10 @@ describe('YarnColorsGroup', () => {
         onSwatchesChange={vi.fn()}
         onPaletteSizeChange={vi.fn()}
         onApplyPalette={vi.fn()}
+        undoPaletteName={null}
+        onUndoPalette={vi.fn()}
+        canResetColors={false}
+        onResetColors={vi.fn()}
       />,
     );
 
@@ -70,6 +78,10 @@ describe('YarnColorsGroup', () => {
         onSwatchesChange={vi.fn()}
         onPaletteSizeChange={vi.fn()}
         onApplyPalette={onApplyPalette}
+        undoPaletteName={null}
+        onUndoPalette={vi.fn()}
+        canResetColors={false}
+        onResetColors={vi.fn()}
       />,
     );
 
@@ -92,6 +104,10 @@ describe('YarnColorsGroup', () => {
         onSwatchesChange={vi.fn()}
         onPaletteSizeChange={vi.fn()}
         onApplyPalette={vi.fn()}
+        undoPaletteName={null}
+        onUndoPalette={vi.fn()}
+        canResetColors={false}
+        onResetColors={vi.fn()}
       />,
     );
 
@@ -113,6 +129,10 @@ describe('YarnColorsGroup', () => {
         onSwatchesChange={vi.fn()}
         onPaletteSizeChange={vi.fn()}
         onApplyPalette={vi.fn()}
+        undoPaletteName={null}
+        onUndoPalette={vi.fn()}
+        canResetColors={false}
+        onResetColors={vi.fn()}
       />,
     );
 
@@ -133,6 +153,10 @@ describe('YarnColorsGroup', () => {
         onSwatchesChange={vi.fn()}
         onPaletteSizeChange={vi.fn()}
         onApplyPalette={onApplyPalette}
+        undoPaletteName={null}
+        onUndoPalette={vi.fn()}
+        canResetColors={false}
+        onResetColors={vi.fn()}
       />,
     );
 
@@ -154,9 +178,88 @@ describe('YarnColorsGroup', () => {
         onSwatchesChange={vi.fn()}
         onPaletteSizeChange={vi.fn()}
         onApplyPalette={vi.fn()}
+        undoPaletteName={null}
+        onUndoPalette={vi.fn()}
+        canResetColors={false}
+        onResetColors={vi.fn()}
       />,
     );
     expect(screen.queryByText(/Generate the relief first/)).not.toBeInTheDocument();
     expect(screen.getByText(/Once the first relief finishes generating/)).toBeInTheDocument();
+  });
+
+  it('hides the undo and reset buttons when neither is available', () => {
+    render(
+      <YarnColorsGroup
+        mode="by-height"
+        swatches={makeSwatches(3)}
+        paletteSize={4}
+        levelCount={3}
+        hasSourceColor={false}
+        onModeChange={vi.fn()}
+        onSwatchesChange={vi.fn()}
+        onPaletteSizeChange={vi.fn()}
+        onApplyPalette={vi.fn()}
+        undoPaletteName={null}
+        onUndoPalette={vi.fn()}
+        canResetColors={false}
+        onResetColors={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /Undo/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Reset to default colors/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows "Undo <palette>" and calls onUndoPalette when clicked', async () => {
+    const onUndoPalette = vi.fn();
+    render(
+      <YarnColorsGroup
+        mode="by-height"
+        swatches={makeSwatches(3)}
+        paletteSize={4}
+        levelCount={3}
+        hasSourceColor={false}
+        onModeChange={vi.fn()}
+        onSwatchesChange={vi.fn()}
+        onPaletteSizeChange={vi.fn()}
+        onApplyPalette={vi.fn()}
+        undoPaletteName="Terrain"
+        onUndoPalette={onUndoPalette}
+        canResetColors={false}
+        onResetColors={vi.fn()}
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: 'Undo Terrain' });
+    await userEvent.click(button);
+    expect(onUndoPalette).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows "Reset to default colors" and calls onResetColors when clicked', async () => {
+    const onResetColors = vi.fn();
+    render(
+      <YarnColorsGroup
+        mode="by-height"
+        swatches={makeSwatches(3)}
+        paletteSize={4}
+        levelCount={3}
+        hasSourceColor={false}
+        onModeChange={vi.fn()}
+        onSwatchesChange={vi.fn()}
+        onPaletteSizeChange={vi.fn()}
+        onApplyPalette={vi.fn()}
+        undoPaletteName={null}
+        onUndoPalette={vi.fn()}
+        canResetColors
+        onResetColors={onResetColors}
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: 'Reset to default colors' });
+    await userEvent.click(button);
+    expect(onResetColors).toHaveBeenCalledTimes(1);
   });
 });

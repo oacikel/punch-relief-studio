@@ -120,6 +120,23 @@ export interface AppState {
    * the auto colors -- see the image-processing success handler in
    * App.tsx. */
   colorStoryId: string | null;
+  /** One-level undo for the most recent APPLY_COLOR_STORY: the swatches
+   * (and whichever story, if any, was active) immediately before that
+   * palette replaced them, so a single "Undo <name>" click can restore
+   * exactly that. Cleared by a manual swatch edit, a new import, or a
+   * swatch-count resize -- any of which makes restoring this snapshot
+   * either meaningless or invalid (see EXP-010, docs/DECISIONS.md). */
+  colorStoryUndo: {
+    paletteId: string;
+    previousSwatches: ColorSwatch[];
+    previousColorStoryId: string | null;
+  } | null;
+  /** The swatch colors as they stood before any color-story palette was
+   * ever applied to this import -- captured once, on the first
+   * APPLY_COLOR_STORY, so "Reset to default colors" can always return a
+   * maker to where they started regardless of how many stories they've
+   * tried since. Cleared by a new import or a swatch-count resize. */
+  originalSwatches: ColorSwatch[] | null;
   paletteSize: number;
   processed: ProcessedResult | null;
   processing: boolean;
@@ -145,6 +162,8 @@ export type AppAction =
   | { type: 'SET_PALETTE_SIZE'; size: number }
   | { type: 'SET_SWATCHES'; swatches: ColorSwatch[] }
   | { type: 'APPLY_COLOR_STORY'; paletteId: string; swatches: ColorSwatch[] }
+  | { type: 'UNDO_COLOR_STORY' }
+  | { type: 'RESET_TO_DEFAULT_COLORS' }
   | { type: 'PROCESSING_STARTED' }
   | { type: 'PROCESSING_SUCCEEDED'; result: ProcessedResult }
   | { type: 'PROCESSING_FAILED'; message: string }
@@ -221,6 +240,8 @@ export function initialAppState(): AppState {
     colorMode: 'single',
     swatches: [{ index: 0, color: DEFAULT_SINGLE_COLOR, yarnName: 'Yarn 1' }],
     colorStoryId: null,
+    colorStoryUndo: null,
+    originalSwatches: null,
     paletteSize: 4,
     processed: null,
     processing: false,
@@ -274,6 +295,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         // palette, not a color story carried over from whatever was
         // loaded before.
         colorStoryId: null,
+        colorStoryUndo: null,
+        originalSwatches: null,
       };
     case 'SET_RELIEF_SETTINGS':
       return { ...state, reliefSettings: { ...state.reliefSettings, ...action.settings } };
@@ -285,7 +308,17 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         action.mode === 'by-height' && state.processed
           ? resizeSwatches(state.swatches, state.processed.levels.length)
           : state.swatches;
-      return { ...state, colorMode: action.mode, swatches };
+      // A resize invalidates any pending undo/reset snapshot -- restoring a
+      // swatch list of the wrong length would break the "one swatch per
+      // height level" invariant.
+      const resized = swatches !== state.swatches;
+      return {
+        ...state,
+        colorMode: action.mode,
+        swatches,
+        colorStoryUndo: resized ? null : state.colorStoryUndo,
+        originalSwatches: resized ? null : state.originalSwatches,
+      };
     }
     case 'SET_PALETTE_SIZE':
       return { ...state, paletteSize: action.size };
@@ -295,9 +328,39 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       // previously applied colorStoryId so a later re-simplification
       // doesn't stomp on it. APPLY_COLOR_STORY is the action that keeps a
       // story alive across re-simplification.
-      return { ...state, swatches: action.swatches, colorStoryId: null };
+      // A manual edit also invalidates the pending one-level undo: once the
+      // maker has made their own intentional change on top, "Undo <story>"
+      // discarding it silently would be surprising rather than helpful.
+      return { ...state, swatches: action.swatches, colorStoryId: null, colorStoryUndo: null };
     case 'APPLY_COLOR_STORY':
-      return { ...state, swatches: action.swatches, colorStoryId: action.paletteId };
+      return {
+        ...state,
+        swatches: action.swatches,
+        colorStoryId: action.paletteId,
+        colorStoryUndo: {
+          paletteId: action.paletteId,
+          previousSwatches: state.swatches,
+          previousColorStoryId: state.colorStoryId,
+        },
+        // Captured once per import so it always reflects the starting
+        // colors, not just the state before the most recent apply.
+        originalSwatches: state.originalSwatches ?? state.swatches,
+      };
+    case 'UNDO_COLOR_STORY': {
+      const undo = state.colorStoryUndo;
+      if (!undo || undo.previousSwatches.length !== state.swatches.length) return state;
+      return {
+        ...state,
+        swatches: undo.previousSwatches,
+        colorStoryId: undo.previousColorStoryId,
+        colorStoryUndo: null,
+      };
+    }
+    case 'RESET_TO_DEFAULT_COLORS': {
+      const original = state.originalSwatches;
+      if (!original || original.length !== state.swatches.length) return state;
+      return { ...state, swatches: original, colorStoryId: null, colorStoryUndo: null };
+    }
     case 'PROCESSING_STARTED':
       return { ...state, processing: true, processingError: null };
     case 'PROCESSING_SUCCEEDED': {
@@ -308,12 +371,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         state.colorMode === 'by-height'
           ? resizeSwatches(state.swatches, action.result.levels.length)
           : state.swatches;
+      const resized = swatches !== state.swatches;
       return {
         ...state,
         processing: false,
         processed: action.result,
         processingError: null,
         swatches,
+        colorStoryUndo: resized ? null : state.colorStoryUndo,
+        originalSwatches: resized ? null : state.originalSwatches,
       };
     }
     case 'PROCESSING_FAILED':

@@ -15,6 +15,15 @@ interface Props {
    * color-story palette's colors to the current swatches in one click.
    * Only meaningful in "by-height" mode -- see the gallery below. */
   onApplyPalette: (paletteId: string) => void;
+  /** EXP-010: name of the color story a single click of "Undo <name>"
+   * would restore, or null to hide the button (nothing to undo, or the
+   * maker has since made a manual edit or a new import). */
+  undoPaletteName: string | null;
+  onUndoPalette: () => void;
+  /** EXP-010: whether the starting colors (before any story was applied)
+   * are still available to restore. */
+  canResetColors: boolean;
+  onResetColors: () => void;
   /** EXP-002: the step number shown in this group's own heading, kept in
    * sync with the rail nav's position for this step (`Workspace.tsx`
    * computes it from whichever step order the session is enrolled in).
@@ -52,6 +61,10 @@ export function YarnColorsGroup({
   onSwatchesChange,
   onPaletteSizeChange,
   onApplyPalette,
+  undoPaletteName,
+  onUndoPalette,
+  canResetColors,
+  onResetColors,
   stepNumber = '2',
 }: Props): JSX.Element {
   return (
@@ -172,6 +185,20 @@ export function YarnColorsGroup({
               </button>
             ))}
           </div>
+          {(undoPaletteName || canResetColors) && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              {undoPaletteName && (
+                <button type="button" onClick={onUndoPalette}>
+                  Undo {undoPaletteName}
+                </button>
+              )}
+              {canResetColors && (
+                <button type="button" onClick={onResetColors}>
+                  Reset to default colors
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -100,6 +100,115 @@ describe('appReducer', () => {
     state = appReducer(state, { type: 'SET_SOURCE', sourceKind: 'image-file', filename: 'x.png' });
     expect(state.colorStoryId).toBeNull();
   });
+
+  describe('EXP-010: palette undo and reset', () => {
+    const starting = [{ index: 0, color: { r: 10, g: 20, b: 30 }, yarnName: 'Yarn 1' }];
+    const terrainSwatches = [{ index: 0, color: { r: 1, g: 2, b: 3 }, yarnName: 'Yarn 1' }];
+    const coastalSwatches = [{ index: 0, color: { r: 4, g: 5, b: 6 }, yarnName: 'Yarn 1' }];
+
+    it('UNDO_COLOR_STORY restores the swatches from before the last apply', () => {
+      let state = initialAppState();
+      state = { ...state, swatches: starting };
+      state = appReducer(state, {
+        type: 'APPLY_COLOR_STORY',
+        paletteId: 'terrain',
+        swatches: terrainSwatches,
+      });
+      state = appReducer(state, { type: 'UNDO_COLOR_STORY' });
+      expect(state.swatches).toEqual(starting);
+      expect(state.colorStoryId).toBeNull();
+    });
+
+    it('UNDO_COLOR_STORY is one level: undoing twice in a row is a no-op the second time', () => {
+      let state = initialAppState();
+      state = { ...state, swatches: starting };
+      state = appReducer(state, {
+        type: 'APPLY_COLOR_STORY',
+        paletteId: 'terrain',
+        swatches: terrainSwatches,
+      });
+      state = appReducer(state, { type: 'UNDO_COLOR_STORY' });
+      const afterFirstUndo = state;
+      state = appReducer(state, { type: 'UNDO_COLOR_STORY' });
+      expect(state).toBe(afterFirstUndo);
+    });
+
+    it('UNDO_COLOR_STORY after two applies restores the previously active story', () => {
+      let state = initialAppState();
+      state = { ...state, swatches: starting };
+      state = appReducer(state, {
+        type: 'APPLY_COLOR_STORY',
+        paletteId: 'terrain',
+        swatches: terrainSwatches,
+      });
+      state = appReducer(state, {
+        type: 'APPLY_COLOR_STORY',
+        paletteId: 'coastal',
+        swatches: coastalSwatches,
+      });
+      state = appReducer(state, { type: 'UNDO_COLOR_STORY' });
+      expect(state.swatches).toEqual(terrainSwatches);
+      expect(state.colorStoryId).toBe('terrain');
+    });
+
+    it('UNDO_COLOR_STORY with nothing to undo is a no-op', () => {
+      const state = initialAppState();
+      expect(appReducer(state, { type: 'UNDO_COLOR_STORY' })).toBe(state);
+    });
+
+    it('RESET_TO_DEFAULT_COLORS restores the starting colors regardless of how many stories were applied', () => {
+      let state = initialAppState();
+      state = { ...state, swatches: starting };
+      state = appReducer(state, {
+        type: 'APPLY_COLOR_STORY',
+        paletteId: 'terrain',
+        swatches: terrainSwatches,
+      });
+      state = appReducer(state, {
+        type: 'APPLY_COLOR_STORY',
+        paletteId: 'coastal',
+        swatches: coastalSwatches,
+      });
+      state = appReducer(state, { type: 'RESET_TO_DEFAULT_COLORS' });
+      expect(state.swatches).toEqual(starting);
+      expect(state.colorStoryId).toBeNull();
+    });
+
+    it('RESET_TO_DEFAULT_COLORS with nothing to reset is a no-op', () => {
+      const state = initialAppState();
+      expect(appReducer(state, { type: 'RESET_TO_DEFAULT_COLORS' })).toBe(state);
+    });
+
+    it('a manual SET_SWATCHES edit clears the pending undo', () => {
+      let state = initialAppState();
+      state = { ...state, swatches: starting };
+      state = appReducer(state, {
+        type: 'APPLY_COLOR_STORY',
+        paletteId: 'terrain',
+        swatches: terrainSwatches,
+      });
+      state = appReducer(state, { type: 'SET_SWATCHES', swatches: terrainSwatches });
+      expect(state.colorStoryUndo).toBeNull();
+      expect(appReducer(state, { type: 'UNDO_COLOR_STORY' })).toBe(state);
+    });
+
+    it('SET_SOURCE clears the pending undo and reset snapshots', () => {
+      let state = initialAppState();
+      state = { ...state, swatches: starting };
+      state = appReducer(state, {
+        type: 'APPLY_COLOR_STORY',
+        paletteId: 'terrain',
+        swatches: terrainSwatches,
+      });
+      state = appReducer(state, {
+        type: 'SET_SOURCE',
+        sourceKind: 'image-file',
+        filename: 'x.png',
+      });
+      expect(state.colorStoryUndo).toBeNull();
+      expect(state.originalSwatches).toBeNull();
+    });
+  });
 });
 
 describe('patternViewSettings (Iteration 02 Stage C)', () => {
