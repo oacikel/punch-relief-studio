@@ -34,9 +34,7 @@ test.describe('EXP-011 express lane', () => {
     await page.getByText('Concentric Ripple').click();
     await page.getByRole('button', { name: /Create my pattern/ }).click();
 
-    await expect(
-      page.getByRole('navigation', { name: 'Pattern setup steps' }),
-    ).not.toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Pattern setup steps' })).not.toBeVisible();
     await expect(page.getByRole('button', { name: /Back/ })).not.toBeVisible();
 
     await expect(page.getByRole('heading', { name: 'Shape the relief' })).toBeVisible();
