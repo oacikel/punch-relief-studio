@@ -915,6 +915,34 @@ project (**2 passed**) using Node 22. The two existing build warnings remain:
 the main bundle exceeds Vite's default size warning and `projectStore.ts` is
 imported both statically and dynamically.
 
+## Session 15: EXP-002 move yarn palette selection earlier
+
+`src/analytics/paletteOrder.ts` (EXP-002's self-assigned earlier/control
+split, defaulting unassigned sessions to `control` -- see docs/DECISIONS.md
+for why that default differs from this app's other self-assigned
+experiments) plus the reorder itself in `src/components/workspace/
+Workspace.tsx` (`EDITOR_STEPS_CONTROL`/`EDITOR_STEPS_EARLIER`), wired
+through `App.tsx`'s existing "read the variant once at mount" pattern.
+`ReliefControls.tsx`/`ImageShapeControls.tsx`/`YarnColorsGroup.tsx` each
+gained an optional `stepNumber` prop (defaulting to their current hardcoded
+number) so their own section heading stays in sync with whichever position
+the rail nav gives that step.
+
+**Not run in this environment: `npm install`/`npm run typecheck`/`npm run
+lint`/`npm run test`/`npm run build`/`npm run test:e2e`.** This session had
+no `node_modules` (not installed) and no network access to install it or
+run any of the above -- see CLAUDE.md's "Known environment limitation".
+None of the changes above were exercised by an actual command in this
+session; the new/updated tests (`src/analytics/__tests__/paletteOrder.test.ts`,
+additions to `src/analytics/__tests__/index.test.ts` and
+`src/components/workspace/__tests__/Workspace.test.tsx`,
+`e2e/palette-order.spec.ts`) are authored to the existing sibling
+experiments' conventions but unexecuted, same as this branch's peers
+(EXP-003/004/007, each on their own unmerged branch) recorded theirs. The
+next environment with `npm install` available should run the full
+`npm run verify` gate plus `npm run test:e2e` before this is considered
+done.
+
 ## Session 14: EXP-003, clarify the single-viewpoint preview (sandboxed, no dependencies installed)
 
 This session's worktree had no `node_modules` installed, and installing

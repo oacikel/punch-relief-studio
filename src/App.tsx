@@ -6,6 +6,7 @@ import { ModelBar } from '@/components/ModelBar';
 import { PrivacyControl } from '@/components/PrivacyControl';
 import {
   initAnalytics,
+  shouldMoveYarnColorsEarlier,
   shouldShowPreviewExpectations,
   trackPageViewed,
   trackPatternCompleted,
@@ -77,15 +78,23 @@ export default function App(): JSX.Element {
   // after the first import.
   const [previewExpectationsEnabled, setPreviewExpectationsEnabled] = useState(false);
 
+  // EXP-002 ("move yarn palette selection earlier"): whether this session's
+  // Workspace rail shows the Yarn step before the Shape step. Read once at
+  // mount -- the variant is fixed for the session
+  // (src/analytics/paletteOrder.ts), and it has to be known before the
+  // Workspace stage first renders.
+  const [moveYarnColorsEarlier, setMoveYarnColorsEarlier] = useState(false);
+
   // T10 analytics: a no-op unless VITE_VP_INGEST_URL/VITE_VP_PROJECT_TOKEN
   // are set at build time -- see src/analytics/config.ts and
   // docs/ANALYTICS.md. `page_viewed{path:"/"}` fires once, at mount.
-  // `initAnalytics()` also assigns the EXP-003 variant, so it must stay
-  // ahead of both the first event and the `shouldShowPreviewExpectations()`
-  // read below.
+  // `initAnalytics()` also assigns the session's experiment variant, so it
+  // must stay ahead of the first event and both variant reads below. EXP-002
+  // is live; EXP-003 is dormant, so its UI helper returns the shipped notice.
   useEffect(() => {
     initAnalytics();
     trackPageViewed('/');
+    setMoveYarnColorsEarlier(shouldMoveYarnColorsEarlier());
     setPreviewExpectationsEnabled(shouldShowPreviewExpectations());
   }, []);
 
@@ -717,6 +726,7 @@ export default function App(): JSX.Element {
             <Workspace
               isImageSource={state.sourceKind === 'image-file'}
               sourceImageUrl={imagePreviewUrl}
+              moveYarnColorsEarlier={moveYarnColorsEarlier}
               reliefSettings={state.reliefSettings}
               onReliefSettingsChange={(patch) =>
                 dispatch({ type: 'SET_RELIEF_SETTINGS', settings: patch })

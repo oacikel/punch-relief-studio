@@ -18,6 +18,9 @@ interface Props {
   onDimensionsChange: (patch: Partial<PatternDimensions>) => void;
   imageDetailSettings: ImageDetailSettings;
   onImageDetailSettingsChange: (patch: Partial<ImageDetailSettings>) => void;
+  /** EXP-002: the step number shown in this group's own heading -- see
+   * `YarnColorsGroup`'s matching prop. Defaults to '1', today's position. */
+  stepNumber?: string;
 }
 
 export function ImageShapeControls({
@@ -29,11 +32,12 @@ export function ImageShapeControls({
   onDimensionsChange,
   imageDetailSettings,
   onImageDetailSettingsChange,
+  stepNumber = '1',
 }: Props): JSX.Element {
   return (
     <div className="control-group rail-section" id="rail-shape">
       <div className="section-intro">
-        <span className="section-number">1</span>
+        <span className="section-number">{stepNumber}</span>
         <div>
           <h3>Simplify the image</h3>
         </div>

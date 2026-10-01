@@ -32,11 +32,10 @@
  * `initAnalytics()` assigns the live one first and every later assignment is
  * then a no-op (the slot is full).
  *
- * **Currently active** -- EXP-007's standalone release window has ended, while
- * its fit/pan/zoom behavior remains shipped. `initAnalytics()` now calls this
- * module's assignment so EXP-003 owns the single experiment slot unless a
- * landing link already supplied another experiment. See docs/ANALYTICS.md and
- * docs/DECISIONS.md.
+ * **Currently dormant** -- the clearer notice remains shipped through the
+ * unassigned-session fallback below, but EXP-002 now owns the live experiment
+ * slot. This assignment can be reactivated from `initAnalytics()` after that
+ * measurement window ends. See docs/ANALYTICS.md and docs/DECISIONS.md.
  */
 import { generateRandomId } from '@/analytics/ids';
 import { getCachedExperiment, writeExperimentContext } from '@/analytics/source';
