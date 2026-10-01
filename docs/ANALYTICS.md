@@ -110,6 +110,70 @@ rail, swapping the Shape and Yarn setup steps -- Export always stays last).
   product someone gets isn't personal data, and branching on consent would
   make the two variants' populations differ by more than the step order.
 
+## EXP-003: "clarify the single-viewpoint preview"
+
+Hypothesis: setting expectations _before_ the first preview will reduce
+confusion during export. The product's output is a single-viewpoint bas-relief
+interpretation, not a full 3D reconstruction, and until now that was one line
+of helper text on the Import/Orient step. Implementation:
+`src/analytics/previewExpectations.ts` (assignment) plus
+`src/components/stages/PreviewExpectations.tsx` (the notice, rendered on the
+Import/Orient step -- the last screen before the Workspace preview exists).
+
+- **Historical variants, 50/50, session-scoped:** `expectations` (the notice replaces the
+  one-line helper text, naming what the exported sheet will and won't contain:
+  this view only, depth as a few `H{n}` steps rather than millimetres, no
+  undercuts) and `control` (that step is exactly as it was). During EXP-003's
+  measurement window, assignment happened once per session in `initAnalytics()`.
+  EXP-002 now owns the live slot; the clearer notice remains shipped through
+  `getPreviewExpectationsVariant()`'s unassigned-session fallback.
+- **No new events, no new fields.** Measured from the existing funnel, split
+  by `variant`. The step the hypothesis is about is the end of it:
+  `pattern_completed` -> `export_succeeded` (and the `export_failed` rate
+  beside it). `project_created` -> `pattern_completed` is the control check --
+  copy on the step _before_ the preview shouldn't change whether a preview is
+  reached, so a variant gap there is a signal the split is skewed rather than
+  that the copy worked.
+- **Not measured:** whether the notice was read. That would need either a new
+  event name the ingest contract doesn't accept or an overloaded existing one;
+  the funnel already answers the hypothesis, so neither was done.
+- **Diluted by image imports, deliberately.** The notice lives on the
+  Import/Orient step, which only exists for 3D models -- an image import goes
+  straight to the Workspace, and a flat image has no hidden side to set
+  expectations about. `project_created.origin` can't separate the two
+  (`"import"` covers both), so image sessions are enrolled but untreated,
+  which biases any measured effect _downward_. Accepted rather than worked
+  around: the alternative is a new field on an event, for an experiment that
+  is about 3D models.
+- **Inert where it can't be measured:** with analytics unconfigured (the
+  public GitHub Pages build) there is no assignment and no storage key, and
+  the notice is simply on for everyone -- withholding a clearer explanation
+  from a control group only buys something where the funnel is actually being
+  recorded. A Global Privacy Control signal behaves the same way.
+- **Consent gates the measurement, not the notice.** Which version of the
+  product someone gets isn't personal data, and branching on consent would
+  make the two variants' populations differ by more than the copy.
+
+## EXP-007 -- fit-to-screen preview, standalone release
+
+"Ship fit-to-screen default plus pan and zoom as a standalone release" shipped
+before the later A/B assignments. The
+pattern preview (`PatternCanvas.tsx` -> `PatternPreview.tsx`) now opens
+scaled so the whole pattern is visible on the current viewport, with a
+visible "Fit to screen" control and working pointer-drag pan plus
+wheel/pinch zoom. Unlike an A/B-tested experiment, this change ships to
+_everyone_ who opens the preview during the release window -- there is no
+withheld control variant to compare against concurrently. Instead it's
+measured against an equal-length window immediately _before_ the release,
+by manually counting `export_succeeded`/`export_failed` events in each
+window (see docs/DECISIONS.md).
+
+During that release window, `initAnalytics()` self-assigned sessions into
+EXP-007's single `fit` variant (`src/analytics/fitToScreenPreview.ts`) so the
+pre/post windows could be distinguished. EXP-002 is now the live assignment;
+the EXP-007 assignment module remains as the historical implementation, while
+the shipped preview behavior remains enabled for everyone.
+
 **Never sent, under any configuration:** the query string, the referrer
 URL, file names, images, mesh/model data, project settings, or project
 names. `src/analytics/__tests__/eventBuilder.test.ts` proves this by

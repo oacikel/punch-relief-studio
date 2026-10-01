@@ -12,6 +12,10 @@
  * + `variant` to every product event with no change at any call site and
  * no new event names.
  *
+ * **Currently active** -- `initAnalytics()` calls this assignment after
+ * landing-context capture. Other self-assigned experiment implementations
+ * remain available but do not compete for the single session slot.
+ *
  * Unlike a purely additive self-assigned experiment (new copy, a new panel
  * with nothing else depending on it), this one reorders existing, numbered
  * steps that plenty of other surface area -- button labels ("2 Yarn"), e2e

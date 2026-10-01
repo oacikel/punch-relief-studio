@@ -7,6 +7,7 @@ import { PrivacyControl } from '@/components/PrivacyControl';
 import {
   initAnalytics,
   shouldMoveYarnColorsEarlier,
+  shouldShowPreviewExpectations,
   trackPageViewed,
   trackPatternCompleted,
   trackProjectCreated,
@@ -62,6 +63,20 @@ export default function App(): JSX.Element {
   const viewportHandle = useRef<Viewport3DHandle | null>(null);
   const { process, processImage } = useProcessingWorker();
   const imageProcessGeneration = useRef(0);
+  // Read inside the image-processing effect below instead of listing
+  // state.colorStoryId as a dependency -- applying a color story shouldn't
+  // itself trigger a full image re-simplification (it only needs to be
+  // picked up the next time some other setting change re-simplifies).
+  const colorStoryIdRef = useRef(state.colorStoryId);
+  colorStoryIdRef.current = state.colorStoryId;
+
+  // EXP-003 ("clarify the single-viewpoint preview"): whether this session
+  // gets the fuller expectation-setting notice on the Import/Orient step
+  // instead of the one-line version. Read once at mount, since the variant
+  // is fixed for the session (src/analytics/previewExpectations.ts) and has
+  // to be known before the person can reach that step, which is any time
+  // after the first import.
+  const [previewExpectationsEnabled, setPreviewExpectationsEnabled] = useState(false);
 
   // EXP-002 ("move yarn palette selection earlier"): whether this session's
   // Workspace rail shows the Yarn step before the Shape step. Read once at
@@ -74,11 +89,13 @@ export default function App(): JSX.Element {
   // are set at build time -- see src/analytics/config.ts and
   // docs/ANALYTICS.md. `page_viewed{path:"/"}` fires once, at mount.
   // `initAnalytics()` also assigns the session's experiment variant, so it
-  // must stay ahead of both the first event and the variant read below.
+  // must stay ahead of the first event and both variant reads below. EXP-002
+  // is live; EXP-003 is dormant, so its UI helper returns the shipped notice.
   useEffect(() => {
     initAnalytics();
     trackPageViewed('/');
     setMoveYarnColorsEarlier(shouldMoveYarnColorsEarlier());
+    setPreviewExpectationsEnabled(shouldShowPreviewExpectations());
   }, []);
 
   // `pattern_completed{durationSeconds}` fires once per project, on the
@@ -377,14 +394,28 @@ export default function App(): JSX.Element {
             },
           });
           if (result.palette && result.palette.length > 0) {
-            dispatch({
-              type: 'SET_SWATCHES',
-              swatches: result.palette.map((color, index) => ({
-                index,
-                color,
-                yarnName: `Image color ${index + 1}`,
-              })),
-            });
+            const detected = result.palette.map((color, index) => ({
+              index,
+              color,
+              yarnName: `Image color ${index + 1}`,
+            }));
+            // Re-simplifying an image (any settings change re-runs this
+            // effect) recomputes the auto-detected palette from scratch --
+            // if a color-story palette is active, reapply it to the fresh
+            // swatch list instead of reverting to the auto-detected colors,
+            // so the chosen scheme survives routine regeneration.
+            const activeStory = colorStoryIdRef.current
+              ? getPaletteById(colorStoryIdRef.current)
+              : undefined;
+            if (activeStory) {
+              dispatch({
+                type: 'APPLY_COLOR_STORY',
+                paletteId: activeStory.id,
+                swatches: applyPaletteToSwatches(detected, activeStory),
+              });
+            } else {
+              dispatch({ type: 'SET_SWATCHES', swatches: detected });
+            }
           }
           markPatternCompletedIfFirst();
         })
@@ -687,6 +718,7 @@ export default function App(): JSX.Element {
             state.sourceKind !== 'image-file' && (
               <ImportOrientSection
                 onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
+                showPreviewExpectations={previewExpectationsEnabled}
               />
             )}
 
@@ -715,7 +747,8 @@ export default function App(): JSX.Element {
                 const palette = getPaletteById(paletteId);
                 if (!palette) return;
                 dispatch({
-                  type: 'SET_SWATCHES',
+                  type: 'APPLY_COLOR_STORY',
+                  paletteId: palette.id,
                   swatches: applyPaletteToSwatches(state.swatches, palette),
                 });
               }}

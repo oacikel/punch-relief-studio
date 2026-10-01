@@ -30,6 +30,7 @@ import {
 } from '@/analytics/ids';
 import { captureLandingContext, getCachedExperiment, getCachedSource } from '@/analytics/source';
 import { assignPaletteOrderExperiment, getPaletteOrderVariant } from '@/analytics/paletteOrder';
+import { getPreviewExpectationsVariant } from '@/analytics/previewExpectations';
 import { enqueueEvent, clearQueue } from '@/analytics/queue';
 import { flushQueue } from '@/analytics/transport';
 import { startFlushScheduler } from '@/analytics/scheduler';
@@ -63,6 +64,21 @@ export function initAnalytics(): void {
 
 export function shouldShowConsentPrompt(): boolean {
   return isAnalyticsConfigured() && !hasGlobalPrivacyControl() && getConsentState() === 'unknown';
+}
+
+/**
+ * EXP-003: whether this session should see the expanded single-viewpoint
+ * notice on the Import/Orient step, before the first preview. EXP-003 is
+ * currently dormant while EXP-002 owns the experiment slot, so sessions not
+ * explicitly recruited into EXP-003 receive the shipped `expectations`
+ * fallback from `previewExpectations.ts`.
+ *
+ * Deliberately not gated on *consent*: consent decides whether events are
+ * recorded, not which version of the product a person gets.
+ */
+export function shouldShowPreviewExpectations(): boolean {
+  if (!isAnalyticsConfigured()) return true;
+  return getPreviewExpectationsVariant() === 'expectations';
 }
 
 export function isAnalyticsAllowed(): boolean {

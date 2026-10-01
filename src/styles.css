@@ -443,6 +443,44 @@ select:focus-visible {
   font-size: 1.6rem;
 }
 
+/* EXP-003 ("clarify the single-viewpoint preview"): the notice is several
+   lines taller than the one-line helper text it replaces, so the row it sits
+   in needs to stack rather than squeeze the "Create my pattern" button at
+   narrow width. Deliberately a modifier on the treatment only -- the control
+   variant's layout stays byte-for-byte what it is today, so the experiment
+   measures the copy and not a layout change that came with it. */
+.orient-actions--expanded {
+  align-items: flex-end;
+}
+
+.preview-expectations {
+  margin: 0;
+  padding: var(--space-3) 18px;
+  border-radius: 14px;
+  background: var(--color-soft);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.preview-expectations h3 {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+}
+
+.preview-expectations__list {
+  margin: 0 0 var(--space-2);
+  padding-left: 20px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.preview-expectations__list li + li {
+  margin-top: 5px;
+}
+
+.preview-expectations .helper-text {
+  margin: 0;
+}
+
 .warning-banner {
   background: #fff4d9;
   border: 1px solid #e3a72f;
@@ -826,6 +864,15 @@ main.workspace-layout > .workspace-preview-col {
     height: auto;
     overflow-y: visible;
   }
+
+  /* EXP-003: see the `.orient-actions--expanded` comment above -- only the
+     treatment variant stacks, so the control keeps today's narrow-screen
+     layout exactly. */
+  .orient-actions--expanded {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
 }
 
 /* EXP-004 ("Show a first-project guide after import"): a dismissible
@@ -1075,6 +1122,64 @@ main.workspace-layout > .workspace-preview-col {
   color: var(--color-ink);
   border-color: transparent;
   box-shadow: 0 2px 8px rgba(34, 45, 39, 0.1);
+}
+
+/* Pattern preview pan/zoom (EXP-007 -- docs/ANALYTICS.md). A fixed-height
+   box with `object-fit: contain` is the fit-to-screen default itself: it
+   scales the pattern image to fit *within* the box on both axes, whatever
+   the pattern's own aspect ratio, with no script computing that fit.
+   `touch-action: none` hands pinch/drag entirely to PatternPreview.tsx's
+   own pointer handlers instead of the browser's native page pinch-zoom/
+   scroll, and `overflow: hidden` clips the image once zoomed in past that
+   base fit. */
+.pattern-preview-viewport {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  touch-action: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #f7f3ec;
+}
+
+.pattern-preview-viewport--fit {
+  height: min(70vh, 640px);
+}
+
+.pattern-preview-viewport--zoom {
+  height: auto;
+}
+
+.pattern-preview-image {
+  display: block;
+  width: 100%;
+  transform-origin: center center;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pattern-preview-image--fit {
+  height: 100%;
+  max-height: 65vh;
+  object-fit: contain;
+}
+
+.pattern-preview-image--zoom {
+  height: auto;
+  max-height: none;
+}
+
+.pattern-preview-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.pattern-preview-controls span {
+  color: var(--color-ink-muted);
+  font-size: 0.9em;
 }
 
 .preview-heading {

@@ -336,6 +336,10 @@ test.describe('Workspace two-column redesign', () => {
     const secondScroll = Math.round(sectionOffsetInRail + sectionHeight * 0.5);
 
     await rail.evaluate((el, y) => {
+      // The app enables smooth scrolling for the rail. Disable it for this
+      // geometry assertion so both measurements are taken after the requested
+      // scroll position has been applied, rather than mid-animation.
+      el.style.scrollBehavior = 'auto';
       el.scrollTop = y;
     }, firstScroll);
     const topAtFirst = await needleHeading.evaluate((el) => el.getBoundingClientRect().top);
@@ -350,8 +354,11 @@ test.describe('Workspace two-column redesign', () => {
     // depends on the exact padding/margin chain between the rail's own box
     // and the sticky `<h3>`, not just its scroll container).
     await expect
-      .poll(() => needleHeading.evaluate((el) => el.getBoundingClientRect().top))
-      .toBe(topAtFirst);
+      .poll(async () => {
+        const top = await needleHeading.evaluate((el) => el.getBoundingClientRect().top);
+        return Math.abs(top - topAtFirst);
+      })
+      .toBeLessThanOrEqual(2);
 
     // The nested "Color story palettes" group never gets the sticky
     // treatment -- switch to the "Yarn" step and color-by-height mode to

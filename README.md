@@ -43,7 +43,8 @@ browser is available). Once captured they'll live in `docs/screenshots/`.
 - Combined `C{n}-H{n}` region identity so the pattern never relies on color
   alone.
 - Pattern views: combined / color-only / height-only / contour, with grid,
-  legend, scale bar, and registration marks.
+  legend, scale bar, and registration marks. The preview opens fit to the
+  screen, with pan and pinch/scroll zoom for checking detail.
 - Finished-piece simulation built from the same quantized data as the
   pattern (not the raw mesh), with loop/cut-pile presets and adjustable
   lighting.
@@ -66,6 +67,13 @@ Only a handful of anonymous, coarse product events are ever counted (e.g.
 "pattern created", "exported as PNG") -- never your models, images, file
 names, patterns, or settings. See docs/ANALYTICS.md for the full event
 dictionary and docs/DECISIONS.md for the design rationale.
+
+A build with analytics configured may also run a small in-product
+experiment -- currently EXP-003, whether the Import step spells out in
+detail what a single-viewpoint pattern will and won't contain before you
+reach the preview -- decided by a coin flip kept only for the current tab
+session. No extra data is collected either way: the comparison is made from
+the same coarse events listed above.
 
 ## Local setup
 

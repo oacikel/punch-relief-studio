@@ -108,10 +108,9 @@ export function getCachedExperiment(storage: Storage = window.sessionStorage): E
 }
 
 /** Writes the session's experiment context, overwriting whatever was there.
- * The only caller is `paletteOrder.ts`'s EXP-002 assignment, which checks
- * first that the session isn't already in an experiment -- this function
- * deliberately owns nothing but the storage write, so the sessionStorage
- * key stays defined in exactly one module. */
+ * Self-assignment callers check first that the session isn't already in an
+ * experiment. This function deliberately owns nothing but the storage write,
+ * so the sessionStorage key stays defined in exactly one module. */
 export function writeExperimentContext(
   context: ExperimentContext,
   storage: Storage = window.sessionStorage,

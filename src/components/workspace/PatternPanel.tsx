@@ -111,6 +111,7 @@ export function PatternPanel({
         {...(contourSource ? { contourSource } : {})}
         punchGuide={punchGuide}
         fit={fitMode === 'fit'}
+        onFitChange={(fit) => setFitMode(fit ? 'fit' : 'zoom')}
       />
       <label style={{ marginTop: 12, display: 'inline-block' }}>
         <input

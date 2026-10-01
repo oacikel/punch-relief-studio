@@ -13,6 +13,7 @@ import {
   isAnalyticsConfigured,
   shouldMoveYarnColorsEarlier,
   shouldShowConsentPrompt,
+  shouldShowPreviewExpectations,
   trackExportSucceeded,
   trackPageViewed,
   trackProjectCreated,
@@ -71,6 +72,7 @@ describe('analytics public API', () => {
     it('keeps todays Shape-then-Yarn order, since there is no measurement to run EXP-002 against', () => {
       initAnalytics();
       expect(shouldMoveYarnColorsEarlier()).toBe(false);
+      expect(shouldShowPreviewExpectations()).toBe(true);
       expect(window.sessionStorage.length).toBe(0);
     });
   });

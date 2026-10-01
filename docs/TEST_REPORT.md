@@ -915,7 +915,7 @@ project (**2 passed**) using Node 22. The two existing build warnings remain:
 the main bundle exceeds Vite's default size warning and `projectStore.ts` is
 imported both statically and dynamically.
 
-## Session 13: EXP-002 move yarn palette selection earlier
+## Session 15: EXP-002 move yarn palette selection earlier
 
 `src/analytics/paletteOrder.ts` (EXP-002's self-assigned earlier/control
 split, defaulting unassigned sessions to `control` -- see docs/DECISIONS.md
@@ -943,6 +943,56 @@ next environment with `npm install` available should run the full
 `npm run verify` gate plus `npm run test:e2e` before this is considered
 done.
 
+## Session 14: EXP-003, clarify the single-viewpoint preview (sandboxed, no dependencies installed)
+
+This session's worktree had no `node_modules` installed, and installing
+(`npm install`) was blocked by the sandbox's no-network-access policy, so
+none of `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`,
+or `npm run test:e2e` could actually be run or their output captured here.
+That is the same constraint Session 1 (below) describes for the original
+build, applied to this change specifically.
+
+What changed: `src/analytics/previewExpectations.ts` (EXP-003's session
+self-assignment, 50/50 into `expectations`/`control`, writing into
+`source.ts`'s existing experiment sessionStorage slot -- `writeExperimentContext`
+added there for this), `src/components/stages/PreviewExpectations.tsx` (the
+notice), `ImportOrientSection`'s new `showPreviewExpectations` prop
+(`src/components/stages/ImportStage.tsx`), `initAnalytics()`/
+`shouldShowPreviewExpectations()` (`src/analytics/index.ts`), and the
+`App.tsx` wiring that reads the variant once at mount alongside the existing
+`page_viewed('/')` call. Tests were authored alongside the change
+(`src/analytics/__tests__/previewExpectations.test.ts`,
+`src/components/__tests__/PreviewExpectations.test.tsx`, additions to
+`src/components/__tests__/ImportStage.test.tsx` and
+`src/analytics/__tests__/index.test.ts`, plus `e2e/preview-expectations.spec.ts`)
+but are unexecuted -- reviewed by hand against the existing patterns in
+those files rather than run.
+
+## Session 13 (sandboxed, no network): EXP-006 color story palettes for 2D templates
+
+This session's worktree had no `node_modules` (git worktrees don't share
+it with the main checkout, and this session had no network access to run
+`npm install`), so `npm run typecheck`, `npm run lint`, `npm run test`, and
+`npm run test:e2e` were **not executed** -- consistent with this
+document's policy, that is stated here rather than claimed. The change
+(gate the "Color story palettes" gallery in `YarnColorsGroup.tsx` to also
+show for a 2D template's `source-material` swatches, plus `AppState.
+colorStoryId`/`APPLY_COLOR_STORY` so the applied story survives image
+re-simplification -- see EXP-006 in `docs/DECISIONS.md`) was reviewed by
+hand against the existing patterns it extends (the by-height gallery this
+narrows/reuses, and `resizeSwatches`'s precedent for keeping colors
+in sync across regeneration), and unit tests (`appState.test.ts`,
+`YarnColorsGroup.test.tsx`) plus one Playwright spec
+(`e2e/color-story-2d-template.spec.ts`, following `palette-picker.spec.ts`
+and `image-workflow.spec.ts`'s existing conventions) were written but not
+run. **Next networked session's mandatory first step:** `npm install &&
+npm run typecheck && npm run lint && npm run test && npm run test:e2e`,
+checking in particular that the new e2e spec's `#image-smoothing` input
+event actually re-triggers the debounced image-processing effect (the
+existing specs in this file don't exercise a range input, so this is the
+one part of the new coverage with no prior working example to model
+exactly).
+
 ## Session 1 (prior, sandboxed): what was reviewed manually
 
 This MVP was originally built in a sandboxed session with no outbound
@@ -954,3 +1004,42 @@ blocking + 1 high + 3 medium + 2 low severity issues, and a manual
 scripting-mistake scan). All of that is superseded by the actual compiler/
 test-runner/browser results in this document, which is the first time any
 of it has actually been executed.
+
+## Session 13: EXP-007 fit-to-screen preview pan/zoom (sandboxed, not executed)
+
+This worktree had no `node_modules` and no network access (see CLAUDE.md's
+"Known environment limitation"), so `npm install` and every command below
+could not be run in this session:
+
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test`
+- `npm run build`
+- `npm run test:e2e`
+
+Implemented EXP-007 ("ship fit-to-screen default plus pan and zoom as a
+standalone release"): `PatternCanvas.tsx` now renders its `<img>` through a
+new `PatternPreview.tsx`, which opens the pattern scaled to fit the current
+viewport (plain CSS `object-fit: contain`, not a computed scale) with a
+visible "Fit to screen" control, wheel/pinch zoom, and pointer-drag pan.
+The zoom/pan arithmetic is factored into `patternPreviewGestures.ts`,
+covered by `src/components/__tests__/patternPreviewGestures.test.ts` (pure
+functions, no DOM dependency). `src/components/__tests__/PatternPreview.
+test.tsx` covers what jsdom can exercise of the component itself (render,
+Fit-button enabled/disabled state, wheel-driven zoom); the pointer-driven
+pan gesture itself is authored but unexecuted in
+`e2e/pattern-preview-pan-zoom.spec.ts` (jsdom implements neither
+`PointerEvent` nor `ResizeObserver`, so it's real-browser-only).
+`src/analytics/fitToScreenPreview.ts` self-assigns every session into a
+single `fit` variant so `track()` stamps `experimentRef: 'EXP-007'` on this
+release window's events, without touching any `track*` call site; covered
+by `src/analytics/__tests__/fitToScreenPreview.test.ts` and an added case
+in `src/analytics/__tests__/index.test.ts`. `docs/ANALYTICS.md`,
+`docs/DECISIONS.md`, `docs/ARCHITECTURE.md`, `docs/USER_GUIDE.md`, and
+`README.md` were updated accordingly.
+
+All source was written to compile and pass under the exact dependency
+versions pinned in `package.json`; a future networked session should run
+`npm install && npm run verify` (and `npm run test:e2e` where a browser is
+available) and update this section with the actual results, per CLAUDE.md's
+"never report a check as passing without having actually run it."

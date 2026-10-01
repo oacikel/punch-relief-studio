@@ -1,9 +1,9 @@
-import type { CSSProperties } from 'react';
 import type { RegionMap } from '@/domain/types';
 import type { LegendEntry } from '@/domain/pattern/legend';
 import type { ContourSource, PatternView } from '@/export/svgPattern';
 import type { PunchGuideSettings } from '@/domain/pattern/punchGuide';
 import { usePatternSvgUrl } from '@/hooks/usePatternSvgUrl';
+import { PatternPreview } from '@/components/PatternPreview';
 
 interface Props {
   regionMap: RegionMap;
@@ -24,6 +24,9 @@ interface Props {
    * When false, the image renders at full column width with no height cap
    * (the prior, always-on behavior) -- a deliberate "Zoom in" choice. */
   fit?: boolean;
+  /** Keeps the surrounding EXP-009 Fit/Zoom control in sync when the
+   * richer EXP-007 viewer changes modes from a gesture or its reset button. */
+  onFitChange?: (fit: boolean) => void;
 }
 
 /**
@@ -31,7 +34,10 @@ interface Props {
  * injecting markup into the DOM directly (no dangerouslySetInnerHTML
  * anywhere in this app, per CLAUDE.md/security constraints, even though
  * this SVG is entirely app-generated from numeric data and never contains
- * user-supplied text).
+ * user-supplied text). The `<img>` itself lives inside `PatternPreview`
+ * (EXP-007 -- see docs/ANALYTICS.md), which opens fit-to-screen and adds
+ * pan/pinch/scroll zoom on top of it; this component's own job is still
+ * just building the blob URL from `regionMap`/`legend`/the display options.
  */
 export function PatternCanvas({
   regionMap,
@@ -45,6 +51,7 @@ export function PatternCanvas({
   contourSource,
   punchGuide,
   fit = true,
+  onFitChange,
 }: Props): JSX.Element {
   // exactOptionalPropertyTypes forbids assigning `undefined` to an
   // optional field -- omit `punchGuide` entirely when this component
@@ -61,24 +68,12 @@ export function PatternCanvas({
     ...(punchGuide ? { punchGuide } : {}),
   });
 
-  // EXP-009: `fit`'s two branches are typed as `CSSProperties` explicitly --
-  // object-literal spreads inside a ternary don't pick up the contextual
-  // type of the outer `style` object, so without this, `objectFit`'s value
-  // would widen to `string` and fail the `CSSProperties['objectFit']`
-  // literal-union check below.
-  const fitStyle: CSSProperties = fit ? { maxHeight: '65vh', objectFit: 'contain' } : {};
-
   return (
-    <img
-      src={url ?? undefined}
+    <PatternPreview
+      src={url}
       alt={`Punch-needle pattern, ${view} view, ${widthCm} by ${heightCm} centimetres`}
-      style={{
-        width: '100%',
-        border: '1px solid var(--color-border)',
-        borderRadius: 6,
-        background: '#f7f3ec',
-        ...fitStyle,
-      }}
+      fit={fit}
+      {...(onFitChange ? { onFitChange } : {})}
     />
   );
 }
