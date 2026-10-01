@@ -62,6 +62,12 @@ export default function App(): JSX.Element {
   const viewportHandle = useRef<Viewport3DHandle | null>(null);
   const { process, processImage } = useProcessingWorker();
   const imageProcessGeneration = useRef(0);
+  // Read inside the image-processing effect below instead of listing
+  // state.colorStoryId as a dependency -- applying a color story shouldn't
+  // itself trigger a full image re-simplification (it only needs to be
+  // picked up the next time some other setting change re-simplifies).
+  const colorStoryIdRef = useRef(state.colorStoryId);
+  colorStoryIdRef.current = state.colorStoryId;
 
   // EXP-003 ("clarify the single-viewpoint preview"): whether this session
   // gets the fuller expectation-setting notice on the Import/Orient step
@@ -379,14 +385,28 @@ export default function App(): JSX.Element {
             },
           });
           if (result.palette && result.palette.length > 0) {
-            dispatch({
-              type: 'SET_SWATCHES',
-              swatches: result.palette.map((color, index) => ({
-                index,
-                color,
-                yarnName: `Image color ${index + 1}`,
-              })),
-            });
+            const detected = result.palette.map((color, index) => ({
+              index,
+              color,
+              yarnName: `Image color ${index + 1}`,
+            }));
+            // Re-simplifying an image (any settings change re-runs this
+            // effect) recomputes the auto-detected palette from scratch --
+            // if a color-story palette is active, reapply it to the fresh
+            // swatch list instead of reverting to the auto-detected colors,
+            // so the chosen scheme survives routine regeneration.
+            const activeStory = colorStoryIdRef.current
+              ? getPaletteById(colorStoryIdRef.current)
+              : undefined;
+            if (activeStory) {
+              dispatch({
+                type: 'APPLY_COLOR_STORY',
+                paletteId: activeStory.id,
+                swatches: applyPaletteToSwatches(detected, activeStory),
+              });
+            } else {
+              dispatch({ type: 'SET_SWATCHES', swatches: detected });
+            }
           }
           markPatternCompletedIfFirst();
         })
@@ -717,7 +737,8 @@ export default function App(): JSX.Element {
                 const palette = getPaletteById(paletteId);
                 if (!palette) return;
                 dispatch({
-                  type: 'SET_SWATCHES',
+                  type: 'APPLY_COLOR_STORY',
+                  paletteId: palette.id,
                   swatches: applyPaletteToSwatches(state.swatches, palette),
                 });
               }}

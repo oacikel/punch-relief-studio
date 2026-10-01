@@ -43,7 +43,8 @@ browser is available). Once captured they'll live in `docs/screenshots/`.
 - Combined `C{n}-H{n}` region identity so the pattern never relies on color
   alone.
 - Pattern views: combined / color-only / height-only / contour, with grid,
-  legend, scale bar, and registration marks.
+  legend, scale bar, and registration marks. The preview opens fit to the
+  screen, with pan and pinch/scroll zoom for checking detail.
 - Finished-piece simulation built from the same quantized data as the
   pattern (not the raw mesh), with loop/cut-pile presets and adjustable
   lighting.

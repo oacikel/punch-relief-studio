@@ -18,12 +18,25 @@
  *   meant to move (`pattern_completed` -> `export_succeeded`/`export_failed`,
  *   per docs/ANALYTICS.md) has something to be compared against.
  *
- * The variant is written into the same sessionStorage slot `source.ts`
- * caches landing experiment context in, so `track()` attaches
- * `experimentRef: 'EXP-003'` + `variant` to every product event with no
- * change at any call site and no new event names. A link-provided experiment
- * still always wins, and the assignment is session-scoped rather than
- * visitor-scoped so nothing durable is written before consent.
+ * Mechanically identical to EXP-004's self-assignment (see `experiment.ts`
+ * for the full account): the variant is written into the same sessionStorage
+ * slot `source.ts` caches landing experiment context in, so `track()`
+ * attaches `experimentRef: 'EXP-003'` + `variant` to every product event with
+ * no change at any call site and no new event names. A link-provided
+ * experiment still always wins, and the assignment is session-scoped rather
+ * than visitor-scoped so nothing durable is written before consent.
+ *
+ * **Only one self-assigned experiment can be live at a time.** An event
+ * carries a single `experimentRef`, and a session has a single slot for it,
+ * so EXP-003, EXP-004 and EXP-007 cannot both/all label the same events.
+ * `initAnalytics()` assigns the live one first and every later assignment is
+ * then a no-op (the slot is full).
+ *
+ * **Currently active** -- EXP-007's standalone release window has ended, while
+ * its fit/pan/zoom behavior remains shipped. `initAnalytics()` now calls this
+ * module's assignment so EXP-003 owns the single experiment slot unless a
+ * landing link already supplied another experiment. See docs/ANALYTICS.md and
+ * docs/DECISIONS.md.
  */
 import { generateRandomId } from '@/analytics/ids';
 import { getCachedExperiment, writeExperimentContext } from '@/analytics/source';
@@ -55,11 +68,10 @@ export function pickPreviewExpectationsVariant(
 
 /**
  * Enrolls this session in EXP-003 unless it is already in some experiment --
- * a landing `?exp=` link, or another self-assigned experiment that ran
- * first. Called from `initAnalytics()` immediately after
- * `captureLandingContext()`, under the same guards (analytics configured and
- * Global Privacy Control absent), so an unconfigured build still writes no
- * storage keys at all.
+ * a landing `?exp=` link, or another self-assigned experiment that ran first.
+ * Called from `initAnalytics()` immediately after `captureLandingContext()`,
+ * under the same guards (analytics configured and Global Privacy Control
+ * absent), so an unconfigured build still writes no storage keys at all.
  */
 export function assignPreviewExpectationsExperiment(
   storage: Storage = window.sessionStorage,

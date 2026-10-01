@@ -2442,6 +2442,54 @@ measurement and not the variant) -- those decisions were argued once
    shipped before this change, and the experiment measures copy rather than
    copy plus a layout change that arrived with it.
 
+## EXP-007 -- fit-to-screen preview plus pan/zoom, shipped as a standalone release
+
+Task brief: find out whether the pattern preview's framing/legibility moves
+export success at all, and get a clean baseline for a queued follow-up
+preview-clarity experiment. Change: the preview (`PatternCanvas.tsx`) now
+opens scaled so the whole pattern fits the current viewport by default,
+with a visible "Fit to screen" control, and pointer-drag pan plus
+wheel/pinch/scroll zoom for looking at detail.
+
+Two decisions worth recording:
+
+1. **Standalone release, not an A/B split.** Every other self-assigned
+   experiment in this codebase withholds the change from a control group
+   measured concurrently. This one ships to 100% of sessions during the
+   release window instead -- there is no old-behaviour branch worth
+   keeping around to compare against, since the whole point is "does
+   fit-to-screen framing move the number at all", not "which of two
+   framings wins". It's measured pre/post instead: the owner manually
+   counts `export_succeeded`/`export_failed` for the release window and an
+   equal-length window immediately before it, using the metric key that
+   already exists (`docs/ANALYTICS.md`). Fewer than 15 attempts across 3
+   weeks in the post window is defined as underpowered -- read as
+   inconclusive, not as a negative result.
+2. **Self-assignment still exists, with one variant.** Even though nothing
+   branches on it, `src/analytics/fitToScreenPreview.ts` self-assigns every
+   session into a single `fit` variant so `track()` stamps `experimentRef:
+'EXP-007'` on this release window's events -- the only mechanism that
+   lets the pre/post windows be told apart after the fact (pre-release
+   events simply predate this file and carry no `experimentRef`). It
+   defers to a landing `?exp=` link the same way every other self-assigned
+   experiment here does, so a session recruited into some other named
+   experiment via a link is left alone.
+
+The fit-to-screen default is plain CSS (`object-fit: contain` on a
+fixed-height box, `.pattern-preview-viewport` in `styles.css`), not a
+computed scale factor -- it does the "whole pattern visible" job for any
+pattern aspect ratio with no JS. Zoom/pan are layered on top of that base
+fit as a `transform: translate(...) scale(...)` on the `<img>` itself:
+`zoom === 1` means exactly the CSS fit, so "Fit to screen" is just
+resetting zoom/offset back to their defaults, and panning is disabled
+(nothing to pan to) until zoomed in past that point. The arithmetic
+(clamping, wheel-delta zoom, pinch-distance-ratio zoom, drag-offset pan) is
+factored into a pure module, `src/components/patternPreviewGestures.ts`,
+specifically so it's unit-testable -- jsdom implements neither
+`PointerEvent` nor `ResizeObserver`, so the pointer-driven pan/pinch
+gestures themselves are covered only in `e2e/pattern-preview-pan-zoom.spec.ts`,
+a real-browser test.
+
 ## EXP-004: first-project guide shown once, above the Workspace rail
 
 Experiment, testing the hypothesis "a short, contextual guide will help
@@ -2469,3 +2517,42 @@ landing-context capture, unchanged by this experiment) -- inventing a
 guide-specific event here would mean extending the local contract mirror
 (`src/analytics/contract.ts`) with a shape the real VenturePilot ingest
 endpoint doesn't yet accept.
+
+## EXP-006: color story palettes offered to 2D templates too
+
+Experiment, testing whether letting a 2D template (image import) use one
+of the bundled "color story" palettes on its "Simplified image palette"
+swatches makes people more likely to finish a pattern. **This narrows, but
+does not reverse, the "Yarn color-story palettes (#7)" decision above**:
+that decision's "source-material mode's swatches are meant to approximate
+the model's actual captured surface colors" reasoning still holds for a
+real 3D model (a photographed/textured mesh) and that path is unchanged --
+the gallery stays hidden there. A 2D template's "source-material" swatches
+are different in kind: they're an auto-_simplified_ palette extracted from
+flat starter art, not a physically captured surface, so swapping in a
+tasteful bundled scheme is a reasonable creative option rather than a
+data-fidelity loss. `YarnColorsGroup.tsx`'s gallery condition becomes
+`mode === 'by-height' || (isImageSource && mode === 'source-material')`.
+
+**Surviving re-simplification.** A 2D template's swatches are normally
+overwritten wholesale on every successful re-simplification (any relief-
+setting or palette-size change re-runs the image pipeline and recomputes
+the auto-detected palette from scratch) -- fine when nothing else has been
+chosen, but it would silently discard an applied color story the next time
+the user adjusts an unrelated slider. `AppState.colorStoryId` (`src/state/
+appState.ts`) tracks which bundled palette, if any, is currently applied;
+a new `APPLY_COLOR_STORY` action sets it alongside the recolored swatches,
+while plain `SET_SWATCHES` (a hand edit, or the auto-detected palette with
+no story chosen) clears it, and a fresh `SET_SOURCE` (a new import) clears
+it too, so a story doesn't unexpectedly carry over onto a different image.
+`App.tsx`'s image-processing success handler reapplies the active story
+(by re-running `applyPaletteToSwatches` against the freshly detected
+swatch list) instead of using the raw auto-detected colors, whenever
+`colorStoryId` is set -- read via a ref (`colorStoryIdRef`), not a
+dependency of that effect, since applying a story is not itself a reason
+to re-simplify the image.
+
+No new analytics event was added: `project_created`/`pattern_completed`/
+`export_succeeded` already cover the funnel this experiment is measured
+against, and already carry `experimentRef` for sessions landing on
+`?exp=EXP-006`, same precedent as EXP-004 above.

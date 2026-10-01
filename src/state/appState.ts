@@ -111,6 +111,15 @@ export interface AppState {
   reliefSettings: ReliefSettings;
   colorMode: ColorMode;
   swatches: ColorSwatch[];
+  /** Id of the bundled color-story palette (`src/domain/color/palettes.ts`)
+   * currently applied to `swatches`, or null if the swatches are either
+   * hand-edited or, for an image source, still the raw auto-detected
+   * palette. Lets a 2D template's re-simplification (which recomputes the
+   * auto-detected palette from scratch on every settings change) keep
+   * reapplying the chosen color scheme instead of silently reverting to
+   * the auto colors -- see the image-processing success handler in
+   * App.tsx. */
+  colorStoryId: string | null;
   paletteSize: number;
   processed: ProcessedResult | null;
   processing: boolean;
@@ -135,6 +144,7 @@ export type AppAction =
   | { type: 'SET_COLOR_MODE'; mode: ColorMode }
   | { type: 'SET_PALETTE_SIZE'; size: number }
   | { type: 'SET_SWATCHES'; swatches: ColorSwatch[] }
+  | { type: 'APPLY_COLOR_STORY'; paletteId: string; swatches: ColorSwatch[] }
   | { type: 'PROCESSING_STARTED' }
   | { type: 'PROCESSING_SUCCEEDED'; result: ProcessedResult }
   | { type: 'PROCESSING_FAILED'; message: string }
@@ -210,6 +220,7 @@ export function initialAppState(): AppState {
     reliefSettings: { ...DEFAULT_RELIEF_SETTINGS },
     colorMode: 'single',
     swatches: [{ index: 0, color: DEFAULT_SINGLE_COLOR, yarnName: 'Yarn 1' }],
+    colorStoryId: null,
     paletteSize: 4,
     processed: null,
     processing: false,
@@ -259,6 +270,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         // Viewport3D's own former local-state reset-on-new-geometry
         // behavior, now expressed here since the state lives in AppState).
         modelRotationDeg: { ...ZERO_ROTATION },
+        // A new import's colors start from its own auto-detected/default
+        // palette, not a color story carried over from whatever was
+        // loaded before.
+        colorStoryId: null,
       };
     case 'SET_RELIEF_SETTINGS':
       return { ...state, reliefSettings: { ...state.reliefSettings, ...action.settings } };
@@ -275,7 +290,14 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_PALETTE_SIZE':
       return { ...state, paletteSize: action.size };
     case 'SET_SWATCHES':
-      return { ...state, swatches: action.swatches };
+      // A direct, hand-made swatch edit (or an auto-detected image palette
+      // with no color story chosen) is no longer "the story" -- clears any
+      // previously applied colorStoryId so a later re-simplification
+      // doesn't stomp on it. APPLY_COLOR_STORY is the action that keeps a
+      // story alive across re-simplification.
+      return { ...state, swatches: action.swatches, colorStoryId: null };
+    case 'APPLY_COLOR_STORY':
+      return { ...state, swatches: action.swatches, colorStoryId: action.paletteId };
     case 'PROCESSING_STARTED':
       return { ...state, processing: true, processingError: null };
     case 'PROCESSING_SUCCEEDED': {
