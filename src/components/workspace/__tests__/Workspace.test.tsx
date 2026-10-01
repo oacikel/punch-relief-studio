@@ -185,6 +185,35 @@ describe('Workspace', () => {
       expect(screen.getByText(/Export options will appear as soon as/)).toBeInTheDocument();
     });
   });
+
+  describe('EXP-011: express lane (one screen from import to export)', () => {
+    it('defaults to the gated rail when the prop is omitted', () => {
+      render(<Workspace {...baseProps()} />);
+      expect(screen.queryByRole('navigation', { name: 'Pattern setup steps' })).toBeInTheDocument();
+    });
+
+    it('renders Shape, Yarn and the export placeholder together, with no step nav or Back/Continue', () => {
+      render(<Workspace {...baseProps()} expressLane={true} />);
+
+      expect(
+        screen.queryByRole('navigation', { name: 'Pattern setup steps' }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Back/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Continue to/ })).not.toBeInTheDocument();
+
+      expect(screen.getByRole('heading', { name: 'Shape the relief' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Choose your yarn' })).toBeInTheDocument();
+      expect(screen.getByText(/Export options will appear as soon as/)).toBeInTheDocument();
+    });
+
+    it('shows the export panel immediately once a result exists, with no click required', () => {
+      render(<Workspace {...readyProps()} expressLane={true} />);
+
+      expect(screen.getByRole('heading', { name: 'Shape the relief' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Choose your yarn' })).toBeInTheDocument();
+      expect(screen.getByText('Export & print')).toBeInTheDocument();
+    });
+  });
 });
 
 function makeRegionMap(): RegionMap {

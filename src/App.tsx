@@ -8,6 +8,7 @@ import {
   initAnalytics,
   shouldMoveYarnColorsEarlier,
   shouldShowPreviewExpectations,
+  shouldUseExpressLane,
   trackPageViewed,
   trackPatternCompleted,
   trackProjectCreated,
@@ -85,17 +86,27 @@ export default function App(): JSX.Element {
   // Workspace stage first renders.
   const [moveYarnColorsEarlier, setMoveYarnColorsEarlier] = useState(false);
 
+  // EXP-011 ("Express lane: one screen from import to export, with Export
+  // always visible"): whether this session's Workspace renders Shape, Yarn
+  // and Export together on one screen instead of the gated three-step rail.
+  // Link-only (src/analytics/expressLane.ts), read directly from the
+  // current URL as well as any cached landing context, so it applies
+  // whether or not analytics is configured for this test build.
+  const [expressLane, setExpressLane] = useState(false);
+
   // T10 analytics: a no-op unless VITE_VP_INGEST_URL/VITE_VP_PROJECT_TOKEN
   // are set at build time -- see src/analytics/config.ts and
   // docs/ANALYTICS.md. `page_viewed{path:"/"}` fires once, at mount.
   // `initAnalytics()` also assigns the session's experiment variant, so it
   // must stay ahead of the first event and both variant reads below. EXP-002
   // is live; EXP-003 is dormant, so its UI helper returns the shipped notice.
+  // EXP-011 is link-only and read independently of analytics configuration.
   useEffect(() => {
     initAnalytics();
     trackPageViewed('/');
     setMoveYarnColorsEarlier(shouldMoveYarnColorsEarlier());
     setPreviewExpectationsEnabled(shouldShowPreviewExpectations());
+    setExpressLane(shouldUseExpressLane());
   }, []);
 
   // `pattern_completed{durationSeconds}` fires once per project, on the
@@ -727,6 +738,7 @@ export default function App(): JSX.Element {
               isImageSource={state.sourceKind === 'image-file'}
               sourceImageUrl={imagePreviewUrl}
               moveYarnColorsEarlier={moveYarnColorsEarlier}
+              expressLane={expressLane}
               reliefSettings={state.reliefSettings}
               onReliefSettingsChange={(patch) =>
                 dispatch({ type: 'SET_RELIEF_SETTINGS', settings: patch })

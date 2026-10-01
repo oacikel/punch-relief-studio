@@ -31,6 +31,7 @@ import {
 import { captureLandingContext, getCachedExperiment, getCachedSource } from '@/analytics/source';
 import { assignPaletteOrderExperiment, getPaletteOrderVariant } from '@/analytics/paletteOrder';
 import { getPreviewExpectationsVariant } from '@/analytics/previewExpectations';
+import { getExpressLaneVariant } from '@/analytics/expressLane';
 import { enqueueEvent, clearQueue } from '@/analytics/queue';
 import { flushQueue } from '@/analytics/transport';
 import { startFlushScheduler } from '@/analytics/scheduler';
@@ -95,6 +96,21 @@ export function isAnalyticsAllowed(): boolean {
  */
 export function shouldMoveYarnColorsEarlier(): boolean {
   return getPaletteOrderVariant() === 'earlier';
+}
+
+/**
+ * EXP-011: whether this session should see the one-screen "express" editor
+ * (Shape, Yarn and Export all rendered together, Export visible from the
+ * first render) instead of today's gated three-step rail. Link-only --
+ * see `expressLane.ts` -- so this reads whichever of a `?exp=EXP-011&v=...`
+ * link or a cached landing context names the variant, and does *not*
+ * require analytics to be configured: the task brief's collection plan
+ * falls back to a hand-tallied post-session form precisely when ingest
+ * isn't configured for the test build, so which screen a recruited maker
+ * sees can't depend on that.
+ */
+export function shouldUseExpressLane(): boolean {
+  return getExpressLaneVariant() === 'express';
 }
 
 /** User clicked "Allow". Only now does an anonymous ID get created. */

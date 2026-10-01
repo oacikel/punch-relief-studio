@@ -1043,3 +1043,40 @@ versions pinned in `package.json`; a future networked session should run
 `npm install && npm run verify` (and `npm run test:e2e` where a browser is
 available) and update this section with the actual results, per CLAUDE.md's
 "never report a check as passing without having actually run it."
+
+## Session 16: EXP-011, express lane (sandboxed, not executed)
+
+This worktree had no `node_modules`, and installing was outside this
+session's allowed actions (no network access; running `npm install` was
+explicitly denied), so none of `npm run typecheck`, `npm run lint`,
+`npm run test`, `npm run build`, or `npm run test:e2e` could be run or
+their output captured here -- same constraint as Sessions 13/14 above.
+
+Implemented EXP-011 ("Express lane: one screen from import to export, with
+Export always visible"): `src/analytics/expressLane.ts` (new -- the
+link-only variant read, with no self-assignment module; see its own doc
+comment and docs/DECISIONS.md for why this experiment has no 50/50 split),
+wired into `src/analytics/index.ts` (`shouldUseExpressLane`) and
+`App.tsx` (read once at mount, passed to `Workspace` as `expressLane`).
+`src/components/workspace/Workspace.tsx`'s `expressLane` prop renders
+Shape, Yarn and the Export section together on one scroll -- no step nav,
+no Back/Continue gating, `ExportPanel` rendered (forced open, as before)
+as soon as a result exists rather than only after clicking into the Export
+step -- with every existing render site defaulting the prop to `false` (no
+change to today's gated rail). `docs/ANALYTICS.md` and `docs/DECISIONS.md`
+were updated accordingly.
+
+Tests were authored alongside the change but are unexecuted, reviewed by
+hand against this codebase's existing patterns rather than run:
+`src/analytics/__tests__/expressLane.test.ts` (variant resolution: link
+parsing, cached-context precedence, unconfigured/GPC fallback, unrelated
+experiment, unknown variant slug); a new `describe` block added to
+`src/components/workspace/__tests__/Workspace.test.tsx` (default-to-`rail`
+unchanged, the `express` layout's section headings/absent nav/absent
+Back-Continue, and the export panel appearing unclicked once a result
+exists); and `e2e/express-lane.spec.ts` (no link, the `rail` link, and the
+`express` link end-to-end through a real sample import).
+
+A future networked session should run `npm install && npm run verify`
+(and `npm run test:e2e` where a browser is available) and update this
+section with the actual results.

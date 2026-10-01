@@ -2615,3 +2615,53 @@ computed in `App.tsx` from `colorStoryUndo`/`originalSwatches`). No new
 analytics event was added -- this experiment's own collection method is a
 scripted manual task run with the owner tallying attempts and successful
 in-app reverts in a plain notes file, not product analytics.
+
+## EXP-011: "Express lane: one screen from import to export, with Export always visible"
+
+Task brief: find out whether the Workspace rail's step gating itself -- not
+the exported output -- is what's suppressing completed exports, by
+recruiting 8-12 makers directly and giving each a link to one of two
+builds. Implementation: `src/analytics/expressLane.ts` (variant read) plus
+`src/components/workspace/Workspace.tsx` (an `expressLane` prop that
+renders Shape, Yarn and Export together on one scroll instead of gating
+them behind `editorStep`/Back/Continue -- see docs/ANALYTICS.md for the
+measurement). Three decisions worth recording:
+
+1. **Link-only, no self-assignment module.** Every earlier self-assigned
+   experiment in this codebase (EXP-002/003/004/007) splits organic
+   traffic 50/50 and defers to a landing `?exp=` link only when one is
+   present. EXP-011 has no organic traffic to split -- the task brief's
+   audience is a hand-picked list of 8-12 makers, each sent one of
+   `?exp=EXP-011&v=rail` or `?exp=EXP-011&v=express` -- so there's no
+   `pickExpressLaneVariant`/`assignExpressLaneExperiment` pair, just
+   `getExpressLaneVariant()` reading whichever link a maker actually
+   clicked. This is the same posture EXP-002/003 themselves started from,
+   before either grew a self-assigning fallback for later, broader
+   measurement; EXP-011 simply never needs that second phase.
+2. **The variant read doesn't require analytics to be configured.** Every
+   other variant reader (`getPaletteOrderVariant`, etc.) only ever sees a
+   non-empty cache when `captureLandingContext()` ran, which itself only
+   happens when `isAnalyticsConfigured()` -- fine for those, since an
+   unconfigured build has nothing to measure either way, so falling back to
+   the pre-experiment behavior is correct. EXP-011's own collection plan is
+   "count `export_succeeded`/`export_failed` from analytics events if
+   ingest is configured in the test build, and otherwise tally completed
+   exports by hand from a post-session form" -- a maker on the `express`
+   link has to actually see the express build regardless of whether this
+   particular test build happens to have ingest configured, or the
+   hand-tally fallback would be measuring the wrong thing. So
+   `getExpressLaneVariant()` falls back to parsing `exp`/`v` off
+   `location.search` directly when nothing is cached (unconfigured build,
+   or a GPC session where `captureLandingContext()` is skipped), rather
+   than defaulting to `rail` the way every other reader's unconfigured
+   fallback does.
+3. **Defaults to `rail`, not `express`.** Same reasoning as EXP-002's
+   default (see above): this reorders/regroups the rail's existing,
+   numbered steps, which e2e specs and the EXP-002/EXP-004 rail-heading
+   copy already assume a fixed, gated shape for. A session with no
+   `?exp=EXP-011` link -- including every session on the public build
+   outside this recruiting window -- keeps the gated rail unchanged.
+
+No new analytics events or fields; measured from the existing
+`export_succeeded`/`export_failed` events, split by `variant`, exactly as
+the task brief's collection plan describes.
