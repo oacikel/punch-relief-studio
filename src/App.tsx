@@ -6,6 +6,8 @@ import { ModelBar } from '@/components/ModelBar';
 import { PrivacyControl } from '@/components/PrivacyControl';
 import {
   initAnalytics,
+  shouldMoveYarnColorsEarlier,
+  shouldShowPreviewExpectations,
   trackPageViewed,
   trackPatternCompleted,
   trackProjectCreated,
@@ -68,12 +70,32 @@ export default function App(): JSX.Element {
   const colorStoryIdRef = useRef(state.colorStoryId);
   colorStoryIdRef.current = state.colorStoryId;
 
+  // EXP-003 ("clarify the single-viewpoint preview"): whether this session
+  // gets the fuller expectation-setting notice on the Import/Orient step
+  // instead of the one-line version. Read once at mount, since the variant
+  // is fixed for the session (src/analytics/previewExpectations.ts) and has
+  // to be known before the person can reach that step, which is any time
+  // after the first import.
+  const [previewExpectationsEnabled, setPreviewExpectationsEnabled] = useState(false);
+
+  // EXP-002 ("move yarn palette selection earlier"): whether this session's
+  // Workspace rail shows the Yarn step before the Shape step. Read once at
+  // mount -- the variant is fixed for the session
+  // (src/analytics/paletteOrder.ts), and it has to be known before the
+  // Workspace stage first renders.
+  const [moveYarnColorsEarlier, setMoveYarnColorsEarlier] = useState(false);
+
   // T10 analytics: a no-op unless VITE_VP_INGEST_URL/VITE_VP_PROJECT_TOKEN
   // are set at build time -- see src/analytics/config.ts and
   // docs/ANALYTICS.md. `page_viewed{path:"/"}` fires once, at mount.
+  // `initAnalytics()` also assigns the session's experiment variant, so it
+  // must stay ahead of the first event and both variant reads below. EXP-002
+  // is live; EXP-003 is dormant, so its UI helper returns the shipped notice.
   useEffect(() => {
     initAnalytics();
     trackPageViewed('/');
+    setMoveYarnColorsEarlier(shouldMoveYarnColorsEarlier());
+    setPreviewExpectationsEnabled(shouldShowPreviewExpectations());
   }, []);
 
   // `pattern_completed{durationSeconds}` fires once per project, on the
@@ -696,6 +718,7 @@ export default function App(): JSX.Element {
             state.sourceKind !== 'image-file' && (
               <ImportOrientSection
                 onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
+                showPreviewExpectations={previewExpectationsEnabled}
               />
             )}
 
@@ -703,6 +726,7 @@ export default function App(): JSX.Element {
             <Workspace
               isImageSource={state.sourceKind === 'image-file'}
               sourceImageUrl={imagePreviewUrl}
+              moveYarnColorsEarlier={moveYarnColorsEarlier}
               reliefSettings={state.reliefSettings}
               onReliefSettingsChange={(patch) =>
                 dispatch({ type: 'SET_RELIEF_SETTINGS', settings: patch })

@@ -200,7 +200,11 @@ describe('appReducer', () => {
         paletteId: 'terrain',
         swatches: terrainSwatches,
       });
-      state = appReducer(state, { type: 'SET_SOURCE', sourceKind: 'image-file', filename: 'x.png' });
+      state = appReducer(state, {
+        type: 'SET_SOURCE',
+        sourceKind: 'image-file',
+        filename: 'x.png',
+      });
       expect(state.colorStoryUndo).toBeNull();
       expect(state.originalSwatches).toBeNull();
     });

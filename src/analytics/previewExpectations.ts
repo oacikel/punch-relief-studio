@@ -32,13 +32,10 @@
  * `initAnalytics()` assigns the live one first and every later assignment is
  * then a no-op (the slot is full).
  *
- * **Currently dormant** -- EXP-007 (`fitToScreenPreview.ts`) is the live
- * self-assigned experiment as of its release window. The notice still shows
- * for everyone (an unassigned session falls back to `expectations`, see
- * `getPreviewExpectationsVariant` below); only the comparison against
- * `control` stops for the duration. Nothing in this file needed changing to
- * resume EXP-003; that's one line in `index.ts`. See docs/ANALYTICS.md and
- * docs/DECISIONS.md.
+ * **Currently dormant** -- the clearer notice remains shipped through the
+ * unassigned-session fallback below, but EXP-002 now owns the live experiment
+ * slot. This assignment can be reactivated from `initAnalytics()` after that
+ * measurement window ends. See docs/ANALYTICS.md and docs/DECISIONS.md.
  */
 import { generateRandomId } from '@/analytics/ids';
 import { getCachedExperiment, writeExperimentContext } from '@/analytics/source';

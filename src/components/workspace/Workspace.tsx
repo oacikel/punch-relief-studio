@@ -31,9 +31,20 @@ import { FirstProjectGuide } from '@/components/workspace/FirstProjectGuide';
 type PreviewTab = 'source' | 'pattern' | 'simulation';
 type EditorStep = 'shape' | 'color' | 'export';
 
-const EDITOR_STEPS: Array<{ id: EditorStep; number: string; label: string }> = [
+/** Default order -- EXP-002's `control` variant, and every session that
+ * isn't enrolled in it (see `moveYarnColorsEarlier` below). */
+const EDITOR_STEPS_CONTROL: Array<{ id: EditorStep; number: string; label: string }> = [
   { id: 'shape', number: '1', label: 'Shape' },
   { id: 'color', number: '2', label: 'Yarn' },
+  { id: 'export', number: '3', label: 'Export' },
+];
+
+/** EXP-002's `earlier` variant -- Yarn moves ahead of Shape, on the
+ * hypothesis that choosing colors before depth tuning may reduce
+ * unfinished patterns. Only the first two steps swap; Export stays last. */
+const EDITOR_STEPS_EARLIER: Array<{ id: EditorStep; number: string; label: string }> = [
+  { id: 'color', number: '1', label: 'Yarn' },
+  { id: 'shape', number: '2', label: 'Shape' },
   { id: 'export', number: '3', label: 'Export' },
 ];
 
@@ -47,6 +58,11 @@ interface ProcessedForDisplay {
 interface Props {
   isImageSource?: boolean;
   sourceImageUrl?: string | null;
+  /** EXP-002: shows the Yarn step before the Shape step when true. App.tsx
+   * owns the variant read (`shouldMoveYarnColorsEarlier`); this component
+   * only renders what it's told to. Defaults to false so every existing
+   * render site (including tests) keeps today's order. */
+  moveYarnColorsEarlier?: boolean;
   reliefSettings: ReliefSettings;
   onReliefSettingsChange: (patch: Partial<ReliefSettings>) => void;
   processed: ProcessedForDisplay | null;
@@ -133,6 +149,7 @@ interface Props {
 export function Workspace({
   isImageSource = false,
   sourceImageUrl = null,
+  moveYarnColorsEarlier = false,
   reliefSettings,
   onReliefSettingsChange,
   processed,
@@ -176,9 +193,18 @@ export function Workspace({
   const [showGrid, setShowGrid] = useState(false);
   const [mirrored, setMirrored] = useState(false);
   const [previewTab, setPreviewTab] = useState<PreviewTab>('pattern');
-  const [editorStep, setEditorStep] = useState<EditorStep>('shape');
+  // EXP-002: which step order this session sees. Lazy-initialized from the
+  // prop so the first render already opens on the right step -- by the time
+  // the Workspace stage can be reached, App.tsx's mount effect has long
+  // since resolved `moveYarnColorsEarlier`.
+  const editorSteps = moveYarnColorsEarlier ? EDITOR_STEPS_EARLIER : EDITOR_STEPS_CONTROL;
+  const [editorStep, setEditorStep] = useState<EditorStep>(
+    moveYarnColorsEarlier ? 'color' : 'shape',
+  );
   const { showOnScreenLabels, punchGuide } = patternViewSettings;
-  const editorStepIndex = EDITOR_STEPS.findIndex((step) => step.id === editorStep);
+  const editorStepIndex = editorSteps.findIndex((step) => step.id === editorStep);
+  const shapeStepNumber = editorSteps.find((step) => step.id === 'shape')?.number ?? '1';
+  const colorStepNumber = editorSteps.find((step) => step.id === 'color')?.number ?? '2';
 
   // Written as `regionMap && processed &&` (not a separate boolean) at each
   // use site below so TypeScript's control-flow narrowing actually applies
@@ -231,7 +257,7 @@ export function Workspace({
           )}
 
           <nav className="editor-steps" aria-label="Pattern setup steps">
-            {EDITOR_STEPS.map((step) => (
+            {editorSteps.map((step) => (
               <button
                 key={step.id}
                 type="button"
@@ -259,6 +285,7 @@ export function Workspace({
                   onDimensionsChange={onDimensionsChange}
                   imageDetailSettings={imageDetailSettings}
                   onImageDetailSettingsChange={onImageDetailSettingsChange}
+                  stepNumber={shapeStepNumber}
                 />
               ) : (
                 <ReliefControls
@@ -271,6 +298,7 @@ export function Workspace({
                   onNeedleGeometryChange={onNeedleGeometryChange}
                   dimensions={dimensions}
                   onDimensionsChange={onDimensionsChange}
+                  stepNumber={shapeStepNumber}
                 />
               ))}
 
@@ -290,6 +318,7 @@ export function Workspace({
                 onUndoPalette={onUndoPalette}
                 canResetColors={canResetColors}
                 onResetColors={onResetColors}
+                stepNumber={colorStepNumber}
               />
             )}
 
@@ -333,17 +362,17 @@ export function Workspace({
           <button
             type="button"
             disabled={editorStepIndex === 0}
-            onClick={() => setEditorStep(EDITOR_STEPS[editorStepIndex - 1]?.id ?? 'shape')}
+            onClick={() => setEditorStep(editorSteps[editorStepIndex - 1]?.id ?? 'shape')}
           >
             Back
           </button>
-          {editorStepIndex < EDITOR_STEPS.length - 1 && (
+          {editorStepIndex < editorSteps.length - 1 && (
             <button
               type="button"
               className="primary-button"
-              onClick={() => setEditorStep(EDITOR_STEPS[editorStepIndex + 1]?.id ?? 'export')}
+              onClick={() => setEditorStep(editorSteps[editorStepIndex + 1]?.id ?? 'export')}
             >
-              Continue to {EDITOR_STEPS[editorStepIndex + 1]?.label}
+              Continue to {editorSteps[editorStepIndex + 1]?.label}
             </button>
           )}
         </div>

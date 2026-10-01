@@ -2390,6 +2390,87 @@ rejection, not surfaced to the user); wiring `export_failed` also fixed
 that, catching it and showing the existing warning-banner pattern already
 used for project-load errors.
 
+## EXP-002 ("move yarn palette selection earlier"): self-assigned, defaults to `control`
+
+`src/analytics/paletteOrder.ts` self-assigns a session into EXP-002's
+`earlier`/`control` split the same way the T10 landing-URL `?exp=` parser
+already labels link-recruited sessions (same sessionStorage slot, same
+`experimentRef`/`variant` fields on every event) -- the assignment just
+happens client-side, in `initAnalytics()`, since which order the Workspace
+rail opens in has to be decided before the person does anything, not
+inferred from a campaign link.
+
+Deliberate choice: an **unassigned** session (analytics unconfigured, GPC,
+or a link-provided different experiment) gets `control` -- today's
+Shape-then-Yarn order -- not the `earlier` treatment. This reorders the
+Workspace rail's existing, _numbered_ setup steps
+(`src/components/workspace/Workspace.tsx`'s
+`EDITOR_STEPS_CONTROL`/`EDITOR_STEPS_EARLIER`), which button labels
+("2 Yarn"), several e2e specs, and screenshots already assume a fixed
+position for. Shipping the reorder to every unmeasured session (including
+the public GitHub Pages build for as long as analytics stays unconfigured
+there) would be a real, permanent product change with no way to attribute
+its effect -- exactly the outcome self-assignment exists to avoid.
+Defaulting to `control` keeps every existing surface's behaviour unchanged
+outside of sessions actually enrolled in the measurement; only a session
+landing in the `earlier` half of a _configured_ build's 50/50 split ever
+sees Yarn before Shape. A future additive self-assigned experiment (new
+copy, a new panel with no dependents elsewhere) may reasonably choose the
+opposite default, the way T10's own inert-until-configured fallback works
+for the app's baseline behaviour -- this decision is scoped to EXP-002.
+
+## EXP-003: clarify the single-viewpoint preview (2026-09-28)
+
+Hypothesis under test: setting expectations _before_ the first preview will
+reduce confusion during export. The notice is
+`src/components/stages/PreviewExpectations.tsx`, the assignment is
+`src/analytics/previewExpectations.ts`, and the measurement is described in
+docs/ANALYTICS.md. It reuses the existing self-assignment pattern already
+established for the landing-URL `?exp=` parser (session-scoped, no new event
+names, control group only where the funnel is recorded, consent gating the
+measurement and not the variant) -- those decisions were argued once
+(see the analytics section above) and are not re-litigated here. What is new:
+
+1. **The notice replaces the one-line helper text rather than stacking on top
+   of it.** The Import/Orient step already said the output is "a
+   single-viewpoint relief rather than a full 3D reconstruction" -- which is
+   true, in-app, and evidently skippable. Keeping both would say the same
+   thing twice, once vaguely, and the vague version is the one that gets read.
+   The control variant keeps that line byte-for-byte, so what the experiment
+   varies is how concretely the limitation is stated, not how much text is on
+   the step.
+
+2. **It goes on the Import/Orient step, which is the only place "before the
+   preview" exists.** That step is the last screen before the Workspace, and
+   the model is still on screen and turnable there -- so each line pairs a
+   thing that will show up in the exported sheet with the action still
+   available (rotate now). The closing line names the export explicitly,
+   because export is where the hypothesis says the confusion surfaces. Nothing
+   is repeated in the Workspace: expectation-setting that follows you past the
+   thing it was setting expectations for is no longer expectation-setting.
+
+3. **No dismiss control.** This is a step's own copy, in the place the step
+   already explains itself; a dismiss button would imply it's in the way. It
+   is also not a gate -- "Create my pattern" is unchanged and unblocked,
+   asserted in the component test.
+
+4. **Image imports are enrolled but untreated, and that dilution is
+   accepted.** The Import/Orient step only exists for 3D models; an image
+   import goes straight to the Workspace, and a flat image has no hidden side
+   to set expectations about. `project_created.origin` cannot separate the two
+   (`"import"` covers both), so the only way to exclude image sessions from
+   the split is a new event field, for an experiment about 3D models. The bias
+   this introduces is toward _under_-stating any real effect, which is the
+   safe direction for a decision about whether to keep the copy.
+
+5. **The treatment's layout modifier is scoped to the treatment.** The notice
+   is several lines taller than the line it replaces, so
+   `.orient-actions--expanded` lets that row stack at narrow width instead of
+   squeezing the button. It is applied only when the notice renders, so the
+   control's layout -- including its narrow-screen layout -- is exactly what
+   shipped before this change, and the experiment measures copy rather than
+   copy plus a layout change that arrived with it.
+
 ## EXP-007 -- fit-to-screen preview plus pan/zoom, shipped as a standalone release
 
 Task brief: find out whether the pattern preview's framing/legibility moves
@@ -2513,13 +2594,13 @@ always get back to their starting colors without re-importing. Two new
 `colorStoryId`:
 
 - `colorStoryUndo` holds the swatches (and whichever story, if any, was
-  active) immediately before the *most recent* `APPLY_COLOR_STORY`, so a
+  active) immediately before the _most recent_ `APPLY_COLOR_STORY`, so a
   single "Undo `<name>`" click (`UNDO_COLOR_STORY`) restores exactly that --
   true one-level undo, not a full history stack. It's cleared by a manual
   swatch edit, a new import, or a swatch-count resize, since restoring a
   stale snapshot in any of those cases would either be meaningless or (for
   a resize) break the "one swatch per height level" invariant.
-- `originalSwatches` is captured once, on the *first* `APPLY_COLOR_STORY`
+- `originalSwatches` is captured once, on the _first_ `APPLY_COLOR_STORY`
   for a given import, and left untouched by later applies/undos -- it's
   the actual "where they started" anchor, so "Reset to default colors"
   (`RESET_TO_DEFAULT_COLORS`) always reaches it regardless of how many

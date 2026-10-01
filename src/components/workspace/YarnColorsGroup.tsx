@@ -24,6 +24,12 @@ interface Props {
    * are still available to restore. */
   canResetColors: boolean;
   onResetColors: () => void;
+  /** EXP-002: the step number shown in this group's own heading, kept in
+   * sync with the rail nav's position for this step (`Workspace.tsx`
+   * computes it from whichever step order the session is enrolled in).
+   * Defaults to '2', today's position, so existing render sites are
+   * unaffected. */
+  stepNumber?: string;
 }
 
 function toHex(c: RgbColor): string {
@@ -59,6 +65,7 @@ export function YarnColorsGroup({
   onUndoPalette,
   canResetColors,
   onResetColors,
+  stepNumber = '2',
 }: Props): JSX.Element {
   return (
     <div
@@ -67,7 +74,7 @@ export function YarnColorsGroup({
       aria-labelledby="color-heading"
     >
       <div className="section-intro">
-        <span className="section-number">2</span>
+        <span className="section-number">{stepNumber}</span>
         <div>
           <h3 id="color-heading">Choose your yarn</h3>
           <p>Start simple, then add a palette only if the design needs it.</p>

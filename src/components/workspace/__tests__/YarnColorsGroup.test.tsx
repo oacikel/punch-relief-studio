@@ -208,7 +208,9 @@ describe('YarnColorsGroup', () => {
     );
 
     expect(screen.queryByRole('button', { name: /Undo/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Reset to default colors/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Reset to default colors/ }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows "Undo <palette>" and calls onUndoPalette when clicked', async () => {

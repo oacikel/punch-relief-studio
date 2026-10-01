@@ -78,6 +78,12 @@ test.describe('Accessibility sweep (Iteration 03 Round 2 #5)', () => {
     await page.getByText('Concentric Ripple').click();
     await page.getByRole('button', { name: /Create my pattern/ }).click();
     await expect(page.getByRole('heading', { name: 'Make it punchable' })).toBeVisible();
+    // The active editor step fades in over 180ms. Axe evaluates the
+    // partially transparent foreground against the page background if it
+    // runs mid-animation, producing contrast failures that disappear as soon
+    // as the transition completes. Wait on the actual computed state rather
+    // than a fixed delay so this remains deterministic on slower CI runners.
+    await expect(page.locator('.editor-step-content')).toHaveCSS('opacity', '1');
     await expectNoViolations(page);
   });
 
