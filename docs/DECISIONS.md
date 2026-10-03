@@ -2694,7 +2694,7 @@ decisions worth recording:
    left to the next regeneration to resize.** `SET_COLOR_MODE`'s and
    `PROCESSING_SUCCEEDED`'s own by-height resize (`resizeSwatches`, see
    above) only know about `state.processed.levels.length`, which is
-   whatever the *previous* settings produced -- stale the instant a
+   whatever the _previous_ settings produced -- stale the instant a
    recipe also changes `levels`. `handleApplyRecipe` builds the palette's
    swatches directly at `recipe.reliefSettings.levels` length and applies
    them via `APPLY_COLOR_STORY` in the same handler, so the maker is never

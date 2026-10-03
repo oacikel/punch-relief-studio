@@ -225,7 +225,7 @@ describe('Workspace', () => {
       expect(screen.getByRole('heading', { name: 'Shape the relief' })).toBeInTheDocument();
     });
 
-    it('opens directly on the gated rail\'s Export step when a recipe just applied', () => {
+    it("opens directly on the gated rail's Export step when a recipe just applied", () => {
       render(<Workspace {...baseProps()} initialEditorStep="export" />);
       expect(screen.getByRole('button', { name: '3 Export' })).toHaveAttribute(
         'aria-current',
