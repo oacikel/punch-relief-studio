@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { BUILTIN_SAMPLES } from '@/domain/samples';
 import { validateFile } from '@/domain/import/validation';
 import { PreviewExpectations } from '@/components/stages/PreviewExpectations';
+import type { PatternRecipe } from '@/domain/pattern/recipes';
 
 interface Props {
   onSelectSample: (sampleId: string) => void;
@@ -176,6 +177,14 @@ interface OrientSectionProps {
    * it's told to. Defaults to false so every existing render site keeps its
    * current behaviour. */
   showPreviewExpectations?: boolean;
+  /** EXP-012 ("One-click pattern recipes"): named presets offered alongside
+   * the plain "Create my pattern" continue button, each applying a full
+   * shape+detail+palette combination and jumping straight to the Export
+   * block (`App.tsx`'s `handleApplyRecipe`) instead of the three manual
+   * Workspace steps. Defaults to empty so every existing render site
+   * (including tests) keeps today's single continue button. */
+  recipes?: PatternRecipe[];
+  onApplyRecipe?: (recipe: PatternRecipe) => void;
 }
 
 /** The post-load half of the merged Import/Orient stage: framing text
@@ -191,31 +200,56 @@ interface OrientSectionProps {
 export function ImportOrientSection({
   onContinue,
   showPreviewExpectations = false,
+  recipes = [],
+  onApplyRecipe,
 }: OrientSectionProps): JSX.Element {
   return (
-    <section
-      className={
-        showPreviewExpectations
-          ? 'stage-panel orient-actions orient-actions--expanded'
-          : 'stage-panel orient-actions'
-      }
-      aria-labelledby="orient-heading"
-    >
-      <div>
-        <p className="eyebrow">Almost there</p>
-        <h2 id="orient-heading">Is this the view you want?</h2>
-        {showPreviewExpectations ? (
-          <PreviewExpectations />
-        ) : (
-          <p className="helper-text">
-            The visible surface becomes your pattern. Hidden and back surfaces are not included, so
-            this is a single-viewpoint relief rather than a full 3D reconstruction.
-          </p>
-        )}
+    <section className="stage-panel orient-section" aria-labelledby="orient-heading">
+      <div
+        className={
+          showPreviewExpectations ? 'orient-actions orient-actions--expanded' : 'orient-actions'
+        }
+      >
+        <div>
+          <p className="eyebrow">Almost there</p>
+          <h2 id="orient-heading">Is this the view you want?</h2>
+          {showPreviewExpectations ? (
+            <PreviewExpectations />
+          ) : (
+            <p className="helper-text">
+              The visible surface becomes your pattern. Hidden and back surfaces are not included,
+              so this is a single-viewpoint relief rather than a full 3D reconstruction.
+            </p>
+          )}
+        </div>
+        <button className="primary-button" type="button" onClick={onContinue}>
+          Create my pattern &rarr;
+        </button>
       </div>
-      <button className="primary-button" type="button" onClick={onContinue}>
-        Create my pattern &rarr;
-      </button>
+
+      {recipes.length > 0 && onApplyRecipe && (
+        <div className="recipe-picker">
+          <p className="eyebrow">Or skip straight to export</p>
+          <h3>Start from a recipe</h3>
+          <p className="helper-text">
+            Each recipe presets the shape, punch detail and yarn colors in one click, then opens
+            straight on the Export step.
+          </p>
+          <div className="recipe-grid">
+            {recipes.map((recipe) => (
+              <button
+                className="recipe-card"
+                key={recipe.id}
+                type="button"
+                onClick={() => onApplyRecipe(recipe)}
+              >
+                <strong>{recipe.name}</strong>
+                <span className="helper-text">{recipe.description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

@@ -214,6 +214,39 @@ describe('Workspace', () => {
       expect(screen.getByText('Export & print')).toBeInTheDocument();
     });
   });
+
+  describe('EXP-012: one-click pattern recipes jump straight to Export', () => {
+    it('ignores initialEditorStep and keeps the Shape-first default when omitted', () => {
+      render(<Workspace {...baseProps()} />);
+      expect(screen.getByRole('button', { name: '1 Shape' })).toHaveAttribute(
+        'aria-current',
+        'step',
+      );
+      expect(screen.getByRole('heading', { name: 'Shape the relief' })).toBeInTheDocument();
+    });
+
+    it('opens directly on the gated rail\'s Export step when a recipe just applied', () => {
+      render(<Workspace {...baseProps()} initialEditorStep="export" />);
+      expect(screen.getByRole('button', { name: '3 Export' })).toHaveAttribute(
+        'aria-current',
+        'step',
+      );
+      expect(screen.queryByRole('heading', { name: 'Shape the relief' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Choose your yarn' })).not.toBeInTheDocument();
+      expect(screen.getByText(/Export options will appear as soon as/)).toBeInTheDocument();
+    });
+
+    it('still lets the maker step back to Shape/Yarn after landing on Export', async () => {
+      render(<Workspace {...baseProps()} initialEditorStep="export" />);
+      await userEvent.click(screen.getByRole('button', { name: '1 Shape' }));
+      expect(screen.getByRole('heading', { name: 'Shape the relief' })).toBeInTheDocument();
+    });
+
+    it('shows the real export panel immediately once a result already exists', () => {
+      render(<Workspace {...readyProps()} initialEditorStep="export" />);
+      expect(screen.getByText('Export & print')).toBeInTheDocument();
+    });
+  });
 });
 
 function makeRegionMap(): RegionMap {

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ImportStage, ImportOrientSection } from '../stages/ImportStage';
+import { PATTERN_RECIPES } from '@/domain/pattern/recipes';
 
 describe('ImportStage', () => {
   it('lists all built-in 3D samples below the shared importer', () => {
@@ -180,5 +181,42 @@ describe('ImportOrientSection', () => {
     // copy, never a gate in front of "Create my pattern".
     await userEvent.click(screen.getByRole('button', { name: /Create my pattern/i }));
     expect(onContinue).toHaveBeenCalledTimes(1);
+  });
+
+  // EXP-012 ("One-click pattern recipes"): named recipe cards are opt-in per
+  // render site, same as EXP-003's notice above -- every existing caller
+  // that doesn't pass `recipes` keeps today's plain continue button.
+  it('shows no recipe cards by default', () => {
+    render(<ImportOrientSection onContinue={vi.fn()} />);
+    expect(screen.queryByText('Start from a recipe')).toBeNull();
+  });
+
+  it('shows all five named recipe cards when recipes are supplied', () => {
+    render(
+      <ImportOrientSection
+        onContinue={vi.fn()}
+        recipes={PATTERN_RECIPES}
+        onApplyRecipe={vi.fn()}
+      />,
+    );
+    for (const recipe of PATTERN_RECIPES) {
+      expect(screen.getByRole('button', { name: new RegExp(recipe.name) })).toBeInTheDocument();
+    }
+  });
+
+  it('calls onApplyRecipe with the clicked recipe, not onContinue', async () => {
+    const onApplyRecipe = vi.fn();
+    const onContinue = vi.fn();
+    render(
+      <ImportOrientSection
+        onContinue={onContinue}
+        recipes={PATTERN_RECIPES}
+        onApplyRecipe={onApplyRecipe}
+      />,
+    );
+    const firstRecipe = PATTERN_RECIPES[0]!;
+    await userEvent.click(screen.getByRole('button', { name: new RegExp(firstRecipe.name) }));
+    expect(onApplyRecipe).toHaveBeenCalledWith(firstRecipe);
+    expect(onContinue).not.toHaveBeenCalled();
   });
 });
