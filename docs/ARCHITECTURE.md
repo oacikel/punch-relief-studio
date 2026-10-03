@@ -33,7 +33,9 @@ for why this one differs from the punch-guide precedent above),
 `pattern/labelPlacement.ts` (Iteration 03 Round 2: pure, deterministic
 region-label collision avoidance -- sorts candidates by area, nudges a
 colliding label through a small fixed ring search before dropping it
-entirely; see `docs/DECISIONS.md`), `projectSchema.ts`,
+entirely; see `docs/DECISIONS.md`), `pattern/recipes.ts` (EXP-012: five
+named `ReliefSettings`-patch + `color/palettes.ts` id presets, applied
+together in one click -- see `docs/DECISIONS.md`), `projectSchema.ts`,
 `filenameSanitize.ts`, `import/validation.ts`, `samples/*` (the 3
 built-in fixtures, as plain mesh data).
 

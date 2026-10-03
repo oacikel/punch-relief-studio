@@ -70,6 +70,15 @@ interface Props {
    * what it's told to. Defaults to false so every existing render site
    * (including tests) keeps today's gated rail. */
   expressLane?: boolean;
+  /** EXP-012 ("One-click pattern recipes"): which gated-rail step this
+   * Workspace mount should open on, read once at mount (same lazy-init
+   * pattern as `moveYarnColorsEarlier` below) -- set by `App.tsx` for the
+   * one render where a recipe card just navigated here, so the maker lands
+   * straight on Export instead of Shape/Yarn. Undefined (the default)
+   * keeps today's `moveYarnColorsEarlier`-driven starting step; has no
+   * effect under `expressLane`, which already renders every step
+   * unconditionally. */
+  initialEditorStep?: EditorStep;
   reliefSettings: ReliefSettings;
   onReliefSettingsChange: (patch: Partial<ReliefSettings>) => void;
   processed: ProcessedForDisplay | null;
@@ -158,6 +167,7 @@ export function Workspace({
   sourceImageUrl = null,
   moveYarnColorsEarlier = false,
   expressLane = false,
+  initialEditorStep,
   reliefSettings,
   onReliefSettingsChange,
   processed,
@@ -207,7 +217,7 @@ export function Workspace({
   // since resolved `moveYarnColorsEarlier`.
   const editorSteps = moveYarnColorsEarlier ? EDITOR_STEPS_EARLIER : EDITOR_STEPS_CONTROL;
   const [editorStep, setEditorStep] = useState<EditorStep>(
-    moveYarnColorsEarlier ? 'color' : 'shape',
+    initialEditorStep ?? (moveYarnColorsEarlier ? 'color' : 'shape'),
   );
   const { showOnScreenLabels, punchGuide } = patternViewSettings;
   const editorStepIndex = editorSteps.findIndex((step) => step.id === editorStep);

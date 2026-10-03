@@ -214,6 +214,29 @@ only after clicking into its step).
   a maker sees isn't personal data; branching that on consent would make
   the two builds' populations differ by more than the layout.
 
+## EXP-012: "One-click pattern recipes that preset shape, detail and yarn palette"
+
+Hypothesis: presetting "Shape the relief", "Punch detail" and a yarn color
+story together (`src/domain/pattern/recipes.ts`'s five named cards, applied
+via `App.tsx`'s `handleApplyRecipe`) removes most of a maker's setup time
+between importing a model and exporting a pattern. Unlike EXP-011, this is
+a **single build, not a variant split** -- every maker recruited for this
+task brief sees the same recipe cards, same posture as EXP-007's
+standalone release and EXP-010's unconditional ship (see docs/DECISIONS.md).
+
+- **No new assignment module, no new events or fields.** The target
+  metric -- time from `project_created` to the first `export_succeeded` --
+  is exactly the existing funnel. A maker reaching this build via a
+  `?exp=EXP-012` link gets `experimentRef: 'EXP-012'` on every product
+  event from `captureLandingContext()`'s existing, experiment-agnostic
+  `?exp=`/`v=` landing parser (`src/analytics/source.ts`) -- the same
+  generic mechanism EXP-002/EXP-003/EXP-011 already rely on. Where ingest
+  isn't configured for the test build, the task brief's own collection
+  plan falls back to a stopwatch during moderated screen-share sessions.
+- **Consent gates the measurement, not the recipe cards.** Which build a
+  maker sees isn't personal data; branching that on consent would make the
+  measured and unmeasured populations differ by more than this feature.
+
 ## Transport and offline behavior
 
 - Events queue in a capped (~200), `localStorage`-backed queue
