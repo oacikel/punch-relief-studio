@@ -5,7 +5,14 @@ import {
   MIN_REGION_PRESET_ORDER,
   type MinRegionPreset,
 } from '@/domain/pattern/minRegionPreset';
-import type { ImageDetailSettings, NeedleGeometry, PatternDimensions } from '@/state/appState';
+import {
+  DEFAULT_DETAIL_SENSITIVITY,
+  DEFAULT_DETAIL_STRICTNESS,
+  DEFAULT_DETAIL_THICKNESS,
+  type ImageDetailSettings,
+  type NeedleGeometry,
+  type PatternDimensions,
+} from '@/state/appState';
 import { DecimalNumberInput } from '@/components/DecimalNumberInput';
 import { PatternSizeFields } from '@/components/PatternSizeFields';
 
@@ -84,6 +91,76 @@ export function ImageShapeControls({
           Slightly enlarges high-contrast details that would otherwise disappear.
         </p>
       </div>
+
+      {imageDetailSettings.preserveSmallDetails && (
+        <div className="detail-threshold-fields">
+          <div className="field">
+            <label htmlFor="image-detail-sensitivity">
+              Detail sensitivity (
+              {imageDetailSettings.detailSensitivity ?? DEFAULT_DETAIL_SENSITIVITY})
+            </label>
+            <input
+              id="image-detail-sensitivity"
+              type="range"
+              min={10}
+              max={80}
+              step={1}
+              value={imageDetailSettings.detailSensitivity ?? DEFAULT_DETAIL_SENSITIVITY}
+              onChange={(event) =>
+                onImageDetailSettingsChange({ detailSensitivity: Number(event.target.value) })
+              }
+            />
+            <p className="helper-text">
+              How much a mark must stand out in brightness from its surroundings to be kept.
+            </p>
+          </div>
+
+          <div className="field">
+            <label htmlFor="image-detail-strictness">
+              Detail strictness (
+              {Math.round(
+                (imageDetailSettings.detailStrictness ?? DEFAULT_DETAIL_STRICTNESS) * 100,
+              )}
+              %)
+            </label>
+            <input
+              id="image-detail-strictness"
+              type="range"
+              min={0.1}
+              max={0.95}
+              step={0.05}
+              value={imageDetailSettings.detailStrictness ?? DEFAULT_DETAIL_STRICTNESS}
+              onChange={(event) =>
+                onImageDetailSettingsChange({ detailStrictness: Number(event.target.value) })
+              }
+            />
+            <p className="helper-text">
+              How much of a mark's surroundings must contrast strongly for it to be kept.
+            </p>
+          </div>
+
+          <div className="field">
+            <label htmlFor="image-detail-thickness">
+              Detail thickness (
+              {imageDetailSettings.detailThickness ?? DEFAULT_DETAIL_THICKNESS})
+            </label>
+            <input
+              id="image-detail-thickness"
+              type="range"
+              min={0}
+              max={5}
+              step={1}
+              value={imageDetailSettings.detailThickness ?? DEFAULT_DETAIL_THICKNESS}
+              onChange={(event) =>
+                onImageDetailSettingsChange({ detailThickness: Number(event.target.value) })
+              }
+            />
+            <p className="helper-text">
+              How much extra width a kept detail gets beyond the usual cleanup radius.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="field">
         <label htmlFor="image-smoothing">

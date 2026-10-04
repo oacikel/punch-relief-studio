@@ -25,7 +25,14 @@ import { applyPaletteToSwatches, getPaletteById } from '@/domain/color/palettes'
 import { buildLegend } from '@/domain/pattern/legend';
 import { useProcessingWorker, type ProcessArgs } from '@/hooks/useProcessingWorker';
 import { useLiveRelief } from '@/hooks/useLiveRelief';
-import { appReducer, initialAppState, DEFAULT_SINGLE_COLOR } from '@/state/appState';
+import {
+  appReducer,
+  initialAppState,
+  DEFAULT_SINGLE_COLOR,
+  DEFAULT_DETAIL_SENSITIVITY,
+  DEFAULT_DETAIL_STRICTNESS,
+  DEFAULT_DETAIL_THICKNESS,
+} from '@/state/appState';
 import { DEFAULT_PUNCH_GUIDE_SPACING_CM } from '@/domain/pattern/punchGuide';
 import { workflowReducer, initialWorkflowState } from '@/state/workflow';
 import { loadProfiles } from '@/persistence/calibrationStore';
@@ -390,6 +397,9 @@ export default function App(): JSX.Element {
           needleGeometry: state.needleGeometry,
           patternDimensions: state.patternDimensions,
           preserveSmallDetails: state.imageDetailSettings.preserveSmallDetails,
+          detailSensitivity: state.imageDetailSettings.detailSensitivity,
+          detailStrictness: state.imageDetailSettings.detailStrictness,
+          detailThickness: state.imageDetailSettings.detailThickness,
         },
       })
         .then((result) => {
@@ -451,6 +461,9 @@ export default function App(): JSX.Element {
     state.needleGeometry,
     state.patternDimensions,
     state.imageDetailSettings.preserveSmallDetails,
+    state.imageDetailSettings.detailSensitivity,
+    state.imageDetailSettings.detailStrictness,
+    state.imageDetailSettings.detailThickness,
     markPatternCompletedIfFirst,
   ]);
 
@@ -574,7 +587,12 @@ export default function App(): JSX.Element {
     dispatch({ type: 'SET_RENDER_SETTINGS', settings: project.renderSettings });
     dispatch({
       type: 'SET_IMAGE_DETAIL_SETTINGS',
-      settings: project.imageDetailSettings ?? { preserveSmallDetails: true },
+      settings: project.imageDetailSettings ?? {
+        preserveSmallDetails: true,
+        detailSensitivity: DEFAULT_DETAIL_SENSITIVITY,
+        detailStrictness: DEFAULT_DETAIL_STRICTNESS,
+        detailThickness: DEFAULT_DETAIL_THICKNESS,
+      },
     });
     // Iteration 04 schema decision: old (pre-Iteration-04) project files
     // never have `needleGeometry` -- default explicitly to "not set" rather

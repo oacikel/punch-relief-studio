@@ -14,10 +14,20 @@ import {
   type PunchGuideSettings,
 } from '@/domain/pattern/punchGuide';
 import { DEFAULT_NEEDLE_GEOMETRY, type NeedleGeometry } from '@/domain/pattern/needleGeometry';
-import type { ImageDetailSettings } from '@/domain/image/simplifyImage';
+import {
+  DEFAULT_DETAIL_SENSITIVITY,
+  DEFAULT_DETAIL_STRICTNESS,
+  DEFAULT_DETAIL_THICKNESS,
+  type ImageDetailSettings,
+} from '@/domain/image/simplifyImage';
 
 export type { NeedleGeometry } from '@/domain/pattern/needleGeometry';
 export type { ImageDetailSettings } from '@/domain/image/simplifyImage';
+export {
+  DEFAULT_DETAIL_SENSITIVITY,
+  DEFAULT_DETAIL_STRICTNESS,
+  DEFAULT_DETAIL_THICKNESS,
+} from '@/domain/image/simplifyImage';
 
 export type { PunchGuideMode, PunchGuideSettings } from '@/domain/pattern/punchGuide';
 
@@ -249,7 +259,12 @@ export function initialAppState(): AppState {
     calibrationProfile: createDefaultProfile(),
     savedProfiles: [],
     patternDimensions: { widthCm: 20, heightCm: 20, lockAspect: true },
-    imageDetailSettings: { preserveSmallDetails: true },
+    imageDetailSettings: {
+      preserveSmallDetails: true,
+      detailSensitivity: DEFAULT_DETAIL_SENSITIVITY,
+      detailStrictness: DEFAULT_DETAIL_STRICTNESS,
+      detailThickness: DEFAULT_DETAIL_THICKNESS,
+    },
     renderSettings: {
       pileStyle: 'loop',
       density: 0.6,
