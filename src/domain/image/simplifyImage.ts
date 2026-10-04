@@ -7,6 +7,16 @@ import type { NeedleGeometry } from '@/domain/pattern/needleGeometry';
 
 export interface ImageDetailSettings {
   preserveSmallDetails: boolean;
+  /** Luminance-contrast floor a pixel must clear, relative to its local
+   * neighborhood, to be considered a deliberate mark. Defaults to
+   * `DEFAULT_DETAIL_SENSITIVITY`. */
+  detailSensitivity?: number;
+  /** Required share of strongly-different neighbors for a pixel to be
+   * considered a deliberate mark. Defaults to `DEFAULT_DETAIL_STRICTNESS`. */
+  detailStrictness?: number;
+  /** Extra grow layers added on top of the cleanup radius when widening a
+   * preserved mark. Defaults to `DEFAULT_DETAIL_THICKNESS`. */
+  detailThickness?: number;
 }
 
 export interface ImageSimplificationSettings {
@@ -18,6 +28,9 @@ export interface ImageSimplificationSettings {
   needleGeometry: NeedleGeometry;
   patternDimensions: { widthCm: number; heightCm: number };
   preserveSmallDetails: boolean;
+  detailSensitivity?: number;
+  detailStrictness?: number;
+  detailThickness?: number;
 }
 
 export interface SimplifiedImage {
@@ -90,6 +103,9 @@ export function simplifyImage(
         height,
         quantized.palette,
         radius,
+        settings.detailSensitivity ?? DEFAULT_DETAIL_SENSITIVITY,
+        settings.detailStrictness ?? DEFAULT_DETAIL_STRICTNESS,
+        settings.detailThickness ?? DEFAULT_DETAIL_THICKNESS,
       )
     : { assignment: quantized.assignment, protectedMask: undefined };
   let colorIndex = mergeSmallColorRegions(
@@ -132,14 +148,16 @@ export function simplifyImage(
 // Quantization can turn a tiny white mark into a mid-grey yarn swatch; a
 // threshold around 30 discarded those still-obvious marks in the real star
 // artwork used as the regression case.
-const MIN_PROTECTED_LUMINANCE_CONTRAST = 38;
+export const DEFAULT_DETAIL_SENSITIVITY = 38;
+export const DEFAULT_DETAIL_STRICTNESS = 0.55;
+export const DEFAULT_DETAIL_THICKNESS = 0;
 
 /**
  * Preserve deliberate marks without bringing ordinary tonal texture back
  * into the pattern. Pixels that strongly differ in luminance from a local
  * 5×5 neighborhood are restored from the original image after smoothing and
  * color quantization. They are then widened by the configured cleanup radius
- * and exempted from the whole-region area merge.
+ * (plus `extraGrowLayers`) and exempted from the whole-region area merge.
  * This intentionally changes their scale: a tiny star that cannot be
  * punched literally is represented by a slightly larger star instead of
  * being silently deleted.
@@ -152,6 +170,9 @@ function preserveHighContrastSourceDetails(
   height: number,
   palette: RgbColor[],
   cleanupRadius: number,
+  minProtectedLuminanceContrast: number,
+  requiredStronglyDifferentShare: number,
+  extraGrowLayers: number,
 ): { assignment: Int16Array; protectedMask: Uint8Array } {
   const result = input.slice();
   const labs = palette.map(rgbToLab);
@@ -185,8 +206,8 @@ function preserveHighContrastSourceDetails(
     if (neighborCount === 0) continue;
     const contrast = Math.abs(sourceLuminance - neighborLuminance / neighborCount);
     if (
-      contrast < MIN_PROTECTED_LUMINANCE_CONTRAST ||
-      stronglyDifferentNeighbors / neighborCount < 0.55
+      contrast < minProtectedLuminanceContrast ||
+      stronglyDifferentNeighbors / neighborCount < requiredStronglyDifferentShare
     ) {
       continue;
     }
@@ -217,7 +238,7 @@ function preserveHighContrastSourceDetails(
     protectedMask[seed.pixel] = 1;
   }
 
-  const layersToGrow = Math.max(cleanupRadius, 1);
+  const layersToGrow = Math.max(cleanupRadius, 1) + extraGrowLayers;
   for (const seed of seeds) {
     let frontier = [seed.pixel];
     for (let layer = 0; layer < layersToGrow && frontier.length > 0; layer++) {
