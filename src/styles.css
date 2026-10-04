@@ -453,6 +453,17 @@ select:focus-visible {
   align-items: flex-end;
 }
 
+/* EXP-012 wraps `.orient-actions` in its own `.stage-panel` so the recipe
+   picker can sit below it; keep the original 14px top inset instead of
+   stacking the panel padding on top of it. */
+.orient-section {
+  padding-top: 14px;
+}
+
+.orient-section > .orient-actions {
+  padding-top: 0;
+}
+
 /* EXP-012 ("One-click pattern recipes"): a named-preset gallery alongside
    the plain "Create my pattern" continue button above -- same `.sample-grid`/
    `.sample-card` layout convention the Import picker's built-in-sample grid
