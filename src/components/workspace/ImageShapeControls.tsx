@@ -141,8 +141,7 @@ export function ImageShapeControls({
 
           <div className="field">
             <label htmlFor="image-detail-thickness">
-              Detail thickness (
-              {imageDetailSettings.detailThickness ?? DEFAULT_DETAIL_THICKNESS})
+              Detail thickness ({imageDetailSettings.detailThickness ?? DEFAULT_DETAIL_THICKNESS})
             </label>
             <input
               id="image-detail-thickness"
