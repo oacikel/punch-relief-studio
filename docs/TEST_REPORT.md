@@ -1080,3 +1080,42 @@ exists); and `e2e/express-lane.spec.ts` (no link, the `rail` link, and the
 A future networked session should run `npm install && npm run verify`
 (and `npm run test:e2e` where a browser is available) and update this
 section with the actual results.
+
+## Session 17: EXP-012, one-click pattern recipes (sandboxed, not executed)
+
+Same constraint as Sessions 13/14/16 above: this worktree had no
+`node_modules`, and installing was outside this session's allowed actions
+(no network access; running `npm install` was explicitly denied), so none
+of `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`, or
+`npm run test:e2e` could be run or their output captured here.
+
+Implemented EXP-012 ("One-click pattern recipes that preset shape, detail
+and yarn palette"): `src/domain/pattern/recipes.ts` (new -- five named
+presets, each a `ReliefSettings` patch plus a `color/palettes.ts` id),
+`src/components/stages/ImportStage.tsx`'s `ImportOrientSection` (new
+"Start from a recipe" card gallery, opt-in via `recipes`/`onApplyRecipe`
+props so every existing render site is unaffected), `src/components/
+workspace/Workspace.tsx` (new `initialEditorStep` prop, read once by the
+existing lazy `editorStep` `useState` init), and `App.tsx`'s
+`handleApplyRecipe` (applies the recipe's relief settings + by-height
+palette swatches in one dispatch sequence, then flags the next Workspace
+mount to open on Export via a one-shot `recipeJumpToExport` state + reset
+effect). `docs/ARCHITECTURE.md`, `docs/ANALYTICS.md` and `docs/DECISIONS.md`
+were updated accordingly.
+
+Tests were authored alongside the change but are unexecuted, reviewed by
+hand against this codebase's existing patterns rather than run:
+`src/domain/pattern/__tests__/recipes.test.ts` (five unique, valid
+recipes); a new `describe` block in `src/components/__tests__/
+ImportStage.test.tsx` (no cards by default, all five shown and wired to
+`onApplyRecipe` rather than `onContinue` when supplied); a new `describe`
+block in `src/components/workspace/__tests__/Workspace.test.tsx`
+(`initialEditorStep` ignored by default, opens on Export and hides Shape/
+Yarn when set, Back navigation still reachable, real export panel shown
+once a result exists); and `e2e/pattern-recipes.spec.ts` (a recipe card
+end-to-end through a real sample import, plus the plain continue button's
+unchanged Shape-first behavior).
+
+A future networked session should run `npm install && npm run verify`
+(and `npm run test:e2e` where a browser is available) and update this
+section with the actual results.

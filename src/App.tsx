@@ -23,6 +23,7 @@ import { parseObjWithAssets } from '@/domain/import/objLoader';
 import { assignSingleColor, assignColorByHeight } from '@/domain/color/colorMode';
 import { applyPaletteToSwatches, getPaletteById } from '@/domain/color/palettes';
 import { buildLegend } from '@/domain/pattern/legend';
+import { PATTERN_RECIPES, type PatternRecipe } from '@/domain/pattern/recipes';
 import { useProcessingWorker, type ProcessArgs } from '@/hooks/useProcessingWorker';
 import { useLiveRelief } from '@/hooks/useLiveRelief';
 import { appReducer, initialAppState, DEFAULT_SINGLE_COLOR } from '@/state/appState';
@@ -93,6 +94,19 @@ export default function App(): JSX.Element {
   // current URL as well as any cached landing context, so it applies
   // whether or not analytics is configured for this test build.
   const [expressLane, setExpressLane] = useState(false);
+
+  // EXP-012 ("One-click pattern recipes"): true for exactly the one render
+  // where a recipe card just applied its shape/detail/palette preset and
+  // navigated to Workspace -- read once by Workspace's lazy `editorStep`
+  // init (see its `initialEditorStep` prop) so that mount opens straight on
+  // Export instead of Shape/Yarn. The effect below flips it back to false
+  // immediately after that render commits, so a later, unrelated
+  // Import<->Workspace navigation (e.g. via ModelBar's "Change" link)
+  // doesn't also jump to Export.
+  const [recipeJumpToExport, setRecipeJumpToExport] = useState(false);
+  useEffect(() => {
+    if (recipeJumpToExport) setRecipeJumpToExport(false);
+  }, [recipeJumpToExport]);
 
   // T10 analytics: a no-op unless VITE_VP_INGEST_URL/VITE_VP_PROJECT_TOKEN
   // are set at build time -- see src/analytics/config.ts and
@@ -292,6 +306,35 @@ export default function App(): JSX.Element {
       setImportWarning(err instanceof Error ? err.message : 'Could not import this image.');
     }
   };
+
+  // EXP-012 ("One-click pattern recipes"): applies a recipe's shape
+  // (levels/intensity/smoothingStrength), detail (minRegionPreset) and
+  // palette settings in one click, then jumps straight to the Export step
+  // -- see ImportOrientSection's "Start from a recipe" cards. Builds the
+  // palette's swatches directly at `recipe.reliefSettings.levels` length
+  // (rather than dispatching SET_COLOR_MODE and waiting for the next
+  // relief regeneration to resize them) because the two need to be applied
+  // together in the same tick, before the maker ever sees a mismatched
+  // intermediate state. Does not touch `sourceKind`/mark a new project --
+  // a recipe presets an already-imported model's settings, it doesn't
+  // replace the import itself.
+  const handleApplyRecipe = useCallback((recipe: PatternRecipe): void => {
+    const palette = getPaletteById(recipe.paletteId);
+    if (!palette) return;
+    dispatch({ type: 'SET_RELIEF_SETTINGS', settings: recipe.reliefSettings });
+    dispatch({ type: 'SET_COLOR_MODE', mode: 'by-height' });
+    const placeholderSwatches: ColorSwatch[] = Array.from(
+      { length: recipe.reliefSettings.levels },
+      (_, i) => ({ index: i, color: DEFAULT_SINGLE_COLOR, yarnName: `Yarn ${i + 1}` }),
+    );
+    dispatch({
+      type: 'APPLY_COLOR_STORY',
+      paletteId: palette.id,
+      swatches: applyPaletteToSwatches(placeholderSwatches, palette),
+    });
+    setRecipeJumpToExport(true);
+    dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' });
+  }, []);
 
   // Live regeneration (Iteration 03's combined-workspace change -- see
   // docs/ITERATION_03_PLAN.md #13 and docs/DECISIONS.md), replacing the
@@ -730,6 +773,8 @@ export default function App(): JSX.Element {
               <ImportOrientSection
                 onContinue={() => dispatchWorkflow({ type: 'GO_TO_STAGE', stage: 'workspace' })}
                 showPreviewExpectations={previewExpectationsEnabled}
+                recipes={PATTERN_RECIPES}
+                onApplyRecipe={handleApplyRecipe}
               />
             )}
 
@@ -739,6 +784,7 @@ export default function App(): JSX.Element {
               sourceImageUrl={imagePreviewUrl}
               moveYarnColorsEarlier={moveYarnColorsEarlier}
               expressLane={expressLane}
+              {...(recipeJumpToExport ? { initialEditorStep: 'export' as const } : {})}
               reliefSettings={state.reliefSettings}
               onReliefSettingsChange={(patch) =>
                 dispatch({ type: 'SET_RELIEF_SETTINGS', settings: patch })

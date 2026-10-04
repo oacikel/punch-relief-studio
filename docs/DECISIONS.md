@@ -2665,3 +2665,73 @@ measurement). Three decisions worth recording:
 No new analytics events or fields; measured from the existing
 `export_succeeded`/`export_failed` events, split by `variant`, exactly as
 the task brief's collection plan describes.
+
+## EXP-012: "One-click pattern recipes that preset shape, detail and yarn palette"
+
+Task brief: find out whether presetting "Shape the relief" (levels/
+intensity/smoothing), "Punch detail" (`minRegionPreset`) and a yarn color
+story together removes most of a maker's setup time, by recruiting 10-12
+makers directly and handing each a link to a single build (not an A/B
+split -- see below) with five named recipe cards. Implementation:
+`src/domain/pattern/recipes.ts` (the five-recipe dataset) plus
+`ImportOrientSection` (`src/components/stages/ImportStage.tsx`, the
+"Start from a recipe" cards) and `App.tsx`'s `handleApplyRecipe`. Four
+decisions worth recording:
+
+1. **Recipes preset settings, not the artwork.** "Shape, detail and
+   palette" is exactly the vocabulary `ReliefControls.tsx` already uses
+   ("Shape the relief" for levels/intensity, "Smallest punchable region"
+   for `minRegionPreset`) for an already-imported model's settings -- not
+   the model/image choice itself. So the cards render in
+   `ImportOrientSection`, which only mounts once `workflow.hasModel` is
+   true, after the maker has picked a sample or dropped their own file,
+   the same way `ReliefControls`/`YarnColorsGroup` only ever configure
+   whatever source is already loaded. A recipe click never dispatches
+   `SET_SOURCE` and never calls `markProjectCreated` again -- it's a
+   shortcut through the Workspace rail's existing settings, not a second
+   import.
+2. **Swatches are built explicitly at the recipe's own level count, not
+   left to the next regeneration to resize.** `SET_COLOR_MODE`'s and
+   `PROCESSING_SUCCEEDED`'s own by-height resize (`resizeSwatches`, see
+   above) only know about `state.processed.levels.length`, which is
+   whatever the _previous_ settings produced -- stale the instant a
+   recipe also changes `levels`. `handleApplyRecipe` builds the palette's
+   swatches directly at `recipe.reliefSettings.levels` length and applies
+   them via `APPLY_COLOR_STORY` in the same handler, so the maker is never
+   shown a mismatched intermediate palette while the next relief
+   regenerates in the background. If the eventual regeneration does
+   produce a different level count than the recipe asked for, the
+   existing resize fallback (pad with `DEFAULT_PALETTE` colors) applies
+   exactly as it would for any manual settings change -- not a new risk
+   this experiment introduces.
+3. **"Jump straight to the export block" reuses the gated rail's own
+   step, rather than forcing EXP-011's express layout.** A new `Workspace`
+   prop, `initialEditorStep`, lets `App.tsx` open the very next Workspace
+   mount directly on the `'export'` step instead of `'shape'`/`'color'` --
+   same lazy-`useState`-init mechanism `moveYarnColorsEarlier` already
+   uses for its own starting step. `App.tsx` tracks this as a one-shot
+   `recipeJumpToExport` flag: true for exactly the render where a recipe
+   just navigated to Workspace, flipped back to false by an effect
+   immediately after, so a later, unrelated Import<->Workspace trip (e.g.
+   via `ModelBar`'s "Change" link) doesn't also jump to Export. This is
+   deliberately independent of EXP-011's `expressLane` -- a recipe still
+   skips straight to Export under the gated rail's Back/Continue nav
+   (Shape and Yarn are simply not the step you land on, not removed), and
+   the two experiments compose without conflict if a session somehow
+   landed in both.
+4. **Single build, not a variant split.** The task brief hands every
+   recruited maker the same build -- there is no treatment/control second
+   arm to compare against concurrently, same posture as EXP-007's
+   standalone release and EXP-010's unconditional ship. No new assignment
+   module was added: a maker reaching this build via a `?exp=EXP-012` link
+   already gets `experimentRef: 'EXP-012'` on every product event from
+   `captureLandingContext()`'s existing, experiment-agnostic `?exp=`/`v=`
+   parser (`src/analytics/source.ts`) -- the same generic mechanism
+   EXP-002/EXP-003/EXP-011 already rely on, with no per-experiment variant
+   logic needed here since there's only the one build.
+
+No new analytics events: "time from `project_created` to the first
+`export_succeeded`" is exactly the existing funnel, read directly from
+those events where ingest is configured for the test build, and by
+stopwatch during moderated screen-share sessions otherwise, per the task
+brief's own collection plan.
