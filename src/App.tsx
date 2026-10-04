@@ -397,9 +397,10 @@ export default function App(): JSX.Element {
           needleGeometry: state.needleGeometry,
           patternDimensions: state.patternDimensions,
           preserveSmallDetails: state.imageDetailSettings.preserveSmallDetails,
-          detailSensitivity: state.imageDetailSettings.detailSensitivity,
-          detailStrictness: state.imageDetailSettings.detailStrictness,
-          detailThickness: state.imageDetailSettings.detailThickness,
+          detailSensitivity:
+            state.imageDetailSettings.detailSensitivity ?? DEFAULT_DETAIL_SENSITIVITY,
+          detailStrictness: state.imageDetailSettings.detailStrictness ?? DEFAULT_DETAIL_STRICTNESS,
+          detailThickness: state.imageDetailSettings.detailThickness ?? DEFAULT_DETAIL_THICKNESS,
         },
       })
         .then((result) => {
