@@ -1,7 +1,30 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ImportStage, ImportOrientSection } from '../stages/ImportStage';
+import { TWO_D_STARTERS } from '@/image/starterImages';
+
+function stubCanvasDrawing(): void {
+  const fakeContext = {
+    fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 0,
+    fillRect: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
+  } as unknown as CanvasRenderingContext2D;
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(fakeContext);
+  vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (
+    this: HTMLCanvasElement,
+    callback: (blob: Blob | null) => void,
+  ) {
+    callback(new Blob(['fake-png-bytes'], { type: 'image/png' }));
+  });
+}
 
 describe('ImportStage', () => {
   it('lists all built-in 3D samples below the shared importer', () => {
@@ -143,6 +166,80 @@ describe('ImportStage', () => {
       texture,
     ]);
     expect(onFilesSelected).toHaveBeenCalledWith([obj, texture]);
+  });
+
+  describe('2D starters', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('lists at least three license-clean 2D starters in their own labelled group', () => {
+      render(
+        <ImportStage
+          onSelectSample={vi.fn()}
+          onFilesSelected={vi.fn()}
+          onImageSelected={vi.fn()}
+          hasModel={false}
+          loadedModelLabel={null}
+        />,
+      );
+      expect(screen.getByText('2D starters')).toBeInTheDocument();
+      expect(TWO_D_STARTERS.length).toBeGreaterThanOrEqual(3);
+      for (const starter of TWO_D_STARTERS) {
+        expect(screen.getByText(starter.name)).toBeInTheDocument();
+      }
+    });
+
+    it('gives every 2D starter a visible thumbnail', () => {
+      const { container } = render(
+        <ImportStage
+          onSelectSample={vi.fn()}
+          onFilesSelected={vi.fn()}
+          onImageSelected={vi.fn()}
+          hasModel={false}
+          loadedModelLabel={null}
+        />,
+      );
+      const thumbnails = container.querySelectorAll('.starter-card__thumb');
+      expect(thumbnails.length).toBe(TWO_D_STARTERS.length);
+    });
+
+    it('states the starters are originals and free to use', () => {
+      render(
+        <ImportStage
+          onSelectSample={vi.fn()}
+          onFilesSelected={vi.fn()}
+          onImageSelected={vi.fn()}
+          hasModel={false}
+          loadedModelLabel={null}
+        />,
+      );
+      expect(screen.getByText(/original starter art/i)).toBeInTheDocument();
+      expect(screen.getByText(/free to use/i)).toBeInTheDocument();
+    });
+
+    it('routes a selected 2D starter through the same image path as a dropped file', async () => {
+      stubCanvasDrawing();
+      const onImageSelected = vi.fn();
+      render(
+        <ImportStage
+          onSelectSample={vi.fn()}
+          onFilesSelected={vi.fn()}
+          onImageSelected={onImageSelected}
+          hasModel={false}
+          loadedModelLabel={null}
+        />,
+      );
+      const starter = TWO_D_STARTERS[0];
+      expect(starter).toBeDefined();
+      await userEvent.click(screen.getByText(starter!.name));
+      expect(onImageSelected).toHaveBeenCalledTimes(1);
+      const call = onImageSelected.mock.calls[0];
+      expect(call).toBeDefined();
+      const [file] = call!;
+      expect(file).toBeInstanceOf(File);
+      expect((file as File).type).toBe('image/png');
+    });
   });
 });
 

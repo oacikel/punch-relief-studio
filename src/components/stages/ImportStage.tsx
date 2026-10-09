@@ -1,7 +1,27 @@
 import { useRef, useState } from 'react';
 import { BUILTIN_SAMPLES } from '@/domain/samples';
+import {
+  TWO_D_STARTERS,
+  createStarterImageFile,
+  getTwoDStarterById,
+  type Starter2D,
+} from '@/image/starterImages';
 import { validateFile } from '@/domain/import/validation';
 import { PreviewExpectations } from '@/components/stages/PreviewExpectations';
+
+/** Rendered once per starter, large enough to be a legible thumbnail. The
+ * same `draw` function is reused at full size in `createStarterImageFile`. */
+const STARTER_THUMBNAIL_PX = 96;
+const STARTER_IMAGE_PX = 512;
+
+function drawStarterThumbnail(canvas: HTMLCanvasElement | null, starter: Starter2D): void {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  starter.draw(ctx, canvas.width);
+}
 
 interface Props {
   onSelectSample: (sampleId: string) => void;
@@ -78,6 +98,18 @@ export function ImportStage({
     }
   };
 
+  const handleSelectStarter = async (starterId: string): Promise<void> => {
+    const starter = getTwoDStarterById(starterId);
+    if (!starter) return;
+    try {
+      const file = await createStarterImageFile(starter, STARTER_IMAGE_PX);
+      setError(null);
+      onImageSelected(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load this starter.');
+    }
+  };
+
   return (
     <section className="stage-panel" aria-labelledby="import-heading">
       <p className="eyebrow">Start a new pattern</p>
@@ -141,20 +173,51 @@ export function ImportStage({
           </div>
 
           <div className="section-divider">
-            <span>or try a 3D sample</span>
+            <span>or try a sample</span>
           </div>
-          <div className="sample-grid">
-            {BUILTIN_SAMPLES.map((sample) => (
-              <button
-                className="sample-card"
-                key={sample.id}
-                type="button"
-                onClick={() => onSelectSample(sample.id)}
-              >
-                <strong>{sample.name}</strong>
-                <span className="helper-text">{sample.description}</span>
-              </button>
-            ))}
+          <div className="sample-groups">
+            <div className="sample-group">
+              <h3 className="sample-group__heading">3D samples</h3>
+              <div className="sample-grid">
+                {BUILTIN_SAMPLES.map((sample) => (
+                  <button
+                    className="sample-card"
+                    key={sample.id}
+                    type="button"
+                    onClick={() => onSelectSample(sample.id)}
+                  >
+                    <strong>{sample.name}</strong>
+                    <span className="helper-text">{sample.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="sample-group">
+              <h3 className="sample-group__heading">2D starters</h3>
+              <p className="helper-text">
+                Original starter art, generated in code -- free to use, no licensing concerns.
+              </p>
+              <div className="sample-grid">
+                {TWO_D_STARTERS.map((starter) => (
+                  <button
+                    className="sample-card starter-card"
+                    key={starter.id}
+                    type="button"
+                    onClick={() => void handleSelectStarter(starter.id)}
+                  >
+                    <canvas
+                      className="starter-card__thumb"
+                      width={STARTER_THUMBNAIL_PX}
+                      height={STARTER_THUMBNAIL_PX}
+                      aria-hidden="true"
+                      ref={(node) => drawStarterThumbnail(node, starter)}
+                    />
+                    <strong>{starter.name}</strong>
+                    <span className="helper-text">{starter.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </details>
